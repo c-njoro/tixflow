@@ -9,6 +9,9 @@ const ALLOWED_ROLES = ['admin', 'scanner_staff'];
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
+  if (session.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admins can view or manage staff.' });
+  }
 
   if (req.method === 'GET') {
     const staff = await prisma.user.findMany({
@@ -20,10 +23,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    if (session.role !== 'admin') {
-      return res.status(403).json({ error: 'Only admins can add staff accounts.' });
-    }
-
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are all required.' });
@@ -36,8 +35,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      // Email uniqueness is enforced globally (User.email is a unique field),
-      // not just within this tenant — matches how tenant registration checks it.
       const existingUser = await prisma.user.findUnique({
         where: { email: email.toLowerCase().trim() },
       });

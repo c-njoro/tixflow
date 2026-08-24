@@ -53,6 +53,7 @@ export default function AuthPage() {
           id: result.data.user.id,
           name: result.data.user.name,
           email: result.data.user.email,
+          role: result.data.user.role,
           companyName: result.data.tenant.businessName,
         });
         // login() handles router.push('/dashboard')

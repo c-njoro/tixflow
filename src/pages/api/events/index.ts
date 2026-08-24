@@ -9,10 +9,6 @@ const slugify = (text: string) =>
     .replace(/[^\w\-]+/g, '')
     .replace(/\-\-+/g, '-');
 
-const isValidUrl = (url: string) => {
-  try { new URL(url); return true; } catch { return false; }
-};
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
@@ -36,17 +32,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const {
       title, description, category, date, endDate, location,
-      coverImageUrl, galleryImageUrls, ticketTiers,
+      coverImageUrl, coverImagePublicId, galleryImages, ticketTiers,
     } = req.body;
 
     if (!title || !date || !location) {
       return res.status(400).json({ error: 'Title, date, and location are required.' });
     }
-
     if (!Array.isArray(ticketTiers) || ticketTiers.length === 0) {
       return res.status(400).json({ error: 'At least one ticket tier is required.' });
     }
-
     for (const tier of ticketTiers) {
       if (!tier.name || tier.price == null || tier.capacity == null) {
         return res.status(400).json({ error: 'Each ticket tier requires a name, price, and capacity.' });
@@ -54,13 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (tier.price < 0 || tier.capacity < 1) {
         return res.status(400).json({ error: 'Tier price cannot be negative and capacity must be at least 1.' });
       }
-    }
-
-    if (coverImageUrl && !isValidUrl(coverImageUrl)) {
-      return res.status(400).json({ error: 'coverImageUrl must be a valid URL.' });
-    }
-    if (galleryImageUrls && (!Array.isArray(galleryImageUrls) || galleryImageUrls.some((u: string) => !isValidUrl(u)))) {
-      return res.status(400).json({ error: 'galleryImageUrls must be an array of valid URLs.' });
     }
 
     let eventSlug = slugify(title);
@@ -81,8 +68,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           date: new Date(date),
           endDate: endDate ? new Date(endDate) : undefined,
           location: location.trim(),
-          coverImageUrl,
-          galleryImageUrls: galleryImageUrls ?? [],
+          coverImageUrl: coverImageUrl || undefined,
+          coverImagePublicId: coverImagePublicId || undefined,
+          galleryImages: Array.isArray(galleryImages) ? galleryImages : [],
           status: 'draft',
           tenantId: session.tenantId,
           ticketTiers: {

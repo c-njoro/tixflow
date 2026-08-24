@@ -41,6 +41,14 @@ type OrderItem {
   unitPrice    Float
 }
 
+// Embedded — each gallery image needs its Cloudinary public_id alongside
+// the URL so it can actually be deleted from Cloudinary later, not just
+// removed from the event.
+type EventImage {
+  url      String
+  publicId String
+}
+
 // 1. The Staff Account / Login Identity
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -97,8 +105,9 @@ model Event {
   location         String
   status           EventStatus @default(draft)
 
-  coverImageUrl    String?
-  galleryImageUrls String[]    @default([])
+  coverImageUrl      String?
+  coverImagePublicId String?
+  galleryImages      EventImage[]
 
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt

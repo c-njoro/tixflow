@@ -12,7 +12,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  QrCodeIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
@@ -36,7 +35,8 @@ interface Props {
     endDate: string | null;
     location: string;
     coverImageUrl: string | null;
-    galleryImageUrls: string[];
+    galleryImageUrls?: string[];
+    galleryImages?: { url: string; publicId: string }[];
     ticketTiers: Tier[];
   };
 }
@@ -169,6 +169,12 @@ export default function PublicEventPage({ tenant, event }: Props) {
   const eventDate = new Date(event.date);
   const isUpcoming = eventDate > new Date();
 
+  // Compute gallery URLs from either format
+  const galleryUrls =
+    event.galleryImageUrls ||
+    event.galleryImages?.map((img) => img.url) ||
+    [];
+
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white antialiased selection:bg-white/20">
       {/* Nav */}
@@ -267,13 +273,13 @@ export default function PublicEventPage({ tenant, event }: Props) {
           )}
 
           {/* Gallery */}
-          {event.galleryImageUrls.length > 0 && (
+          {galleryUrls.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">
                 Gallery
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {event.galleryImageUrls.map((url, i) => (
+                {galleryUrls.map((url, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <div
                     key={i}

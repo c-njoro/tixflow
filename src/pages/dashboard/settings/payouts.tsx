@@ -1,5 +1,6 @@
 // pages/dashboard/settings/payouts.tsx
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 interface PayoutSettings {
   isOnboarded: boolean;
@@ -52,6 +53,7 @@ const inputClass =
 const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 export default function PayoutSettingsPage() {
+  const { user } = useAuth();
   const [method, setMethod] = useState<'mpesa' | 'bank'>('mpesa');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [bankCode, setBankCode] = useState('');
@@ -198,6 +200,14 @@ export default function PayoutSettingsPage() {
       setSaving(false);
     }
   };
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+        <p className="text-sm text-slate-400">Only admins can view payout settings.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-xl">

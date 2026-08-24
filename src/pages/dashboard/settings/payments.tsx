@@ -1,6 +1,7 @@
 // pages/dashboard/settings/payments.tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from '@/context/AuthContext';
 
 interface StripeStatus {
   connected: boolean;
@@ -12,6 +13,7 @@ interface StripeStatus {
 
 export default function PaymentsSettingsPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [status, setStatus] = useState<StripeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -57,6 +59,14 @@ export default function PaymentsSettingsPage() {
       setConnecting(false);
     }
   };
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+        <p className="text-sm text-slate-400">Only admins can view payment settings.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-xl">

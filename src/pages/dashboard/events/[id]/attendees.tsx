@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 interface Tier {
   id: string;
@@ -45,6 +46,8 @@ const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slat
 export default function AttendeesPage() {
   const router = useRouter();
   const { id } = router.query;
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [event, setEvent] = useState<EventSummary | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -171,7 +174,8 @@ export default function AttendeesPage() {
         </div>
       )}
 
-      {/* Issue a comp/manual ticket */}
+      {/* Issue a comp/manual ticket — admin only */}
+      {isAdmin && (
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
           Issue Ticket Manually
@@ -230,6 +234,7 @@ export default function AttendeesPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -309,7 +314,7 @@ export default function AttendeesPage() {
                     </span>
                   </td>
                   <td className="p-3">
-                    {['pending', 'active', 'scanned'].includes(ticket.status) && (
+                    {isAdmin && ['pending', 'active', 'scanned'].includes(ticket.status) && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleUpdateStatus(ticket.id, 'cancelled')}

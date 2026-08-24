@@ -1,6 +1,7 @@
 // pages/dashboard/events/[id].tsx
-import { useEffect, useState, FormEvent } from "react";
-import { useRouter } from "next/router";
+import { useEffect, useState, useRef, FormEvent } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/context/AuthContext';
 
 interface TicketTier {
   id: string;
@@ -13,6 +14,11 @@ interface TicketTier {
   isActive: boolean;
 }
 
+interface EventImage {
+  url: string;
+  publicId: string;
+}
+
 interface EventDetail {
   id: string;
   title: string;
@@ -21,82 +27,96 @@ interface EventDetail {
   date: string;
   endDate: string | null;
   location: string;
-  status: "draft" | "published" | "cancelled" | "completed";
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
   coverImageUrl: string | null;
-  galleryImageUrls: string[];
+  coverImagePublicId: string | null;
+  galleryImages: EventImage[];
   ticketTiers: TicketTier[];
   _count: { tickets: number };
 }
 
 const toLocalInputValue = (iso: string) => {
-  // datetime-local inputs need "YYYY-MM-DDTHH:mm" in local time
   const d = new Date(iso);
   const offset = d.getTimezoneOffset();
   const local = new Date(d.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
 };
 
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 const inputClass =
-  "block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition";
-const labelClass =
-  "block text-xs font-medium uppercase tracking-wider text-slate-400";
+  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
+const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-slate-800 text-slate-300 border-slate-700",
-  published: "bg-emerald-950/40 text-emerald-400 border-emerald-800/50",
-  cancelled: "bg-rose-950/40 text-rose-400 border-rose-800/50",
-  completed: "bg-slate-800/60 text-slate-400 border-slate-700",
+  draft: 'bg-slate-800 text-slate-300 border-slate-700',
+  published: 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50',
+  cancelled: 'bg-rose-950/40 text-rose-400 border-rose-800/50',
+  completed: 'bg-slate-800/60 text-slate-400 border-slate-700',
 };
 
-export default function EditEventPage() {
+export default function EventDetailPage() {
   const router = useRouter();
   const { id } = router.query;
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+
+  // Non-admins never see edit mode, no matter what.
+  useEffect(() => {
+    if (!isAdmin) setMode('view');
+  }, [isAdmin]);
+
+  // ---- Edit form field state ----
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  const [saveMessage, setSaveMessage] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [location, setLocation] = useState('');
 
-  // Editable field state, populated once the event loads
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [location, setLocation] = useState("");
-  const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [galleryImageUrls, setGalleryImageUrls] = useState<string[]>([]);
+  // ---- Image upload state ----
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [deletingImage, setDeletingImage] = useState<string | null>(null); // 'cover' or a publicId
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  // New tier draft
+  // ---- Tier management state ----
   const [newTier, setNewTier] = useState({
-    name: "",
-    price: "",
-    capacity: "",
-    tierColor: "#000000",
-    description: "",
+    name: '', price: '', capacity: '', tierColor: '#000000', description: '',
   });
   const [addingTier, setAddingTier] = useState(false);
 
   const loadEvent = async () => {
-    if (typeof id !== "string") return;
+    if (typeof id !== 'string') return;
     setLoading(true);
-    setError("");
+    setError('');
     try {
       const res = await fetch(`/api/events/${id}`);
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to load event.");
+      if (!res.ok) throw new Error(result.error || 'Failed to load event.');
 
       const e: EventDetail = result.data;
       setEvent(e);
       setTitle(e.title);
-      setDescription(e.description || "");
-      setCategory(e.category || "");
+      setDescription(e.description || '');
+      setCategory(e.category || '');
       setDate(toLocalInputValue(e.date));
-      setEndDate(e.endDate ? toLocalInputValue(e.endDate) : "");
+      setEndDate(e.endDate ? toLocalInputValue(e.endDate) : '');
       setLocation(e.location);
-      setCoverImageUrl(e.coverImageUrl || "");
-      setGalleryImageUrls(e.galleryImageUrls || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -109,35 +129,32 @@ export default function EditEventPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // ---- Core field save ----
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (typeof id !== "string") return;
+    if (typeof id !== 'string') return;
     setSaving(true);
-    setError("");
-    setSaveMessage("");
-
-    const payload = {
-      title,
-      description: description || null,
-      category: category || null,
-      date,
-      endDate: endDate || null,
-      location,
-      coverImageUrl: coverImageUrl || null,
-      galleryImageUrls: galleryImageUrls.filter((u) => u.trim() !== ""),
-    };
+    setError('');
+    setSaveMessage('');
 
     try {
       const res = await fetch(`/api/events/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: description || null,
+          category: category || null,
+          date,
+          endDate: endDate || null,
+          location,
+        }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to save changes.");
+      if (!res.ok) throw new Error(result.error || 'Failed to save changes.');
 
       setEvent(result.data);
-      setSaveMessage("Saved.");
+      setSaveMessage('Saved.');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -146,16 +163,16 @@ export default function EditEventPage() {
   };
 
   const changeStatus = async (status: string) => {
-    if (typeof id !== "string") return;
-    setError("");
+    if (typeof id !== 'string') return;
+    setError('');
     try {
       const res = await fetch(`/api/events/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to update status.");
+      if (!res.ok) throw new Error(result.error || 'Failed to update status.');
       setEvent(result.data);
     } catch (err: any) {
       setError(err.message);
@@ -163,32 +180,121 @@ export default function EditEventPage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (typeof id !== "string") return;
-    if (!confirm("Delete this event permanently? This cannot be undone."))
-      return;
-    setError("");
+    if (typeof id !== 'string') return;
+    if (!confirm('Delete this event permanently? This cannot be undone.')) return;
+    setError('');
     try {
-      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to delete event.");
-      router.push("/dashboard/events");
+      if (!res.ok) throw new Error(result.error || 'Failed to delete event.');
+      router.push('/dashboard/events');
     } catch (err: any) {
       setError(err.message);
     }
   };
 
+  // ---- Image upload/delete ----
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || typeof id !== 'string') return;
+    setUploadingCover(true);
+    setError('');
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const res = await fetch(`/api/events/${id}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl, type: 'cover' }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to upload cover image.');
+      setEvent(result.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteCover = async () => {
+    if (typeof id !== 'string') return;
+    setDeletingImage('cover');
+    setError('');
+    try {
+      const res = await fetch(`/api/events/${id}/images`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'cover' }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to remove cover image.');
+      setEvent(result.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeletingImage(null);
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || typeof id !== 'string') return;
+    setUploadingGallery(true);
+    setError('');
+    try {
+      for (const file of Array.from(files)) {
+        const dataUrl = await fileToDataUrl(file);
+        const res = await fetch(`/api/events/${id}/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl, type: 'gallery' }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Failed to upload an image.');
+        setEvent(result.data);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploadingGallery(false);
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteGalleryImage = async (publicId: string) => {
+    if (typeof id !== 'string') return;
+    setDeletingImage(publicId);
+    setError('');
+    try {
+      const res = await fetch(`/api/events/${id}/images`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'gallery', publicId }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to remove image.');
+      setEvent(result.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDeletingImage(null);
+    }
+  };
+
+  // ---- Tier management ----
   const handleAddTier = async () => {
-    if (typeof id !== "string") return;
+    if (typeof id !== 'string') return;
     if (!newTier.name || !newTier.price || !newTier.capacity) {
-      setError("Tier name, price, and capacity are required.");
+      setError('Tier name, price, and capacity are required.');
       return;
     }
     setAddingTier(true);
-    setError("");
+    setError('');
     try {
       const res = await fetch(`/api/events/${id}/tiers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newTier.name,
           price: Number(newTier.price),
@@ -198,20 +304,10 @@ export default function EditEventPage() {
         }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to add tier.");
+      if (!res.ok) throw new Error(result.error || 'Failed to add tier.');
 
-      setEvent((prev) =>
-        prev
-          ? { ...prev, ticketTiers: [...prev.ticketTiers, result.data] }
-          : prev,
-      );
-      setNewTier({
-        name: "",
-        price: "",
-        capacity: "",
-        tierColor: "#000000",
-        description: "",
-      });
+      setEvent((prev) => (prev ? { ...prev, ticketTiers: [...prev.ticketTiers, result.data] } : prev));
+      setNewTier({ name: '', price: '', capacity: '', tierColor: '#000000', description: '' });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -219,30 +315,22 @@ export default function EditEventPage() {
     }
   };
 
-  const handleUpdateTier = async (
-    tierId: string,
-    updates: Partial<TicketTier>,
-  ) => {
-    if (typeof id !== "string") return;
-    setError("");
+  const handleUpdateTier = async (tierId: string, updates: Partial<TicketTier>) => {
+    if (typeof id !== 'string') return;
+    setError('');
     try {
       const res = await fetch(`/api/events/${id}/tiers/${tierId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to update tier.");
+      if (!res.ok) throw new Error(result.error || 'Failed to update tier.');
 
       setEvent((prev) =>
         prev
-          ? {
-              ...prev,
-              ticketTiers: prev.ticketTiers.map((t) =>
-                t.id === tierId ? result.data : t,
-              ),
-            }
-          : prev,
+          ? { ...prev, ticketTiers: prev.ticketTiers.map((t) => (t.id === tierId ? result.data : t)) }
+          : prev
       );
     } catch (err: any) {
       setError(err.message);
@@ -250,84 +338,179 @@ export default function EditEventPage() {
   };
 
   const handleDeleteTier = async (tierId: string) => {
-    if (typeof id !== "string") return;
-    if (!confirm("Delete this ticket tier?")) return;
-    setError("");
+    if (typeof id !== 'string') return;
+    if (!confirm('Delete this ticket tier?')) return;
+    setError('');
     try {
-      const res = await fetch(`/api/events/${id}/tiers/${tierId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/events/${id}/tiers/${tierId}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to delete tier.");
+      if (!res.ok) throw new Error(result.error || 'Failed to delete tier.');
 
       setEvent((prev) =>
-        prev
-          ? {
-              ...prev,
-              ticketTiers: prev.ticketTiers.filter((t) => t.id !== tierId),
-            }
-          : prev,
+        prev ? { ...prev, ticketTiers: prev.ticketTiers.filter((t) => t.id !== tierId) } : prev
       );
     } catch (err: any) {
       setError(err.message);
     }
   };
 
-  const addGalleryUrl = () => setGalleryImageUrls((prev) => [...prev, ""]);
-  const updateGalleryUrl = (index: number, value: string) =>
-    setGalleryImageUrls((prev) =>
-      prev.map((u, i) => (i === index ? value : u)),
-    );
-  const removeGalleryUrl = (index: number) =>
-    setGalleryImageUrls((prev) => prev.filter((_, i) => i !== index));
-
   if (loading) {
-    return (
-      <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
-        Loading event...
-      </div>
-    );
+    return <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading event...</div>;
   }
-
   if (!event) {
     return (
       <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
-        {error || "Event not found."}
+        {error || 'Event not found.'}
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
-            {event.title}
-          </h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
-            Manage event details, tiers, and status
-          </p>
+  const totalSold = event.ticketTiers.reduce((sum, t) => sum + t.sold, 0);
+  const totalCapacity = event.ticketTiers.reduce((sum, t) => sum + t.capacity, 0);
+
+  // ===========================================================================
+  // VIEW MODE
+  // ===========================================================================
+  if (mode === 'view') {
+    return (
+      <div className="space-y-6 max-w-3xl">
+        {error && (
+          <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
+            {error}
+          </div>
+        )}
+
+        {/* Hero */}
+        <div className="relative rounded-xl overflow-hidden border border-slate-800/80 bg-[#0E131F]">
+          {event.coverImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.coverImageUrl} alt={event.title} className="w-full h-56 object-cover" />
+          ) : (
+            <div className="w-full h-40 flex items-center justify-center text-xs font-mono text-slate-600 uppercase tracking-widest">
+              No cover image
+            </div>
+          )}
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-bold text-white">{event.title}</h1>
+                <p className="text-xs text-slate-500 mt-1">
+                  {new Date(event.date).toLocaleString()} &middot; {event.location}
+                  {event.category && <> &middot; {event.category}</>}
+                </p>
+              </div>
+              <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[event.status]}`}>
+                {event.status}
+              </span>
+            </div>
+          </div>
         </div>
-        <span
-          className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[event.status]}`}
+
+        {/* Action bar */}
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/dashboard/events/${event.id}/checkin`}
+            className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition"
+          >
+            Check-In
+          </a>
+          <a
+            href={`/dashboard/events/${event.id}/attendees`}
+            className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
+          >
+            View Attendees
+          </a>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setMode('edit')}
+              className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition ml-auto"
+            >
+              Edit Event
+            </button>
+          )}
+        </div>
+
+        {/* Status controls — admin only */}
+        {isAdmin && (
+          <div className="p-4 bg-[#0E131F] border border-slate-800/80 rounded-xl">
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-2">Status</div>
+            <div className="flex flex-wrap gap-2">
+              {['draft', 'published', 'cancelled', 'completed'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => changeStatus(s)}
+                  disabled={event.status === s}
+                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                    event.status === s ? STATUS_STYLES[s] : 'border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Description */}
+        {event.description && (
+          <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl">
+            <p className="text-sm text-slate-300 whitespace-pre-line">{event.description}</p>
+          </div>
+        )}
+
+        {/* Gallery */}
+        {event.galleryImages.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {event.galleryImages.map((img) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={img.publicId} src={img.url} alt="" className="w-full h-28 object-cover rounded-lg" />
+            ))}
+          </div>
+        )}
+
+        {/* Ticket tiers — read-only */}
+        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Ticket Tiers</h3>
+            <span className="text-xs font-mono text-slate-500">{totalSold} / {totalCapacity} sold</span>
+          </div>
+          {event.ticketTiers.map((tier) => (
+            <div key={tier.id} className="flex items-center justify-between p-3 border border-slate-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tier.tierColor }} />
+                <div>
+                  <div className="text-sm text-white">{tier.name}</div>
+                  <div className="text-xs text-slate-500">KES {tier.price.toLocaleString()}</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-mono text-slate-400">{tier.sold} / {tier.capacity}</div>
+                {!tier.isActive && <div className="text-[10px] text-slate-600 uppercase">inactive</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // EDIT MODE (admin only — mode is forced to 'view' for everyone else)
+  // ===========================================================================
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setMode('view')}
+          className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition"
         >
+          ← Back to Event
+        </button>
+        <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${STATUS_STYLES[event.status]}`}>
           {event.status}
         </span>
-      </div>
-
-      <div className="flex gap-3">
-        <a
-          href={`/dashboard/events/${event.id}/attendees`}
-          className="inline-block px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
-        >
-          View Attendees
-        </a>
-        <a
-          href={`/dashboard/events/${event.id}/checkin`}
-          className="inline-block px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
-        >
-          Check-In
-        </a>
       </div>
 
       {error && (
@@ -341,181 +524,143 @@ export default function EditEventPage() {
         </div>
       )}
 
-      {/* Status controls */}
-      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
-          Status
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {["draft", "published", "cancelled", "completed"].map((s) => (
-            <button
-              key={s}
-              onClick={() => changeStatus(s)}
-              disabled={event.status === s}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                event.status === s
-                  ? STATUS_STYLES[s]
-                  : "border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Images */}
+      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Images</h3>
 
-      {/* Core details form */}
-      <form onSubmit={handleSave} className="space-y-6">
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-          <div>
-            <label className={labelClass}>Title</label>
-            <div className="mt-1">
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Description</label>
-            <div className="mt-1">
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Category</label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Location</label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Start Date &amp; Time</label>
-              <div className="mt-1">
-                <input
-                  type="datetime-local"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>
-                End Date &amp; Time (optional)
-              </label>
-              <div className="mt-1">
-                <input
-                  type="datetime-local"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Images */}
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
-            Images
-          </h3>
-
-          <div>
-            <label className={labelClass}>Cover Image URL</label>
-            <div className="mt-1">
-              <input
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://..."
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className={labelClass}>Gallery Image URLs</label>
-            {galleryImageUrls.map((url, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => updateGalleryUrl(index, e.target.value)}
-                  placeholder="https://..."
-                  className={inputClass}
-                />
+        <div>
+          <label className={labelClass}>Cover Image</label>
+          <div className="mt-2">
+            {event.coverImageUrl ? (
+              <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={event.coverImageUrl} alt="Cover" className="w-40 h-28 object-cover rounded-lg" />
                 <button
                   type="button"
-                  onClick={() => removeGalleryUrl(index)}
-                  className="px-3 text-xs font-mono uppercase text-rose-400 border border-rose-900/50 rounded-md hover:bg-rose-950/30 transition"
+                  onClick={handleDeleteCover}
+                  disabled={deletingImage === 'cover'}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
                 >
-                  Remove
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover}
+                className="w-40 h-28 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
+              >
+                {uploadingCover ? 'Uploading...' : '+ Upload'}
+              </button>
+            )}
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass}>Gallery</label>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {event.galleryImages.map((img) => (
+              <div key={img.publicId} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.url} alt="" className="w-24 h-24 object-cover rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => handleDeleteGalleryImage(img.publicId)}
+                  disabled={deletingImage === img.publicId}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
+                >
+                  ×
                 </button>
               </div>
             ))}
             <button
               type="button"
-              onClick={addGalleryUrl}
-              className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={uploadingGallery}
+              className="w-24 h-24 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
             >
-              + Add gallery image
+              {uploadingGallery ? '...' : '+ Add'}
             </button>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleGalleryUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Core details */}
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+          <div>
+            <label className={labelClass}>Title</label>
+            <div className="mt-1">
+              <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Description</label>
+            <div className="mt-1">
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Category</label>
+              <div className="mt-1">
+                <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Location</label>
+              <div className="mt-1">
+                <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Start Date &amp; Time</label>
+              <div className="mt-1">
+                <input type="datetime-local" required value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>End Date &amp; Time (optional)</label>
+              <div className="mt-1">
+                <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
+              </div>
+            </div>
           </div>
         </div>
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full flex justify-center py-2.5 px-4 border border-slate-700 rounded-md text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          className="w-full py-2.5 px-4 rounded-md text-sm font-medium bg-slate-800 border border-slate-700 hover:bg-slate-700 transition disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
 
-      {/* Ticket Tiers */}
+      {/* Ticket tiers management */}
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
-          Ticket Tiers
-        </h3>
+        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Ticket Tiers</h3>
 
         {event.ticketTiers.map((tier) => (
-          <div
-            key={tier.id}
-            className="p-4 border border-slate-800 rounded-lg space-y-3"
-          >
+          <div key={tier.id} className="p-4 border border-slate-800 rounded-lg space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Name</label>
@@ -523,10 +668,7 @@ export default function EditEventPage() {
                   <input
                     type="text"
                     defaultValue={tier.name}
-                    onBlur={(e) =>
-                      e.target.value !== tier.name &&
-                      handleUpdateTier(tier.id, { name: e.target.value })
-                    }
+                    onBlur={(e) => e.target.value !== tier.name && handleUpdateTier(tier.id, { name: e.target.value })}
                     className={inputClass}
                   />
                 </div>
@@ -537,16 +679,12 @@ export default function EditEventPage() {
                   <input
                     type="color"
                     defaultValue={tier.tierColor}
-                    onBlur={(e) =>
-                      e.target.value !== tier.tierColor &&
-                      handleUpdateTier(tier.id, { tierColor: e.target.value })
-                    }
+                    onBlur={(e) => e.target.value !== tier.tierColor && handleUpdateTier(tier.id, { tierColor: e.target.value })}
                     className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md"
                   />
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Price</label>
@@ -556,58 +694,38 @@ export default function EditEventPage() {
                     min="0"
                     step="0.01"
                     defaultValue={tier.price}
-                    onBlur={(e) =>
-                      Number(e.target.value) !== tier.price &&
-                      handleUpdateTier(tier.id, {
-                        price: Number(e.target.value),
-                      })
-                    }
+                    onBlur={(e) => Number(e.target.value) !== tier.price && handleUpdateTier(tier.id, { price: Number(e.target.value) })}
                     className={inputClass}
                   />
                 </div>
               </div>
               <div>
-                <label className={labelClass}>
-                  Capacity ({tier.sold} sold)
-                </label>
+                <label className={labelClass}>Capacity ({tier.sold} sold)</label>
                 <div className="mt-1">
                   <input
                     type="number"
                     min={tier.sold}
                     defaultValue={tier.capacity}
-                    onBlur={(e) =>
-                      Number(e.target.value) !== tier.capacity &&
-                      handleUpdateTier(tier.id, {
-                        capacity: Number(e.target.value),
-                      })
-                    }
+                    onBlur={(e) => Number(e.target.value) !== tier.capacity && handleUpdateTier(tier.id, { capacity: Number(e.target.value) })}
                     className={inputClass}
                   />
                 </div>
               </div>
             </div>
-
             <div className="flex items-center justify-between gap-3 pt-1">
               <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400">
                 <input
                   type="checkbox"
                   defaultChecked={tier.isActive}
-                  onChange={(e) =>
-                    handleUpdateTier(tier.id, { isActive: e.target.checked })
-                  }
+                  onChange={(e) => handleUpdateTier(tier.id, { isActive: e.target.checked })}
                 />
                 Active (visible for sale)
               </label>
-
               <button
                 type="button"
                 onClick={() => handleDeleteTier(tier.id)}
                 disabled={tier.sold > 0}
-                title={
-                  tier.sold > 0
-                    ? "Cannot delete a tier with sold tickets."
-                    : undefined
-                }
+                title={tier.sold > 0 ? 'Cannot delete a tier with sold tickets.' : undefined}
                 className="text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Delete Tier
@@ -616,85 +734,40 @@ export default function EditEventPage() {
           </div>
         ))}
 
-        {/* Add new tier */}
         <div className="p-4 border border-dashed border-slate-800 rounded-lg space-y-3">
-          <h4 className="text-[11px] font-mono uppercase tracking-widest text-slate-500">
-            Add New Tier
-          </h4>
+          <h4 className="text-[11px] font-mono uppercase tracking-widest text-slate-500">Add New Tier</h4>
           <div className="grid grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="Tier name"
-              value={newTier.name}
-              onChange={(e) => setNewTier({ ...newTier, name: e.target.value })}
-              className={inputClass}
-            />
-            <input
-              type="color"
-              value={newTier.tierColor}
-              onChange={(e) =>
-                setNewTier({ ...newTier, tierColor: e.target.value })
-              }
-              className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md"
-            />
+            <input type="text" placeholder="Tier name" value={newTier.name} onChange={(e) => setNewTier({ ...newTier, name: e.target.value })} className={inputClass} />
+            <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Price"
-              value={newTier.price}
-              onChange={(e) =>
-                setNewTier({ ...newTier, price: e.target.value })
-              }
-              className={inputClass}
-            />
-            <input
-              type="number"
-              min="1"
-              placeholder="Capacity"
-              value={newTier.capacity}
-              onChange={(e) =>
-                setNewTier({ ...newTier, capacity: e.target.value })
-              }
-              className={inputClass}
-            />
+            <input type="number" min="0" step="0.01" placeholder="Price" value={newTier.price} onChange={(e) => setNewTier({ ...newTier, price: e.target.value })} className={inputClass} />
+            <input type="number" min="1" placeholder="Capacity" value={newTier.capacity} onChange={(e) => setNewTier({ ...newTier, capacity: e.target.value })} className={inputClass} />
           </div>
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={newTier.description}
-            onChange={(e) =>
-              setNewTier({ ...newTier, description: e.target.value })
-            }
-            className={inputClass}
-          />
+          <input type="text" placeholder="Description (optional)" value={newTier.description} onChange={(e) => setNewTier({ ...newTier, description: e.target.value })} className={inputClass} />
           <button
             type="button"
             onClick={handleAddTier}
             disabled={addingTier}
             className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50"
           >
-            {addingTier ? "Adding..." : "+ Add Tier"}
+            {addingTier ? 'Adding...' : '+ Add Tier'}
           </button>
         </div>
       </div>
 
       {/* Danger zone */}
       <div className="p-5 bg-[#0E131F] border border-rose-900/40 rounded-xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">
-          Danger Zone
-        </h3>
+        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">Danger Zone</h3>
         <p className="text-[11px] font-mono text-slate-500">
-          {(event._count?.tickets ?? 0) > 0
+          {event._count.tickets > 0
             ? 'This event has issued tickets and cannot be deleted. Set its status to "cancelled" instead.'
-            : "Deleting an event is permanent and removes all its ticket tiers."}
+            : 'Deleting an event is permanent and removes all its ticket tiers.'}
         </p>
         <button
           type="button"
           onClick={handleDeleteEvent}
-          disabled={(event._count?.tickets ?? 0) > 0}
+          disabled={event._count.tickets > 0}
           className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-rose-900/50 rounded-md text-rose-400 hover:bg-rose-950/30 transition disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Delete Event

@@ -6,6 +6,9 @@ import { getTenantBalance } from '@/lib/payouts';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
+  if (session.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admins can view payout balance.' });
+  }
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });

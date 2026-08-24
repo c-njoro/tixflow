@@ -25,11 +25,16 @@ interface Stats {
 
 export default function DashboardHome() {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     const loadStats = async () => {
       setLoading(true);
       setError('');
@@ -45,7 +50,7 @@ export default function DashboardHome() {
       }
     };
     loadStats();
-  }, []);
+  }, [isAdmin]);
 
   const statCards = stats
     ? [
@@ -56,6 +61,35 @@ export default function DashboardHome() {
         { label: 'Revenue', value: `KES ${stats.totals.revenue.toLocaleString()}` },
       ]
     : [];
+
+  // Scanner staff have no financial data to see here — a simple pointer to
+  // where their actual job (check-in) happens is more useful than a
+  // "not authorized" wall.
+  if (!isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+            Dashboard
+          </h1>
+          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+            {user ? `Welcome back, ${user.name}` : 'Overview'}
+          </p>
+        </div>
+        <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+          <p className="text-sm text-slate-300 mb-4">
+            Head to Events to check attendees in for a specific event.
+          </p>
+          <Link
+            href="/dashboard/events"
+            className="inline-block px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition"
+          >
+            Go to Events
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

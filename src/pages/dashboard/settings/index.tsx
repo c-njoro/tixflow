@@ -1,6 +1,7 @@
 // pages/dashboard/settings/index.tsx
 import Link from 'next/link';
 import { BanknotesIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '@/context/AuthContext';
 
 const SETTINGS_LINKS = [
   {
@@ -18,6 +19,15 @@ const SETTINGS_LINKS = [
 ];
 
 export default function SettingsIndexPage() {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+        <p className="text-sm text-slate-400">Only admins can view settings.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-xl">
       <div>

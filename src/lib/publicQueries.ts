@@ -44,7 +44,7 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
       endDate: true,
       location: true,
       coverImageUrl: true,
-      galleryImageUrls: true,
+      galleryImages: true,
       ticketTiers: {
         where: { isActive: true },
         select: {
@@ -72,7 +72,10 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
     available: Math.max(t.capacity - t.sold, 0),
   }));
 
-  return { tenant, event: { ...event, ticketTiers: tiers } };
+  return {
+    tenant,
+    event: { ...event, ticketTiers: tiers, galleryImages: event.galleryImages.map((img) => img.url) },
+  };
 }
 
 export async function searchPublicEvents(query: string, limit = 20) {

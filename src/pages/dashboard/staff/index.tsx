@@ -1,43 +1,37 @@
 // pages/dashboard/staff/index.tsx
-import { useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 interface StaffMember {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "scanner_staff";
+  role: 'admin' | 'scanner_staff';
   createdAt: string;
 }
 
 const inputClass =
-  "block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition";
-const labelClass =
-  "block text-xs font-medium uppercase tracking-wider text-slate-400";
+  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
+const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 export default function StaffPage() {
   const { user } = useAuth();
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
-  const [newStaff, setNewStaff] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "scanner_staff",
-  });
+  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', role: 'scanner_staff' });
   const [creating, setCreating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadStaff = async () => {
     setLoading(true);
-    setError("");
+    setError('');
     try {
-      const res = await fetch("/api/staff");
+      const res = await fetch('/api/staff');
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to load staff.");
+      if (!res.ok) throw new Error(result.error || 'Failed to load staff.');
       setStaff(result.data);
     } catch (err: any) {
       setError(err.message);
@@ -47,28 +41,29 @@ export default function StaffPage() {
   };
 
   useEffect(() => {
-    loadStaff();
-  }, []);
+    if (user?.role === 'admin') loadStaff();
+    else setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleCreate = async () => {
     if (!newStaff.name || !newStaff.email || !newStaff.password) {
-      setError("Name, email, and password are all required.");
+      setError('Name, email, and password are all required.');
       return;
     }
     setCreating(true);
-    setError("");
+    setError('');
     try {
-      const res = await fetch("/api/staff", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newStaff),
       });
       const result = await res.json();
-      if (!res.ok)
-        throw new Error(result.error || "Failed to add staff member.");
+      if (!res.ok) throw new Error(result.error || 'Failed to add staff member.');
 
       setStaff((prev) => [...prev, result.data]);
-      setNewStaff({ name: "", email: "", password: "", role: "scanner_staff" });
+      setNewStaff({ name: '', email: '', password: '', role: 'scanner_staff' });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -78,15 +73,15 @@ export default function StaffPage() {
 
   const handleRoleChange = async (id: string, role: string) => {
     setUpdatingId(id);
-    setError("");
+    setError('');
     try {
       const res = await fetch(`/api/staff/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to update role.");
+      if (!res.ok) throw new Error(result.error || 'Failed to update role.');
 
       setStaff((prev) => prev.map((s) => (s.id === id ? result.data : s)));
     } catch (err: any) {
@@ -97,16 +92,12 @@ export default function StaffPage() {
   };
 
   const handleRemove = async (id: string) => {
-    if (
-      !confirm("Remove this staff member? They will lose access immediately.")
-    )
-      return;
-    setError("");
+    if (!confirm('Remove this staff member? They will lose access immediately.')) return;
+    setError('');
     try {
-      const res = await fetch(`/api/staff/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/staff/${id}`, { method: 'DELETE' });
       const result = await res.json();
-      if (!res.ok)
-        throw new Error(result.error || "Failed to remove staff member.");
+      if (!res.ok) throw new Error(result.error || 'Failed to remove staff member.');
 
       setStaff((prev) => prev.filter((s) => s.id !== id));
     } catch (err: any) {
@@ -114,8 +105,16 @@ export default function StaffPage() {
     }
   };
 
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+        <p className="text-sm text-slate-400">Only admins can view staff.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
           Staff
@@ -143,9 +142,7 @@ export default function StaffPage() {
               <input
                 type="text"
                 value={newStaff.name}
-                onChange={(e) =>
-                  setNewStaff({ ...newStaff, name: e.target.value })
-                }
+                onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
                 placeholder="John Kamau"
                 className={inputClass}
               />
@@ -157,9 +154,7 @@ export default function StaffPage() {
               <input
                 type="email"
                 value={newStaff.email}
-                onChange={(e) =>
-                  setNewStaff({ ...newStaff, email: e.target.value })
-                }
+                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
                 placeholder="john@example.com"
                 className={inputClass}
               />
@@ -171,9 +166,7 @@ export default function StaffPage() {
               <input
                 type="password"
                 value={newStaff.password}
-                onChange={(e) =>
-                  setNewStaff({ ...newStaff, password: e.target.value })
-                }
+                onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
                 placeholder="min. 8 characters"
                 className={inputClass}
               />
@@ -184,9 +177,7 @@ export default function StaffPage() {
             <div className="mt-1">
               <select
                 value={newStaff.role}
-                onChange={(e) =>
-                  setNewStaff({ ...newStaff, role: e.target.value })
-                }
+                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
                 className={inputClass}
               >
                 <option value="scanner_staff">Scanner Staff</option>
@@ -201,7 +192,7 @@ export default function StaffPage() {
           disabled={creating}
           className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition disabled:opacity-50"
         >
-          {creating ? "Adding..." : "+ Add Staff Member"}
+          {creating ? 'Adding...' : '+ Add Staff Member'}
         </button>
       </div>
 
@@ -215,18 +206,10 @@ export default function StaffPage() {
           <table className="w-full text-sm">
             <thead className="bg-[#0E131F] text-left">
               <tr>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">
-                  Name
-                </th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">
-                  Email
-                </th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">
-                  Role
-                </th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">
-                  Actions
-                </th>
+                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Name</th>
+                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Email</th>
+                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Role</th>
+                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -235,17 +218,14 @@ export default function StaffPage() {
                 return (
                   <tr key={member.id} className="border-t border-slate-800/80">
                     <td className="p-3 text-white">
-                      {member.name}{" "}
-                      {isSelf && <span className="text-slate-500">(you)</span>}
+                      {member.name} {isSelf && <span className="text-slate-500">(you)</span>}
                     </td>
                     <td className="p-3 text-slate-400">{member.email}</td>
                     <td className="p-3">
                       <select
                         value={member.role}
                         disabled={isSelf || updatingId === member.id}
-                        onChange={(e) =>
-                          handleRoleChange(member.id, e.target.value)
-                        }
+                        onChange={(e) => handleRoleChange(member.id, e.target.value)}
                         className={`${inputClass} w-auto py-1 disabled:opacity-50`}
                       >
                         <option value="scanner_staff">Scanner Staff</option>

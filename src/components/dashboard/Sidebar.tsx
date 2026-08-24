@@ -7,6 +7,7 @@ import {
   UserGroupIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '@/context/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -14,29 +15,28 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed }: SidebarProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const navItems = [
-    { name: 'Overview', href: '/dashboard', icon: Squares2X2Icon },
-    { name: 'Events Manager', href: '/dashboard/events', icon: CalendarDaysIcon },
-    { name: 'Staff', href: '/dashboard/staff', icon: UserGroupIcon },
-    { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
-  ];
+    { name: 'Overview', href: '/dashboard', icon: Squares2X2Icon, adminOnly: false },
+    { name: 'Events Manager', href: '/dashboard/events', icon: CalendarDaysIcon, adminOnly: false },
+    // Staff and Settings involve revenue, payouts, and teammate emails —
+    // scanner_staff accounts don't see them at all, not even the nav link.
+    { name: 'Staff', href: '/dashboard/staff', icon: UserGroupIcon, adminOnly: true },
+    { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon, adminOnly: true },
+  ].filter((item) => !item.adminOnly || isAdmin);
 
-  // Marks the parent nav item active for any nested route too, e.g.
-  // /dashboard/events/[id]/attendees still highlights "Events Manager",
-  // and /dashboard/settings/payouts still highlights "Settings".
   const isItemActive = (href: string) =>
     href === '/dashboard' ? router.pathname === '/dashboard' : router.pathname.startsWith(href);
 
   return (
     <aside className={`h-screen bg-[#0E131F] border-r border-slate-800/80 transition-all duration-300 flex flex-col justify-between ${collapsed ? 'w-20' : 'w-64'}`}>
       <div className="p-6">
-        {/* Brand System Logo Slot */}
         <div className={`font-mono text-sm font-semibold tracking-wider text-white ${collapsed ? 'text-center' : ''}`}>
           {collapsed ? 'T' : <>TIXFLOW<span className="text-slate-500">.OS</span></>}
         </div>
 
-        {/* Navigation Items Map */}
         <nav className="mt-10 space-y-2">
           {navItems.map((item) => {
             const isActive = isItemActive(item.href);

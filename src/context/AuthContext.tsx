@@ -13,6 +13,7 @@ interface TenantUser {
   name: string;
   email: string;
   companyName: string;
+  role: 'admin' | 'scanner_staff';
 }
 
 interface AuthContextType {

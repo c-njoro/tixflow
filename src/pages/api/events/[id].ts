@@ -2,10 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-
-const isValidUrl = (url: string) => {
-  try { new URL(url); return true; } catch { return false; }
-};
+import { deleteImage } from '@/lib/cloudinary';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
@@ -14,7 +11,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query;
   if (typeof id !== 'string') return res.status(400).json({ error: 'Invalid event id.' });
 
-  // Always scope by tenantId — never trust that an id belongs to the caller's tenant
   const event = await prisma.event.findFirst({
     where: { id, tenantId: session.tenantId },
     include: { ticketTiers: true, _count: { select: { tickets: true } } },
@@ -30,20 +26,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Only admins can edit events.' });
     }
 
-    const {
-      title, description, category, date, endDate, location,
-      coverImageUrl, galleryImageUrls, status,
-    } = req.body;
+    // Image fields are intentionally NOT accepted here — they go through
+    // /api/events/[id]/images, which keeps Cloudinary and the event record
+    // in sync (upload+attach or delete+detach as one atomic step). This
+    // endpoint only ever touches the event's non-image fields.
+    const { title, description, category, date, endDate, location, status } = req.body;
 
     const allowedStatuses = ['draft', 'published', 'cancelled', 'completed'];
     if (status && !allowedStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value.' });
-    }
-    if (coverImageUrl && !isValidUrl(coverImageUrl)) {
-      return res.status(400).json({ error: 'coverImageUrl must be a valid URL.' });
-    }
-    if (galleryImageUrls && (!Array.isArray(galleryImageUrls) || galleryImageUrls.some((u: string) => !isValidUrl(u)))) {
-      return res.status(400).json({ error: 'galleryImageUrls must be an array of valid URLs.' });
     }
 
     try {
@@ -56,8 +47,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(date && { date: new Date(date) }),
           ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
           ...(location && { location: location.trim() }),
-          ...(coverImageUrl !== undefined && { coverImageUrl }),
-          ...(galleryImageUrls !== undefined && { galleryImageUrls }),
           ...(status && { status }),
         },
         include: { ticketTiers: true, _count: { select: { tickets: true } } },
@@ -73,9 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (session.role !== 'admin') {
       return res.status(403).json({ error: 'Only admins can delete events.' });
     }
-
-    // Never hard-delete an event with issued tickets — cancel it instead so
-    // ticket holders and financial/audit records stay intact.
     if (event._count.tickets > 0) {
       return res.status(409).json({
         error: 'This event has issued tickets and cannot be deleted. Cancel it instead.',
@@ -83,6 +69,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
+      // Clean up Cloudinary assets too, not just the database rows.
+      const imagesToDelete = [
+        ...(event.coverImagePublicId ? [event.coverImagePublicId] : []),
+        ...event.galleryImages.map((img) => img.publicId),
+      ];
+      await Promise.all(
+        imagesToDelete.map((publicId) =>
+          deleteImage(publicId).catch((err) =>
+            console.error('CRITICAL_ORPHANED_IMAGE_CLEANUP_FAILED:', publicId, err)
+          )
+        )
+      );
+
       await prisma.$transaction([
         prisma.ticketTier.deleteMany({ where: { eventId: id } }),
         prisma.event.delete({ where: { id } }),
