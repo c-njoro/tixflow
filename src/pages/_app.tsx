@@ -1,20 +1,15 @@
 // pages/_app.tsx
 import "@/styles/globals.css";
+import "@fontsource/poppins/300.css";
+import "@fontsource/poppins/400.css";
+import "@fontsource/poppins/500.css";
+import "@fontsource/poppins/600.css";
+import "@fontsource/poppins/700.css";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-
-// 1. Import Poppins from next/font
-import { Poppins } from "next/font/google";
-
-// 2. Configure the font with desired weights and subsets
-const poppins = Poppins({
-  weight: ["300", "400", "500", "600", "700"],
-  subsets: ["latin"],
-  display: "swap", // optional, improves loading performance
-});
 
 // AuthGuard (unchanged)
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -44,8 +39,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AuthProvider>
-      {/* 3. Apply the font class to the main container */}
-      <main className={poppins.className}>
+      <main>
         {isDashboardRoute ? (
           <AuthGuard>
             <DashboardLayout>
