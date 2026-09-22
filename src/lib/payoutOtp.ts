@@ -18,10 +18,14 @@ export function hashOtp(otp: string): string {
 export interface OtpTokenPayload {
   tenantId: string;
   otpHash: string;
+  amount: number;
 }
 
-export function createOtpToken(tenantId: string, otpHash: string): string {
-  return jwt.sign({ tenantId, otpHash } as OtpTokenPayload, SECRET, { expiresIn: '10m' });
+// The requested amount is baked into the token itself — so the amount that
+// actually gets paid out is always the one the tenant confirmed by email,
+// never a value that could be swapped in on the final request.
+export function createOtpToken(tenantId: string, otpHash: string, amount: number): string {
+  return jwt.sign({ tenantId, otpHash, amount } as OtpTokenPayload, SECRET, { expiresIn: '10m' });
 }
 
 export function verifyOtpToken(token: string): OtpTokenPayload | null {

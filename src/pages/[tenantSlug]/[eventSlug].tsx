@@ -130,13 +130,12 @@ export default function PublicEventPage({ tenant, event }: Props) {
     setCheckoutStage('submitting');
 
     try {
-      const res = await fetch('/api/checkout/intasend/initiate', {
+      const res = await fetch('/api/checkout/mpesa/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eventId: event.id,
-          firstName,
-          lastName,
+          buyerName: `${firstName} ${lastName}`.trim(),
           buyerEmail,
           phoneNumber: buyerPhone,
           items: event.ticketTiers

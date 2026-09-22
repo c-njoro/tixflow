@@ -2,8 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { checkPayoutStatus } from '@/lib/intasend';
 
+// The B2C/B2B result callbacks (src/pages/api/mpesa/b2c-result.ts and
+// b2b-result.ts) are what actually update a payout's status — this route is
+// just a read of whatever the DB currently says, for the tenant's UI to poll.
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
@@ -25,37 +27,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
   if (!payout) return res.status(404).json({ error: 'Payout not found.' });
 
-  // The Send Money Events webhook is the primary path for resolving this —
-  // this is a convenience fallback for instant UI feedback while waiting,
-  // and in case the webhook hasn't landed yet for some reason.
-  if (payout.status === 'pending' && payout.intasendTrackingId) {
-    try {
-      const statusResponse = await checkPayoutStatus(payout.intasendTrackingId);
-      const transaction = statusResponse?.transactions?.[0];
-
-      if (transaction?.status === 'Successful') {
-        await prisma.payout.update({
-          where: { id: payout.id },
-          data: { status: 'completed', reference: transaction.provider_reference },
-        });
-        payout.status = 'completed';
-        payout.reference = transaction.provider_reference;
-      } else if (transaction && !['Successful', 'Processing', 'Pending'].includes(transaction.status)) {
-        await prisma.payout.update({
-          where: { id: payout.id },
-          data: { status: 'failed', failureReason: transaction.status_description || transaction.status },
-        });
-        payout.status = 'failed';
-        payout.failureReason = transaction.status_description || transaction.status;
-      }
-    } catch (error) {
-      console.error('CRITICAL_INTASEND_STATUS_CHECK_ERROR:', error);
-      // Don't fail the request over this — just report current known status.
-    }
-  }
-
   return res.status(200).json({
     success: true,
-    data: { status: payout.status, reference: payout.reference, failureReason: payout.failureReason },
+    data: {
+      status: payout.status,
+      reference: payout.reference,
+      failureReason: payout.failureReason,
+      netAmount: payout.netAmount,
+    },
   });
 }

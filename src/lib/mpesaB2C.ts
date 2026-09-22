@@ -4,7 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import mpesaService from './mpesaService';
 
-function getBaseURL() {
+export function getBaseURL() {
   return process.env.MPESA_ENVIRONMENT === 'production'
     ? 'https://api.safaricom.co.ke'
     : 'https://sandbox.safaricom.co.ke';
@@ -16,7 +16,7 @@ function getBaseURL() {
 // Download and place at:
 //   certs/sandbox_cert.cer    — https://developer.safaricom.co.ke/sites/default/files/cert/cert_sandbox/cert.cer
 //   certs/production_cert.cer — https://developer.safaricom.co.ke/sites/default/files/cert/cert_prod/cert.cer
-function generateSecurityCredential(initiatorPassword: string): string {
+export function generateSecurityCredential(initiatorPassword: string): string {
   const certFileName =
     process.env.MPESA_ENVIRONMENT === 'production' ? 'production_cert.cer' : 'sandbox_cert.cer';
   const certPath = path.join(process.cwd(), 'certs', certFileName);

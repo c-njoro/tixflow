@@ -1,13 +1,13 @@
-// src/pages/api/mpesa/b2c-result.ts
+// src/pages/api/mpesa/b2b-result.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import { parseB2CResult } from '@/lib/mpesaB2C';
+import { parseB2BResult } from '@/lib/mpesaB2B';
 
-// Used as both the ResultURL and the QueueTimeOutURL for M-Pesa payouts —
-// Safaricom posts the same Result shape to both, so one handler covers
-// success, failure, and timeout.
 const ACK = { ResultCode: 0, ResultDesc: 'Accepted' };
 
+// Used as both the ResultURL and the QueueTimeOutURL for B2B bank payouts —
+// Safaricom posts the same Result shape to both, so one handler covers
+// success, failure, and timeout.
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -16,9 +16,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let parsed;
   try {
-    parsed = parseB2CResult(req.body);
+    parsed = parseB2BResult(req.body);
   } catch (err) {
-    console.error('CRITICAL_B2C_RESULT_PARSE_ERROR:', err, JSON.stringify(req.body));
+    console.error('CRITICAL_B2B_RESULT_PARSE_ERROR:', err, JSON.stringify(req.body));
     return res.status(200).json(ACK);
   }
 
@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   if (!payout) {
-    console.error('CRITICAL_B2C_RESULT_PAYOUT_NOT_FOUND:', parsed.originatorConversationId);
+    console.error('CRITICAL_B2B_RESULT_PAYOUT_NOT_FOUND:', parsed.originatorConversationId);
     return res.status(200).json(ACK);
   }
 
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     return res.status(200).json(ACK);
   } catch (error) {
-    console.error('CRITICAL_B2C_RESULT_HANDLER_ERROR:', error);
+    console.error('CRITICAL_B2B_RESULT_HANDLER_ERROR:', error);
     return res.status(500).json({ error: 'Failed to process result.' });
   }
 }

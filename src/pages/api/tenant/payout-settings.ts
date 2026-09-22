@@ -2,14 +2,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { KENYA_BANK_CODES } from '@/lib/intasend';
 
 const PAYOUT_FIELDS = {
   isOnboarded: true,
   payoutMethod: true,
   payoutPhoneNumber: true,
   payoutBankName: true,
-  payoutBankCode: true,
+  payoutBankPaybill: true,
   payoutBankAccountName: true,
   payoutBankAccountNumber: true,
 } as const;
@@ -29,14 +28,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: { id: session.tenantId },
       select: PAYOUT_FIELDS,
     });
-    return res.status(200).json({ success: true, data: tenant, bankOptions: KENYA_BANK_CODES });
+    return res.status(200).json({ success: true, data: tenant });
   }
 
   if (req.method === 'PATCH') {
     const {
       payoutMethod,
       payoutPhoneNumber,
-      payoutBankCode,
+      payoutBankName,
+      payoutBankPaybill,
       payoutBankAccountName,
       payoutBankAccountNumber,
     } = req.body;
@@ -53,18 +53,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    let bankName: string | null = null;
     if (payoutMethod === 'bank') {
-      const bank = KENYA_BANK_CODES.find((b) => b.code === payoutBankCode);
-      if (!bank) {
-        return res.status(400).json({ error: 'Please select a valid bank from the list.' });
+      if (!payoutBankName?.trim()) {
+        return res.status(400).json({ error: 'Bank name is required.' });
+      }
+      if (!payoutBankPaybill?.trim()) {
+        return res.status(400).json({
+          error: "Your bank's M-Pesa paybill number is required — check it with your bank if you're unsure.",
+        });
       }
       if (!payoutBankAccountName?.trim() || !payoutBankAccountNumber?.trim()) {
         return res.status(400).json({
           error: 'Account name and account number are both required.',
         });
       }
-      bankName = bank.name;
     }
 
     try {
@@ -75,8 +77,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // Clear out fields belonging to the method NOT selected, so stale
           // data from switching methods never lingers in the record.
           payoutPhoneNumber: payoutMethod === 'mpesa' ? payoutPhoneNumber.trim() : null,
-          payoutBankName: payoutMethod === 'bank' ? bankName : null,
-          payoutBankCode: payoutMethod === 'bank' ? payoutBankCode : null,
+          payoutBankName: payoutMethod === 'bank' ? payoutBankName.trim() : null,
+          payoutBankPaybill: payoutMethod === 'bank' ? payoutBankPaybill.trim() : null,
           payoutBankAccountName: payoutMethod === 'bank' ? payoutBankAccountName.trim() : null,
           payoutBankAccountNumber: payoutMethod === 'bank' ? payoutBankAccountNumber.trim() : null,
           isOnboarded: true,

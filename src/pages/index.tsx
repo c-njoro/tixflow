@@ -28,9 +28,9 @@ const FEATURES = [
   },
   {
     icon: BanknotesIcon,
-    title: "Get Paid Directly",
+    title: "Simple M-Pesa Payouts",
     description:
-      "Payments go straight to your own account. We never hold your money — you're in control of your payouts.",
+      "Buyers pay by M-Pesa STK Push. Request a payout to your own M-Pesa or bank whenever you're ready — you're in control of when you get paid.",
   },
   {
     icon: UserGroupIcon,
@@ -75,14 +75,14 @@ const STEPS = [
     step: "04",
     title: "Sell tickets, scan at the door, get paid",
     description:
-      "Attendees buy directly. You check them in with a scan. Money lands in your account.",
+      "Attendees buy by M-Pesa. You check them in with a scan. Request a payout to your M-Pesa or bank whenever you're ready.",
   },
 ];
 
 const FAQS = [
   {
-    q: "Do I need my own Stripe account?",
-    a: "You'll connect a payout account through our onboarding — it takes a few minutes and there's no separate Stripe dashboard to manage.",
+    q: "How do I get paid?",
+    a: "You add your M-Pesa number or bank details once — buyer payments come to us via M-Pesa and we pay you out directly, no separate account to set up.",
   },
   {
     q: "How much does Tixflow cost?",

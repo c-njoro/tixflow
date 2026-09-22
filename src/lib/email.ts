@@ -28,19 +28,29 @@ async function send(to: string, subject: string, html: string, attachments?: Att
   }
 }
 
-export async function sendPayoutOtpEmail(email: string, otp: string) {
+export async function sendPayoutOtpEmail(
+  email: string,
+  otp: string,
+  details: { amount: number; feeAmount: number; netAmount: number }
+) {
   await send(
     email,
     'Your Tixflow payout confirmation code',
     `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>Confirm your payout</h2>
-        <p>Use this code to confirm the payout you just requested. It expires in 10 minutes.</p>
+        <p>Use this code to confirm the payout request below. It expires in 10 minutes.</p>
         <p style="font-size:32px;font-weight:700;letter-spacing:4px;text-align:center;background:#f4f4f4;padding:16px;border-radius:8px;">
           ${otp}
         </p>
-        <p style="color:#666;font-size:12px;">
-          If you didn't request a payout, ignore this email and consider checking your account activity.
+        <table style="width:100%;font-size:13px;color:#333;margin-top:12px;">
+          <tr><td>Requested amount</td><td style="text-align:right;">KES ${details.amount.toLocaleString()}</td></tr>
+          <tr><td>Platform fee</td><td style="text-align:right;">- KES ${details.feeAmount.toLocaleString()}</td></tr>
+          <tr><td style="font-weight:700;">You'll receive</td><td style="text-align:right;font-weight:700;">KES ${details.netAmount.toLocaleString()}</td></tr>
+        </table>
+        <p style="color:#666;font-size:12px;margin-top:12px;">
+          Confirming this code submits your request for admin review — money only moves once it's approved.
+          If you didn't request this, ignore this email and consider checking your account activity.
         </p>
       </div>
     `

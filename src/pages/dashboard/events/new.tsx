@@ -186,7 +186,7 @@ export default function NewEventPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
           Create Event

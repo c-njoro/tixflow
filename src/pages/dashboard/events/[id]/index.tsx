@@ -373,7 +373,7 @@ export default function EventDetailPage() {
   // ===========================================================================
   if (mode === 'view') {
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-3xl mx-auto">
         {error && (
           <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
             {error}
@@ -499,7 +499,7 @@ export default function EventDetailPage() {
   // EDIT MODE (admin only — mode is forced to 'view' for everyone else)
   // ===========================================================================
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <button
           type="button"

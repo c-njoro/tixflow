@@ -2,11 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getPlatformAdminSession } from '@/lib/platformAdminAuth';
-
-// TODO: keep this in sync with whatever fee percentage the landing page
-// promises, and with whatever gets used in real checkout deductions once
-// that exists — right now this is only used for the payout ledger display.
-const FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT || 5);
+import { getTenantBalance } from '@/lib/payouts';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getPlatformAdminSession(req);
@@ -24,6 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       payoutMethod: true,
       payoutPhoneNumber: true,
       payoutBankName: true,
+      payoutBankPaybill: true,
       payoutBankAccountName: true,
       payoutBankAccountNumber: true,
       isOnboarded: true,
@@ -33,29 +30,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const data = await Promise.all(
     tenants.map(async (tenant) => {
-      // Revenue is the actual amount collected per completed order, not
-      // recomputed from current ticket prices — accurate even if a tier's
-      // price changed after some tickets already sold.
-      const completedOrders = await prisma.pendingOrder.aggregate({
-        where: { tenantId: tenant.id, status: 'completed' },
-        _sum: { totalAmount: true },
-      });
-      const totalRevenue = completedOrders._sum.totalAmount || 0;
-      const netPayable = totalRevenue * (1 - FEE_PERCENT / 100);
+      const balance = await getTenantBalance(tenant.id);
 
       const paidOut = await prisma.payout.aggregate({
         where: { tenantId: tenant.id, status: 'completed' },
         _sum: { amount: true },
       });
-      const totalPaidOut = paidOut._sum.amount || 0;
+      const pendingApprovalCount = await prisma.payout.count({
+        where: { tenantId: tenant.id, status: 'pending_approval' },
+      });
 
       return {
         ...tenant,
-        totalRevenue,
-        platformFeePercent: FEE_PERCENT,
-        netPayable,
-        totalPaidOut,
-        outstandingBalance: Math.max(netPayable - totalPaidOut, 0),
+        ...balance,
+        totalPaidOut: paidOut._sum.amount || 0,
+        pendingApprovalCount,
       };
     })
   );

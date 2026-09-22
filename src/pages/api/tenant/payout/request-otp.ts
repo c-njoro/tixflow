@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { getTenantBalance } from '@/lib/payouts';
+import { getTenantBalance, computePayoutSplit } from '@/lib/payouts';
 import { generateOtp, hashOtp, createOtpToken } from '@/lib/payoutOtp';
 import { sendPayoutOtpEmail } from '@/lib/email';
 
@@ -15,12 +15,12 @@ const maskEmail = (email: string) => {
 function tenantHasValidPayoutMethod(tenant: {
   payoutMethod: string | null;
   payoutPhoneNumber: string | null;
-  payoutBankCode: string | null;
+  payoutBankPaybill: string | null;
   payoutBankAccountNumber: string | null;
 }): boolean {
   if (tenant.payoutMethod === 'mpesa') return Boolean(tenant.payoutPhoneNumber);
   if (tenant.payoutMethod === 'bank') {
-    return Boolean(tenant.payoutBankCode && tenant.payoutBankAccountNumber);
+    return Boolean(tenant.payoutBankPaybill && tenant.payoutBankAccountNumber);
   }
   return false;
 }
@@ -45,16 +45,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  const amount = Number(req.body?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'Enter a valid amount to withdraw.' });
+  }
+
   const balance = await getTenantBalance(session.tenantId);
   if (balance.outstandingBalance <= 0) {
     return res.status(409).json({ error: 'There is no outstanding balance to pay out.' });
   }
+  if (amount > balance.outstandingBalance) {
+    return res.status(409).json({
+      error: `You can withdraw at most KES ${balance.outstandingBalance.toLocaleString()}.`,
+    });
+  }
+
+  const split = computePayoutSplit(amount);
 
   const otp = generateOtp();
-  const token = createOtpToken(session.tenantId, hashOtp(otp));
+  const token = createOtpToken(session.tenantId, hashOtp(otp), amount);
 
   try {
-    await sendPayoutOtpEmail(session.email, otp);
+    await sendPayoutOtpEmail(session.email, otp, {
+      amount,
+      feeAmount: split.feeAmount,
+      netAmount: split.netAmount,
+    });
   } catch (error) {
     console.error('CRITICAL_PAYOUT_OTP_EMAIL_ERROR:', error);
     return res.status(500).json({ error: 'Failed to send confirmation code. Please try again.' });
@@ -62,6 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(200).json({
     success: true,
-    data: { token, maskedEmail: maskEmail(session.email), outstandingBalance: balance.outstandingBalance },
+    data: {
+      token,
+      maskedEmail: maskEmail(session.email),
+      amount,
+      ...split,
+      outstandingBalance: balance.outstandingBalance,
+    },
   });
 }

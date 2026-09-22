@@ -40,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const eventSold = event.ticketTiers.reduce((sum, t) => sum + t.sold, 0);
     const eventCapacity = event.ticketTiers.reduce((sum, t) => sum + t.capacity, 0);
     // Revenue is sold * current tier price — an approximation, since we don't
-    // snapshot the price paid on each ticket yet. That'll change once real
-    // checkout/Stripe is wired up and each ticket records its actual charge.
+    // snapshot the price paid on each ticket yet. That'll change once each
+    // ticket records its actual M-Pesa charge from the completed order.
     const eventRevenue = event.ticketTiers.reduce((sum, t) => sum + t.sold * t.price, 0);
 
     ticketsIssued += eventSold;

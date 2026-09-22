@@ -1,6 +1,6 @@
 // pages/dashboard/settings/index.tsx
 import Link from 'next/link';
-import { BanknotesIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
 
 const SETTINGS_LINKS = [
@@ -8,13 +8,7 @@ const SETTINGS_LINKS = [
     href: '/dashboard/settings/payouts',
     icon: BanknotesIcon,
     title: 'Payouts',
-    description: 'M-Pesa or bank details for receiving your ticket revenue.',
-  },
-  {
-    href: '/dashboard/settings/payments',
-    icon: CreditCardIcon,
-    title: 'Payments (Stripe)',
-    description: 'Optional card payments via Stripe Connect.',
+    description: 'M-Pesa or bank details for receiving your ticket revenue, and requesting withdrawals.',
   },
 ];
 
@@ -29,7 +23,7 @@ export default function SettingsIndexPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-xl mx-auto">
       <div>
         <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
           Settings

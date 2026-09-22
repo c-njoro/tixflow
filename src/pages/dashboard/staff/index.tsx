@@ -114,7 +114,7 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div>
         <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
           Staff

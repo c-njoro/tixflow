@@ -9,14 +9,29 @@ interface TenantBalance {
   payoutMethod: 'mpesa' | 'bank' | null;
   payoutPhoneNumber: string | null;
   payoutBankName: string | null;
+  payoutBankPaybill: string | null;
   payoutBankAccountName: string | null;
   payoutBankAccountNumber: string | null;
   isOnboarded: boolean;
   totalRevenue: number;
   platformFeePercent: number;
-  netPayable: number;
-  totalPaidOut: number;
+  totalPaidOrPending: number;
   outstandingBalance: number;
+  totalPaidOut: number;
+  pendingApprovalCount: number;
+}
+
+interface PayoutRequest {
+  id: string;
+  amount: number;
+  feePercent: number | null;
+  feeAmount: number | null;
+  netAmount: number | null;
+  method: string;
+  status: string;
+  destination: string | null;
+  createdAt: string;
+  tenant: { id: string; businessName: string; slug: string };
 }
 
 interface PayoutRecord {
@@ -34,6 +49,14 @@ const inputClass =
 
 export default function PlatformAdminDashboard() {
   const router = useRouter();
+  const [tab, setTab] = useState<'requests' | 'tenants'>('requests');
+
+  const [requests, setRequests] = useState<PayoutRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+
   const [tenants, setTenants] = useState<TenantBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -46,6 +69,25 @@ export default function PlatformAdminDashboard() {
 
   const [historyTenantId, setHistoryTenantId] = useState<string | null>(null);
   const [history, setHistory] = useState<PayoutRecord[]>([]);
+
+  const loadRequests = async () => {
+    setRequestsLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/platform-admin/payout-requests?status=pending_approval');
+      if (res.status === 401) {
+        router.push('/platform-admin/login');
+        return;
+      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to load payout requests.');
+      setRequests(result.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
 
   const loadTenants = async () => {
     setLoading(true);
@@ -67,9 +109,52 @@ export default function PlatformAdminDashboard() {
   };
 
   useEffect(() => {
+    loadRequests();
     loadTenants();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleApprove = async (id: string) => {
+    setActioningId(id);
+    setError('');
+    try {
+      const res = await fetch(`/api/platform-admin/payout-requests/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to approve payout.');
+      await loadRequests();
+      await loadTenants();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setActioningId(id);
+    setError('');
+    try {
+      const res = await fetch(`/api/platform-admin/payout-requests/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', note: rejectNote }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to reject payout.');
+      setRejectingId(null);
+      setRejectNote('');
+      await loadRequests();
+      await loadTenants();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setActioningId(null);
+    }
+  };
 
   const openPayoutForm = (tenant: TenantBalance) => {
     setPayingTenant(tenant);
@@ -137,124 +222,232 @@ export default function PlatformAdminDashboard() {
           </button>
         </div>
 
+        <div className="flex gap-2 border-b border-slate-800/80">
+          <button
+            onClick={() => setTab('requests')}
+            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+              tab === 'requests' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
+            }`}
+          >
+            Requests{requests.length > 0 ? ` (${requests.length})` : ''}
+          </button>
+          <button
+            onClick={() => setTab('tenants')}
+            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+              tab === 'tenants' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
+            }`}
+          >
+            Tenants
+          </button>
+        </div>
+
         {error && (
           <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
             {error}
           </div>
         )}
 
-        {loading ? (
-          <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
-            Loading...
-          </div>
-        ) : (
+        {tab === 'requests' && (
           <div className="space-y-3">
-            {tenants.map((tenant) => (
-              <div key={tenant.id} className="border border-slate-800/80 rounded-xl overflow-hidden">
-                <div className="p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm font-semibold">{tenant.businessName}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {tenant.payoutMethod === 'mpesa'
-                        ? `M-Pesa: ${tenant.payoutPhoneNumber}`
-                        : tenant.payoutMethod === 'bank'
-                        ? `${tenant.payoutBankName} — ${tenant.payoutBankAccountName} (${tenant.payoutBankAccountNumber})`
-                        : 'No payout method configured'}
+            {requestsLoading ? (
+              <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+                Loading...
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="p-6 border border-dashed border-slate-800 rounded-xl text-center">
+                <p className="text-sm text-slate-500">No payout requests awaiting review.</p>
+              </div>
+            ) : (
+              requests.map((r) => (
+                <div key={r.id} className="border border-slate-800/80 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">{r.tenant.businessName}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{r.destination}</div>
+                      <div className="text-xs text-slate-600 mt-1">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-600 mt-1">
-                      Revenue: KES {tenant.totalRevenue.toLocaleString()} &middot; Fee: {tenant.platformFeePercent}% &middot; Paid out: KES {tenant.totalPaidOut.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-lg font-mono font-bold">
-                      KES {tenant.outstandingBalance.toLocaleString()}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
-                      outstanding
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-4 pb-4 flex gap-2">
-                  <button
-                    onClick={() => openPayoutForm(tenant)}
-                    disabled={tenant.outstandingBalance <= 0 || !tenant.payoutMethod}
-                    className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Mark as Paid
-                  </button>
-                  <button
-                    onClick={() => toggleHistory(tenant.id)}
-                    className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
-                  >
-                    {historyTenantId === tenant.id ? 'Hide History' : 'View History'}
-                  </button>
-                </div>
-
-                {historyTenantId === tenant.id && (
-                  <div className="border-t border-slate-800/80 p-4 space-y-2">
-                    {history.length === 0 ? (
-                      <p className="text-xs text-slate-600">No payouts recorded yet.</p>
-                    ) : (
-                      history.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between text-xs">
-                          <div className="text-slate-400">
-                            {new Date(p.createdAt).toLocaleDateString()} &middot; {p.method}
-                            {p.reference && ` \u00b7 ${p.reference}`}
-                          </div>
-                          <div className="font-mono text-white">KES {p.amount.toLocaleString()}</div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-mono font-bold">
+                        KES {r.amount.toLocaleString()}
+                      </div>
+                      {r.feeAmount != null && (
+                        <div className="text-[11px] text-slate-500">
+                          fee KES {r.feeAmount.toLocaleString()} &middot; net KES {(r.netAmount ?? r.amount).toLocaleString()}
                         </div>
-                      ))
-                    )}
+                      )}
+                    </div>
                   </div>
-                )}
 
-                {/* Payout form */}
-                {payingTenant?.id === tenant.id && (
-                  <div className="border-t border-slate-800/80 p-4 space-y-3">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={payoutAmount}
-                      onChange={(e) => setPayoutAmount(e.target.value)}
-                      placeholder="Amount"
-                      className={inputClass}
-                    />
-                    <input
-                      type="text"
-                      value={payoutReference}
-                      onChange={(e) => setPayoutReference(e.target.value)}
-                      placeholder="M-Pesa code or bank reference"
-                      className={inputClass}
-                    />
-                    <input
-                      type="text"
-                      value={payoutNote}
-                      onChange={(e) => setPayoutNote(e.target.value)}
-                      placeholder="Note (optional)"
-                      className={inputClass}
-                    />
+                  {rejectingId === r.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={rejectNote}
+                        onChange={(e) => setRejectNote(e.target.value)}
+                        placeholder="Reason (optional)"
+                        className={inputClass}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleReject(r.id)}
+                          disabled={actioningId === r.id}
+                          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50"
+                        >
+                          {actioningId === r.id ? 'Rejecting...' : 'Confirm Reject'}
+                        </button>
+                        <button
+                          onClick={() => setRejectingId(null)}
+                          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
                     <div className="flex gap-2">
                       <button
-                        onClick={handleRecordPayout}
-                        disabled={recording}
-                        className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                        onClick={() => handleApprove(r.id)}
+                        disabled={actioningId === r.id}
+                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
                       >
-                        {recording ? 'Recording...' : 'Confirm Sent'}
+                        {actioningId === r.id ? 'Sending...' : `Approve & Send ${r.method === 'mpesa' ? 'M-Pesa' : 'Bank'}`}
                       </button>
                       <button
-                        onClick={() => setPayingTenant(null)}
-                        className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                        onClick={() => setRejectingId(r.id)}
+                        disabled={actioningId === r.id}
+                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50"
                       >
-                        Cancel
+                        Reject
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
+
+        {tab === 'tenants' &&
+          (loading ? (
+            <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+              Loading...
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tenants.map((tenant) => (
+                <div key={tenant.id} className="border border-slate-800/80 rounded-xl overflow-hidden">
+                  <div className="p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">{tenant.businessName}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {tenant.payoutMethod === 'mpesa'
+                          ? `M-Pesa: ${tenant.payoutPhoneNumber}`
+                          : tenant.payoutMethod === 'bank'
+                          ? `${tenant.payoutBankName} (paybill ${tenant.payoutBankPaybill}) — ${tenant.payoutBankAccountName} (${tenant.payoutBankAccountNumber})`
+                          : 'No payout method configured'}
+                      </div>
+                      <div className="text-xs text-slate-600 mt-1">
+                        Revenue: KES {tenant.totalRevenue.toLocaleString()} &middot; Fee: {tenant.platformFeePercent}% per withdrawal &middot; Paid out: KES {tenant.totalPaidOut.toLocaleString()}
+                        {tenant.pendingApprovalCount > 0 && (
+                          <> &middot; <span className="text-amber-400">{tenant.pendingApprovalCount} pending</span></>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-mono font-bold">
+                        KES {tenant.outstandingBalance.toLocaleString()}
+                      </div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+                        outstanding
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 pb-4 flex gap-2">
+                    <button
+                      onClick={() => openPayoutForm(tenant)}
+                      disabled={tenant.outstandingBalance <= 0 || !tenant.payoutMethod}
+                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Mark as Paid Manually
+                    </button>
+                    <button
+                      onClick={() => toggleHistory(tenant.id)}
+                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                    >
+                      {historyTenantId === tenant.id ? 'Hide History' : 'View History'}
+                    </button>
+                  </div>
+
+                  {historyTenantId === tenant.id && (
+                    <div className="border-t border-slate-800/80 p-4 space-y-2">
+                      {history.length === 0 ? (
+                        <p className="text-xs text-slate-600">No payouts recorded yet.</p>
+                      ) : (
+                        history.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between text-xs">
+                            <div className="text-slate-400">
+                              {new Date(p.createdAt).toLocaleDateString()} &middot; {p.method} &middot; {p.status}
+                              {p.reference && ` \u00b7 ${p.reference}`}
+                            </div>
+                            <div className="font-mono text-white">KES {p.amount.toLocaleString()}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {payingTenant?.id === tenant.id && (
+                    <div className="border-t border-slate-800/80 p-4 space-y-3">
+                      <p className="text-[11px] text-slate-500">
+                        Use this only for a transfer you already sent outside the app (e.g. cash). It skips the
+                        approval queue and platform fee entirely.
+                      </p>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                        placeholder="Amount"
+                        className={inputClass}
+                      />
+                      <input
+                        type="text"
+                        value={payoutReference}
+                        onChange={(e) => setPayoutReference(e.target.value)}
+                        placeholder="M-Pesa code or bank reference"
+                        className={inputClass}
+                      />
+                      <input
+                        type="text"
+                        value={payoutNote}
+                        onChange={(e) => setPayoutNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        className={inputClass}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleRecordPayout}
+                          disabled={recording}
+                          className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                        >
+                          {recording ? 'Recording...' : 'Confirm Sent'}
+                        </button>
+                        <button
+                          onClick={() => setPayingTenant(null)}
+                          className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   );

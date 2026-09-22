@@ -2,10 +2,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { getTenantBalance } from '@/lib/payouts';
+import { getTenantBalance, computePayoutSplit } from '@/lib/payouts';
 import { hashOtp, verifyOtpToken } from '@/lib/payoutOtp';
-import { initiateMpesaPayout, initiateBankPayout } from '@/lib/intasend';
 
+// Confirming the OTP only files the request — it does NOT move any money.
+// The actual Daraja B2C/B2B call happens when a platform admin approves it
+// from the platform-admin dashboard.
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
@@ -34,57 +36,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!tenant) return res.status(404).json({ error: 'Tenant not found.' });
 
   const isMpesa = tenant.payoutMethod === 'mpesa' && tenant.payoutPhoneNumber;
-  const isBank = tenant.payoutMethod === 'bank' && tenant.payoutBankCode && tenant.payoutBankAccountNumber;
+  const isBank = tenant.payoutMethod === 'bank' && tenant.payoutBankPaybill && tenant.payoutBankAccountNumber;
 
   if (!isMpesa && !isBank) {
     return res.status(409).json({ error: 'Payout method is not configured correctly.' });
   }
 
+  const amount = payload.amount;
+
   // Recompute fresh — never trust a balance figure carried over from the
   // OTP request step.
   const balance = await getTenantBalance(session.tenantId);
-  if (balance.outstandingBalance <= 0) {
-    return res.status(409).json({ error: 'There is no outstanding balance to pay out.' });
+  if (amount > balance.outstandingBalance) {
+    return res.status(409).json({
+      error: 'Your balance has changed since this request was made — start over with a new amount.',
+    });
   }
+
+  const split = computePayoutSplit(amount);
+  const destination = isMpesa
+    ? `M-Pesa: ${tenant.payoutPhoneNumber}`
+    : `${tenant.payoutBankName || 'Bank'} paybill ${tenant.payoutBankPaybill} — acct ${tenant.payoutBankAccountNumber}`;
 
   try {
     const payout = await prisma.payout.create({
       data: {
         tenantId: session.tenantId,
-        amount: balance.outstandingBalance,
+        amount,
+        feePercent: split.feePercent,
+        feeAmount: split.feeAmount,
+        netAmount: split.netAmount,
+        destination,
         method: tenant.payoutMethod!,
-        status: 'pending',
+        status: 'pending_approval',
         initiatedBy: 'tenant',
       },
-    });
-
-    const narrative = `Tixflow payout - ${tenant.businessName}`;
-    const result = isMpesa
-      ? await initiateMpesaPayout({
-          phoneNumber: tenant.payoutPhoneNumber!,
-          accountName: tenant.businessName,
-          amount: balance.outstandingBalance,
-          narrative,
-        })
-      : await initiateBankPayout({
-          accountName: tenant.payoutBankAccountName || tenant.businessName,
-          accountNumber: tenant.payoutBankAccountNumber!,
-          bankCode: tenant.payoutBankCode!,
-          amount: balance.outstandingBalance,
-          narrative,
-        });
-
-    if (!result.success) {
-      await prisma.payout.update({
-        where: { id: payout.id },
-        data: { status: 'failed', failureReason: result.error },
-      });
-      return res.status(502).json({ error: result.error || 'Failed to initiate payout.' });
-    }
-
-    await prisma.payout.update({
-      where: { id: payout.id },
-      data: { intasendTrackingId: result.trackingId },
     });
 
     return res.status(200).json({ success: true, data: { payoutId: payout.id } });

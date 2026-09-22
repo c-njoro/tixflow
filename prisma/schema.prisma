@@ -70,18 +70,18 @@ model Tenant {
   businessName    String
   slug            String   @unique
   logoUrl         String?
-  stripeConnectId String?
-  isOnboarded     Boolean  @default(false) // true once ANY payout method (Stripe, M-Pesa, bank) is fully configured
+  isOnboarded     Boolean  @default(false) // true once a payout method (M-Pesa or bank) is fully configured
 
   // How the platform pays this tenant out. Buyer payments always land on the
-  // platform's own paybill/till first — this is where the platform later
-  // sends the tenant's share (B2C or manual bank transfer).
+  // platform's own paybill/till first (Daraja STK Push) — this is where the
+  // platform later sends the tenant's share via Daraja B2C (M-Pesa) or B2B
+  // (bank, via the bank's own paybill).
   payoutMethod            String? // 'mpesa' | 'bank'
   payoutPhoneNumber       String? // for 'mpesa'
-  payoutBankName          String? // for 'bank' — display name
-  payoutBankCode          String? // for 'bank' — IntaSend/PesaLink bank code, required for actual transfers
+  payoutBankName          String? // for 'bank' — display name the tenant enters
+  payoutBankPaybill       String? // for 'bank' — the bank's own M-Pesa paybill/business number, required for B2B transfers
   payoutBankAccountName   String? // for 'bank'
-  payoutBankAccountNumber String? // for 'bank'
+  payoutBankAccountNumber String? // for 'bank' — used as the B2B account reference
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -214,30 +214,55 @@ model PendingOrder {
   @@index([checkoutRequestId])
 }
 
+// pending_approval — tenant requested + confirmed via OTP, awaiting admin review.
+// processing        — admin approved, B2C/B2B sent to Daraja, waiting on the result callback.
+// completed         — Daraja confirmed the money moved.
+// failed            — Daraja rejected the transfer or the callback reported failure.
+// rejected          — admin declined the request; nothing was ever sent.
 enum PayoutStatus {
-  pending
+  pending_approval
+  processing
   completed
   failed
+  rejected
 }
 
-// A record of money the platform sent to a tenant (manually, outside this
-// app, via the tenant's own M-Pesa or bank details). This is a ledger entry,
-// not a payment trigger — recorded after you've actually sent the money.
+// A record of money the platform sent (or is sending) to a tenant. Two ways
+// a Payout gets created:
+//  1. Tenant self-service request (initiatedBy 'tenant') — starts at
+//     pending_approval, moves to processing once an admin approves it, which
+//     is when the actual Daraja B2C/B2B call fires.
+//  2. Admin manually recording a transfer made outside the app
+//     (initiatedBy 'admin') — created directly as 'completed', no Daraja
+//     call involved. Fee fields are left null for these.
 model Payout {
   id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  amount       Float
+  amount       Float        // gross amount deducted from the tenant's balance
   method       String       // 'mpesa' | 'bank' — snapshot of how it was sent
   status       PayoutStatus @default(completed)
   initiatedBy  String?      // 'admin' | 'tenant' — who triggered this
   reference    String?      // M-Pesa transaction code or bank reference, for reconciliation
   note         String?
 
-  // Correlation fields for automated payouts only — null for manually
-  // recorded (admin "Mark as Paid") payouts.
-  conversationId           String? // M-Pesa B2C
-  originatorConversationId String? // M-Pesa B2C
-  intasendTrackingId       String? // IntaSend bank payout
+  // Platform's cut, taken out of `amount` at the moment the tenant requested
+  // this specific payout — snapshot of PLATFORM_FEE_PERCENT at request time,
+  // so a later env change never rewrites the fee on an already-made request.
+  feePercent   Float?
+  feeAmount    Float?
+  netAmount    Float?       // amount - feeAmount — what actually reaches the tenant
+
+  // Snapshot of where this was sent, taken at request time so it stays
+  // accurate even if the tenant edits their payout details afterwards.
+  destination  String?
+
+  // Correlation fields for automated (B2C/B2B) payouts only — null for
+  // manually recorded (admin "Mark as Paid") payouts.
+  conversationId           String? // M-Pesa B2C / B2B
+  originatorConversationId String? // M-Pesa B2C / B2B
   failureReason            String?
+
+  approvedBy   String?      // platform-admin username who approved/rejected this
+  approvedAt   DateTime?
 
   tenantId     String       @db.ObjectId
   tenant       Tenant       @relation(fields: [tenantId], references: [id])
@@ -246,5 +271,5 @@ model Payout {
 
   @@index([tenantId])
   @@index([originatorConversationId])
-  @@index([intasendTrackingId])
+  @@index([tenantId, status])
 }
