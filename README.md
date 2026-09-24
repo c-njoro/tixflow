@@ -26,6 +26,15 @@ Before payouts work end-to-end you'll need to:
 - Set `PLATFORM_FEE_PERCENT` to whatever cut the platform takes per withdrawal (default `3`, i.e. 3%) — this one value controls every future payout's fee.
 - Set `NEXT_PUBLIC_APP_URL` to a publicly reachable URL (e.g. via ngrok in development) so Safaricom's STK, B2C, and B2B callbacks can reach `/api/mpesa/*`.
 
+## WhatsApp ticket delivery (optional, unofficial)
+
+Tickets are always sent by email — that's the source of truth for ticket ownership and lookup. If a buyer also gives a WhatsApp number at checkout (or at `/lookup`), the same tickets/link are additionally sent via an unofficial WhatsApp Web connection ([Baileys](https://github.com/WhiskeySockets/Baileys)), since it doesn't require Meta Business API approval. This is a bonus channel only:
+
+- Connect it from `/platform-admin` → the "WhatsApp" tab → scan the QR code with the phone that should send tickets, the same way you'd link WhatsApp Web.
+- It's one number for the whole platform (like the M-Pesa shortcode), and only works reliably as a single `next start` process — it won't survive being deployed across multiple serverless instances.
+- Because it's unofficial, WhatsApp can disconnect the number at any time without warning. The app auto-reconnects on drops and on server restart where possible, but a real logout needs a human to re-scan.
+- Once you get your Meta Business API approval, swap `src/lib/whatsapp.ts`'s `sendTicketWhatsapp`/`sendWhatsappText` for calls to the official Cloud API — every call site (checkout, lookup) is already isolated behind those two functions.
+
 You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
 
 [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.

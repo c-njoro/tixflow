@@ -49,6 +49,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
+  const [buyerWhatsapp, setBuyerWhatsapp] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutStage, setCheckoutStage] = useState<
@@ -137,6 +138,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
           eventId: event.id,
           buyerName: `${firstName} ${lastName}`.trim(),
           buyerEmail,
+          buyerWhatsapp: buyerWhatsapp.trim() || undefined,
           phoneNumber: buyerPhone,
           items: event.ticketTiers
             .filter((tier) => (quantities[tier.id] || 0) > 0)
@@ -561,6 +563,25 @@ export default function PublicEventPage({ tenant, event }: Props) {
                       placeholder="john@example.com"
                       className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
                     />
+                    <p className="text-[11px] text-slate-600">
+                      Your tickets always go here — keep this safe
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                      WhatsApp Number <span className="text-slate-600 normal-case">(optional)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={buyerWhatsapp}
+                      onChange={(e) => setBuyerWhatsapp(e.target.value)}
+                      placeholder="0712345678"
+                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                    />
+                    <p className="text-[11px] text-slate-600">
+                      We&apos;ll also send your tickets here — email is still what matters if this doesn&apos;t go through
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">

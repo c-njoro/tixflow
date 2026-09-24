@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import mpesaService from "@/lib/mpesaService";
 import { sendTicketConfirmationEmail } from "@/lib/email";
+import { sendTicketWhatsapp } from "@/lib/whatsapp";
 
 const generateTicketCode = () =>
   `TIX-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
@@ -180,6 +181,45 @@ export default async function handler(
         // email shouldn't undo that or fail the webhook. The buyer can
         // still retrieve their tickets via /lookup.
         console.error("CRITICAL_TICKET_CONFIRMATION_EMAIL_ERROR:", emailError);
+      }
+
+      // WhatsApp is a convenience channel alongside email, never a
+      // replacement for it — a failure here (including "not connected,"
+      // which is expected any time the unofficial session has dropped)
+      // never affects the order, the ticket, or the email that already
+      // went out above.
+      if (order.buyerWhatsapp) {
+        try {
+          const event = await prisma.event.findUnique({
+            where: { id: order.eventId },
+            select: { title: true, date: true, location: true },
+          });
+          if (event) {
+            const result = await sendTicketWhatsapp({
+              phone: order.buyerWhatsapp,
+              buyerName: order.buyerName,
+              eventTitle: event.title,
+              eventDate: event.date,
+              eventLocation: event.location,
+              tickets: createdTickets,
+            });
+            await prisma.pendingOrder.update({
+              where: { id: order.id },
+              data: {
+                whatsappStatus: result.success ? "sent" : "failed",
+                whatsappError: result.success ? null : result.error,
+              },
+            });
+          }
+        } catch (whatsappError: any) {
+          console.error("CRITICAL_TICKET_WHATSAPP_SEND_ERROR:", whatsappError);
+          await prisma.pendingOrder
+            .update({
+              where: { id: order.id },
+              data: { whatsappStatus: "failed", whatsappError: whatsappError?.message || "Unknown error" },
+            })
+            .catch(() => {});
+        }
       }
     }
 

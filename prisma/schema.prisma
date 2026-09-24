@@ -189,6 +189,13 @@ model PendingOrder {
   buyerEmail         String
   buyerPhone         String
 
+  // Optional — collected separately from buyerPhone (which is the M-Pesa
+  // number used for the STK push). Purely a delivery address: tickets are
+  // still looked up and owned by buyerEmail, never by this number.
+  buyerWhatsapp      String?
+  whatsappStatus     String?     // 'sent' | 'failed' — absent/null means no number was given
+  whatsappError      String?
+
   totalAmount        Float
   items              OrderItem[]
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 
 export default function LookupRequestPage() {
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -18,7 +19,7 @@ export default function LookupRequestPage() {
       const res = await fetch("/api/tickets/lookup/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, whatsapp: whatsapp.trim() || undefined }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Something went wrong.");
@@ -71,6 +72,18 @@ export default function LookupRequestPage() {
               placeholder="you@example.com"
               className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
             />
+            <div>
+              <input
+                type="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="WhatsApp number (optional)"
+                className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+              />
+              <p className="text-[11px] text-slate-600 mt-1.5">
+                We&apos;ll also send the link on WhatsApp — the email link is what actually works either way.
+              </p>
+            </div>
             <button
               type="submit"
               disabled={loading}

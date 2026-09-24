@@ -1,5 +1,5 @@
 // pages/platform-admin/index.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 
 interface TenantBalance {
@@ -49,7 +49,7 @@ const inputClass =
 
 export default function PlatformAdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<'requests' | 'tenants'>('requests');
+  const [tab, setTab] = useState<'requests' | 'tenants' | 'whatsapp'>('requests');
 
   const [requests, setRequests] = useState<PayoutRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
@@ -207,12 +207,63 @@ export default function PlatformAdminDashboard() {
     router.push('/platform-admin/login');
   };
 
+  // --- WhatsApp connection (Baileys) ---
+  const [waStatus, setWaStatus] = useState<{
+    status: 'disconnected' | 'connecting' | 'qr_pending' | 'connected';
+    qr: string | null;
+    phoneNumber: string | null;
+    lastError: string | null;
+  } | null>(null);
+  const [waActionLoading, setWaActionLoading] = useState(false);
+  const waPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadWaStatus = async () => {
+    try {
+      const res = await fetch('/api/platform-admin/whatsapp/status');
+      if (res.status === 401) return;
+      const result = await res.json();
+      if (res.ok) setWaStatus(result.data);
+    } catch {
+      // transient — next poll tick will retry
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== 'whatsapp') return;
+    loadWaStatus();
+    waPollRef.current = setInterval(loadWaStatus, 3000);
+    return () => {
+      if (waPollRef.current) clearInterval(waPollRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const handleWaConnect = async () => {
+    setWaActionLoading(true);
+    try {
+      await fetch('/api/platform-admin/whatsapp/connect', { method: 'POST' });
+      await loadWaStatus();
+    } finally {
+      setWaActionLoading(false);
+    }
+  };
+
+  const handleWaLogout = async () => {
+    setWaActionLoading(true);
+    try {
+      await fetch('/api/platform-admin/whatsapp/logout', { method: 'POST' });
+      await loadWaStatus();
+    } finally {
+      setWaActionLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-mono font-bold tracking-wider uppercase">
-            Payouts
+            Platform Admin
           </h1>
           <button
             onClick={handleLogout}
@@ -238,6 +289,14 @@ export default function PlatformAdminDashboard() {
             }`}
           >
             Tenants
+          </button>
+          <button
+            onClick={() => setTab('whatsapp')}
+            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+              tab === 'whatsapp' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
+            }`}
+          >
+            WhatsApp
           </button>
         </div>
 
@@ -448,6 +507,85 @@ export default function PlatformAdminDashboard() {
               ))}
             </div>
           ))}
+
+        {tab === 'whatsapp' && (
+          <div className="space-y-4 max-w-md mx-auto">
+            <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
+                  Ticket Delivery Number
+                </span>
+                <span
+                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${
+                    waStatus?.status === 'connected'
+                      ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
+                      : waStatus?.status === 'qr_pending' || waStatus?.status === 'connecting'
+                      ? 'bg-amber-950/40 text-amber-400 border-amber-800/50'
+                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                  }`}
+                >
+                  {waStatus?.status === 'connected'
+                    ? 'Connected'
+                    : waStatus?.status === 'qr_pending'
+                    ? 'Scan QR'
+                    : waStatus?.status === 'connecting'
+                    ? 'Connecting'
+                    : 'Disconnected'}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-500">
+                This is an unofficial WhatsApp connection (not Meta&apos;s Business API) — a convenience channel
+                alongside email, not a replacement for it. It can disconnect without warning; switch to the
+                official API once your business account is approved.
+              </p>
+
+              {waStatus?.lastError && (
+                <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
+                  {waStatus.lastError}
+                </div>
+              )}
+
+              {waStatus?.status === 'connected' ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-white font-mono">
+                    +{waStatus.phoneNumber}
+                  </div>
+                  <button
+                    onClick={handleWaLogout}
+                    disabled={waActionLoading}
+                    className="w-full py-2 rounded-md text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 hover:bg-rose-950/60 transition disabled:opacity-50"
+                  >
+                    {waActionLoading ? 'Disconnecting...' : 'Disconnect'}
+                  </button>
+                </div>
+              ) : waStatus?.status === 'qr_pending' && waStatus.qr ? (
+                <div className="space-y-3 text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={waStatus.qr}
+                    alt="WhatsApp QR code"
+                    className="mx-auto rounded-lg border border-slate-800"
+                    width={220}
+                    height={220}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Open WhatsApp on the phone that should send tickets → Linked Devices → Link a Device, and scan
+                    this code.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleWaConnect}
+                  disabled={waActionLoading || waStatus?.status === 'connecting'}
+                  className="w-full py-2.5 rounded-md text-sm font-medium bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition disabled:opacity-50"
+                >
+                  {waActionLoading || waStatus?.status === 'connecting' ? 'Starting...' : 'Connect WhatsApp'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
 import { createLookupToken } from "@/lib/ticketLookupAuth";
 import { sendLookupMagicLinkEmail } from "@/lib/email";
+import { sendWhatsappText } from "@/lib/whatsapp";
 
 export default async function handler(
   req: NextApiRequest,
@@ -13,7 +14,7 @@ export default async function handler(
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { email } = req.body;
+  const { email, whatsapp } = req.body;
   if (!email || typeof email !== "string") {
     return res.status(400).json({ error: "Email is required." });
   }
@@ -47,6 +48,19 @@ export default async function handler(
     console.error("CRITICAL_LOOKUP_EMAIL_SEND_ERROR:", error);
     // Still respond with the generic success message — don't leak send
     // failures to the client, and don't block the flow.
+  }
+
+  // Same convenience-channel treatment as ticket delivery at checkout —
+  // best-effort, never affects the response, never a substitute for email.
+  if (whatsapp && typeof whatsapp === "string") {
+    try {
+      await sendWhatsappText(
+        whatsapp.trim(),
+        `Here's your Tixflow tickets link: ${magicLink}\n\nIt expires in 15 minutes.`
+      );
+    } catch (error) {
+      console.error("CRITICAL_LOOKUP_WHATSAPP_SEND_ERROR:", error);
+    }
   }
 
   return res.status(200).json(genericResponse);

@@ -6,16 +6,24 @@ import mpesaService from '@/lib/mpesaService';
 // Daraja hard-limits these — AccountReference max 12 chars, TransactionDesc max 13.
 const buildAccountReference = (orderId: string) => `TIX-${orderId.slice(-6)}`.slice(0, 12);
 
+// Accepts 07XXXXXXXX and 01XXXXXXXX — Safaricom's original and newer ranges.
+// Same shape WhatsApp numbers take in Kenya, so we reuse it for the
+// optional WhatsApp field rather than a separate looser check.
+const KENYA_PHONE_REGEX = /^0[17]\d{8}$/;
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { eventId, buyerName, buyerEmail, phoneNumber, items } = req.body;
+  const { eventId, buyerName, buyerEmail, buyerWhatsapp, phoneNumber, items } = req.body;
 
   if (!eventId || !buyerName || !buyerEmail || !phoneNumber) {
     return res.status(400).json({ error: 'eventId, buyerName, buyerEmail, and phoneNumber are required.' });
+  }
+  if (buyerWhatsapp && !KENYA_PHONE_REGEX.test(String(buyerWhatsapp).trim())) {
+    return res.status(400).json({ error: 'Enter a valid WhatsApp number (e.g. 0712345678), or leave it blank.' });
   }
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'At least one ticket must be selected.' });
@@ -71,6 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         status: 'pending',
         buyerName: buyerName.trim(),
         buyerEmail: buyerEmail.trim(),
+        buyerWhatsapp: buyerWhatsapp ? String(buyerWhatsapp).trim() : null,
         buyerPhone: phoneNumber.trim(),
         totalAmount,
         items: orderItems,
