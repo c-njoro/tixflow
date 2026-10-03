@@ -117,6 +117,7 @@ model Event {
 
   ticketTiers      TicketTier[]
   tickets          Ticket[]
+  space            EventSpace?
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -151,11 +152,6 @@ model Ticket {
   status          TicketStatus @default(pending)
   buyerName       String
   buyerEmail      String
-  stripeSessionId String?      // NOT @unique — MongoDB's unique index isn't sparse by
-                                // default, so every ticket without a Stripe session (i.e.
-                                // every M-Pesa ticket) would collide on null. Enforce
-                                // uniqueness at the application layer when Stripe checkout
-                                // is built instead.
   mpesaReceiptNumber String?
   orderId         String?      @db.ObjectId // links back to the PendingOrder that produced this ticket, if any
   scannedAt       DateTime?
@@ -199,14 +195,18 @@ model PendingOrder {
   totalAmount        Float
   items              OrderItem[]
 
-  checkoutRequestId  String?     // NOT @unique — same null-collision issue as
-                                  // Ticket.stripeSessionId: this is null at creation
-                                  // time (set only after the STK push call returns),
-                                  // so a non-sparse unique index collides on null
-                                  // for every second order created.
+  checkoutRequestId  String?     // NOT @unique — this is null at creation time (set
+                                  // only after the STK push call returns), and MongoDB's
+                                  // unique index isn't sparse by default, so a unique
+                                  // index would collide on null for every second order.
   merchantRequestId  String?
   mpesaReceiptNumber String?
   failureReason      String?
+
+  // Random secret returned only to the browser that started checkout. The
+  // status endpoint (which reveals ticket codes) requires it — the order id
+  // alone is a guessable ObjectId, not a secret.
+  accessKey          String?
 
   tenantId           String      @db.ObjectId
   tenant             Tenant      @relation(fields: [tenantId], references: [id])
@@ -219,6 +219,7 @@ model PendingOrder {
   @@index([tenantId])
   @@index([eventId])
   @@index([checkoutRequestId])
+  @@index([status, createdAt])
 }
 
 // pending_approval — tenant requested + confirmed via OTP, awaiting admin review.
@@ -258,9 +259,14 @@ model Payout {
   feeAmount    Float?
   netAmount    Float?       // amount - feeAmount — what actually reaches the tenant
 
-  // Snapshot of where this was sent, taken at request time so it stays
-  // accurate even if the tenant edits their payout details afterwards.
-  destination  String?
+  // Snapshot of where this is sent, taken at request time. Approval pays
+  // out to THESE fields — never to the tenant's current settings — so
+  // editing payout details after requesting can't redirect the money away
+  // from what the platform admin reviewed.
+  destination        String?  // human-readable summary shown to the admin
+  destPhoneNumber    String?  // 'mpesa'
+  destBankPaybill    String?  // 'bank'
+  destAccountNumber  String?  // 'bank'
 
   // Correlation fields for automated (B2C/B2B) payouts only — null for
   // manually recorded (admin "Mark as Paid") payouts.
@@ -279,4 +285,161 @@ model Payout {
   @@index([tenantId])
   @@index([originatorConversationId])
   @@index([tenantId, status])
+  @@index([status, approvedAt])
+}
+
+// A one-time code emailed to a tenant admin to confirm a sensitive action
+// (requesting a payout, changing payout details). Stored server-side —
+// never handed to the browser — so the code can't be brute-forced offline,
+// attempts can be capped, and each code can only be used once.
+model OtpChallenge {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  purpose    String   // 'payout_request' | 'payout_settings'
+  codeHash   String   // HMAC of the code with a server secret
+  payload    Json     // what the code confirms, e.g. { amount } or the new payout details
+  attempts   Int      @default(0)
+  consumed   Boolean  @default(false)
+  expiresAt  DateTime
+
+  tenantId   String   @db.ObjectId
+  userId     String   @db.ObjectId
+
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, purpose])
+}
+
+// ---------------------------------------------------------------------------
+// Event Space — the live, in-event companion for attendees. Anyone with the
+// join link/QR code can enter (the organiser controls who's in the room);
+// ticket holders are additionally sent the link shortly before the event.
+// ---------------------------------------------------------------------------
+
+// Embedded — short, few, newest first.
+type SpaceAnnouncement {
+  text      String
+  createdAt DateTime
+}
+
+model EventSpace {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  joinCode          String   @unique // short code in the join URL / QR code
+  title             String
+  welcomeMessage    String?
+  isOpen            Boolean  @default(true)
+  moderateQuestions Boolean  @default(false) // true = questions need approval before attendees see them
+
+  // Bumped on every change attendees could see. Attendee pages poll with
+  // the version they have and only get a new payload when it moved.
+  version           Int      @default(0)
+
+  // What's live right now.
+  livePollId          String?  @db.ObjectId
+  liveDocumentId      String?  @db.ObjectId
+  liveDocumentPage    Int      @default(1)
+  spotlightQuestionId String?  @db.ObjectId
+  screenMode          String   @default("join") // projector: 'join' | 'poll' | 'questions' | 'document'
+  announcements       SpaceAnnouncement[]
+
+  // Ticket-holder invites: 'pending' → 'sending' → 'sent'.
+  inviteStatus      String    @default("pending")
+  invitesSentAt     DateTime?
+  inviteCount       Int       @default(0)
+
+  eventId           String   @unique @db.ObjectId
+  event             Event    @relation(fields: [eventId], references: [id])
+  tenantId          String   @db.ObjectId
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([inviteStatus])
+}
+
+// One anonymous device in a space. participantId is a random id kept in an
+// httpOnly cookie — not a login, just enough to stop casual double voting.
+model SpaceParticipant {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  spaceId       String   @db.ObjectId
+  participantId String
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@unique([spaceId, participantId])
+  @@index([spaceId, lastSeenAt])
+}
+
+// kind 'choice' — pick one of `options`. kind 'text' — free text, grouped
+// and ranked by how many people typed the same thing (word cloud).
+// status: 'draft' (not shown yet) | 'live' (accepting answers) | 'closed'.
+model SpacePoll {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  spaceId       String   @db.ObjectId
+  question      String
+  kind          String
+  options       String[]
+  status        String   @default("draft")
+  showResults   Boolean  @default(true)  // results visible on attendees' phones
+  hiddenAnswers String[]                 // normalised text answers the organiser hid
+  responseCount Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([spaceId])
+}
+
+model SpacePollResponse {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  pollId        String   @db.ObjectId
+  spaceId       String   @db.ObjectId
+  participantId String
+  optionIndex   Int?     // 'choice' polls
+  text          String?  // 'text' polls — as typed
+  normalized    String?  // 'text' polls — grouping key
+  createdAt     DateTime @default(now())
+
+  @@unique([pollId, participantId])
+  @@index([pollId])
+  @@index([spaceId])
+}
+
+// status: 'pending' (awaiting approval) | 'visible' | 'answered' | 'hidden'
+model SpaceQuestion {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  spaceId       String   @db.ObjectId
+  participantId String
+  authorName    String?
+  text          String
+  status        String   @default("visible")
+  upvotes       Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([spaceId, status])
+}
+
+model SpaceQuestionVote {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionId    String   @db.ObjectId
+  spaceId       String   @db.ObjectId
+  participantId String
+  createdAt     DateTime @default(now())
+
+  @@unique([questionId, participantId])
+  @@index([spaceId, participantId])
+}
+
+// A programme, slides or notes. PDFs are stored on Cloudinary and served
+// page by page as images, so they open instantly on any phone and the
+// presenter can move everyone to the same page.
+model SpaceDocument {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  spaceId   String   @db.ObjectId
+  title     String
+  url       String   // original file
+  publicId  String
+  format    String   // 'pdf' | 'jpg' | 'png' | ...
+  pageCount Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([spaceId])
 }

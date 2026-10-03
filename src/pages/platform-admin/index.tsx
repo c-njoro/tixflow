@@ -30,6 +30,8 @@ interface PayoutRequest {
   method: string;
   status: string;
   destination: string | null;
+  failureReason: string | null;
+  approvedAt: string | null;
   createdAt: string;
   tenant: { id: string; businessName: string; slug: string };
 }
@@ -57,6 +59,11 @@ export default function PlatformAdminDashboard() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState('');
 
+  // Payouts sent to Daraja but not yet confirmed by a result callback.
+  const [processing, setProcessing] = useState<PayoutRequest[]>([]);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveReference, setResolveReference] = useState('');
+
   const [tenants, setTenants] = useState<TenantBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,6 +89,10 @@ export default function PlatformAdminDashboard() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to load payout requests.');
       setRequests(result.data);
+
+      const procRes = await fetch('/api/platform-admin/payout-requests?status=processing');
+      const procResult = await procRes.json();
+      if (procRes.ok) setProcessing(procResult.data);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -147,6 +158,31 @@ export default function PlatformAdminDashboard() {
       if (!res.ok) throw new Error(result.error || 'Failed to reject payout.');
       setRejectingId(null);
       setRejectNote('');
+      await loadRequests();
+      await loadTenants();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleResolve = async (id: string, action: 'mark_completed' | 'mark_failed') => {
+    if (action === 'mark_failed' && !window.confirm('Only mark as failed if the M-Pesa portal shows the money was NOT sent. The amount goes back to the tenant\'s balance. Continue?')) {
+      return;
+    }
+    setActioningId(id);
+    setError('');
+    try {
+      const res = await fetch(`/api/platform-admin/payout-requests/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reference: resolveReference }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to resolve payout.');
+      setResolvingId(null);
+      setResolveReference('');
       await loadRequests();
       await loadTenants();
     } catch (err: any) {
@@ -303,6 +339,82 @@ export default function PlatformAdminDashboard() {
         {error && (
           <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
             {error}
+          </div>
+        )}
+
+        {tab === 'requests' && processing.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-xs font-mono uppercase tracking-widest text-sky-400">
+              In progress ({processing.length})
+            </div>
+            {processing.map((p) => (
+              <div key={p.id} className="border border-sky-900/60 rounded-xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{p.tenant.businessName}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{p.destination}</div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Approved {p.approvedAt ? new Date(p.approvedAt).toLocaleString() : '—'}
+                    </div>
+                    {p.failureReason && (
+                      <div className="text-xs text-amber-400 mt-1">{p.failureReason}</div>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 text-lg font-mono font-bold">
+                    KES {(p.netAmount ?? p.amount).toLocaleString()}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Waiting for M-Pesa to confirm. If nothing arrives, check the M-Pesa portal and record the outcome.
+                </p>
+                {resolvingId === p.id ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={resolveReference}
+                      onChange={(e) => setResolveReference(e.target.value)}
+                      placeholder="M-Pesa transaction code"
+                      className={inputClass}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleResolve(p.id, 'mark_completed')}
+                        disabled={actioningId === p.id}
+                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                      >
+                        Confirm Sent
+                      </button>
+                      <button
+                        onClick={() => setResolvingId(null)}
+                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        setResolvingId(p.id);
+                        setResolveReference('');
+                      }}
+                      disabled={actioningId === p.id}
+                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50"
+                    >
+                      Mark Completed
+                    </button>
+                    <button
+                      onClick={() => handleResolve(p.id, 'mark_failed')}
+                      disabled={actioningId === p.id}
+                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50"
+                    >
+                      Mark Failed
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 

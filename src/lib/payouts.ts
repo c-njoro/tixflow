@@ -47,3 +47,41 @@ export async function getTenantBalance(tenantId: string) {
     outstandingBalance: Math.max(totalRevenue - totalRequestedOrPaid, 0),
   };
 }
+
+export interface PayoutDestination {
+  method: 'mpesa' | 'bank';
+  destination: string;
+  destPhoneNumber: string | null;
+  destBankPaybill: string | null;
+  destAccountNumber: string | null;
+}
+
+// The tenant's currently configured payout target, in the shape that gets
+// snapshotted onto a Payout. Null if the method isn't fully set up.
+export function getPayoutDestination(tenant: {
+  payoutMethod: string | null;
+  payoutPhoneNumber: string | null;
+  payoutBankName: string | null;
+  payoutBankPaybill: string | null;
+  payoutBankAccountNumber: string | null;
+}): PayoutDestination | null {
+  if (tenant.payoutMethod === 'mpesa' && tenant.payoutPhoneNumber) {
+    return {
+      method: 'mpesa',
+      destination: `M-Pesa: ${tenant.payoutPhoneNumber}`,
+      destPhoneNumber: tenant.payoutPhoneNumber,
+      destBankPaybill: null,
+      destAccountNumber: null,
+    };
+  }
+  if (tenant.payoutMethod === 'bank' && tenant.payoutBankPaybill && tenant.payoutBankAccountNumber) {
+    return {
+      method: 'bank',
+      destination: `${tenant.payoutBankName || 'Bank'} paybill ${tenant.payoutBankPaybill} — acct ${tenant.payoutBankAccountNumber}`,
+      destPhoneNumber: null,
+      destBankPaybill: tenant.payoutBankPaybill,
+      destAccountNumber: tenant.payoutBankAccountNumber,
+    };
+  }
+  return null;
+}

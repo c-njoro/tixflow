@@ -3,9 +3,8 @@ import { prisma } from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
-
-// A fallback secret key for development. In production, this MUST live in your env variables.
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secure-jwt-token-secret-key-12345';
+import { getSessionSecret, SESSION_COOKIE_NAME } from '../../../lib/auth';
+import { getClientIp, rateLimit } from '../../../lib/rateLimit';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // 1. Enforce POST method
@@ -21,10 +20,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Email and password are required.' });
   }
 
+  // Slows down password guessing — both from one IP and against one account.
+  const normalizedEmail = String(email).toLowerCase().trim();
+  if (!rateLimit(res, `login:ip:${getClientIp(req)}`, 20, 15 * 60_000)) return;
+  if (!rateLimit(res, `login:email:${normalizedEmail}`, 10, 15 * 60_000)) return;
+
   try {
     // 3. Query User from MongoDB and include Tenant context
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       include: { tenant: true }, // Pulls the workspace parameters simultaneously
     });
 
@@ -48,12 +52,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         tenantId: user.tenantId,
         tenantSlug: user.tenant.slug,
       },
-      JWT_SECRET,
+      getSessionSecret(),
       { expiresIn: '7d' } // Session lives for 7 days
     );
 
     // 6. Serialize the HTTP-Only Cookie Header
-    const cookie = serialize('tixflow_session', sessionToken, {
+    const cookie = serialize(SESSION_COOKIE_NAME, sessionToken, {
       httpOnly: true, // Prevents client-side JavaScript access (Stops XSS token stealing)
       secure: process.env.NODE_ENV === 'production', // Enforces HTTPS protocol in production
       sameSite: 'lax', // Protects against Cross-Site Request Forgery (CSRF) attacks

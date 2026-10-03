@@ -58,13 +58,16 @@ export default function PayoutSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  // Changing details on an already-configured account needs an emailed code.
+  const [settingsChallenge, setSettingsChallenge] = useState<{ challengeId: string; maskedEmail: string } | null>(null);
+  const [settingsOtp, setSettingsOtp] = useState('');
 
   // Self-payout request state
   const [balance, setBalance] = useState<number | null>(null);
   const [feePercent, setFeePercent] = useState<number>(3);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutStage, setPayoutStage] = useState<'idle' | 'otp' | 'submitted'>('idle');
-  const [otpToken, setOtpToken] = useState('');
+  const [challengeId, setChallengeId] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [payoutError, setPayoutError] = useState('');
@@ -132,7 +135,7 @@ export default function PayoutSettingsPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to request payout.');
 
-      setOtpToken(result.data.token);
+      setChallengeId(result.data.challengeId);
       setMaskedEmail(result.data.maskedEmail);
       setOtpSplit({
         amount: result.data.amount,
@@ -151,7 +154,7 @@ export default function PayoutSettingsPage() {
       const res = await fetch('/api/tenant/payout/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: otpToken, otp: otpInput }),
+        body: JSON.stringify({ challengeId, otp: otpInput }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to confirm payout.');
@@ -167,7 +170,7 @@ export default function PayoutSettingsPage() {
   const resetPayoutFlow = () => {
     setPayoutStage('idle');
     setOtpInput('');
-    setOtpToken('');
+    setChallengeId('');
     setOtpSplit(null);
     setWithdrawAmount('');
     setPayoutError('');
@@ -193,6 +196,36 @@ export default function PayoutSettingsPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to save payout settings.');
 
+      if (result.requiresOtp) {
+        setSettingsChallenge(result.data);
+        setSettingsOtp('');
+        return;
+      }
+
+      setIsOnboarded(result.data.isOnboarded);
+      setSaved(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmSettingsOtp = async () => {
+    if (!settingsChallenge) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/tenant/payout-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeId: settingsChallenge.challengeId, otp: settingsOtp }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to confirm payout details.');
+
+      setSettingsChallenge(null);
+      setSettingsOtp('');
       setIsOnboarded(result.data.isOnboarded);
       setSaved(true);
     } catch (err: any) {
@@ -511,14 +544,48 @@ export default function PayoutSettingsPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-2.5 px-4 rounded-md text-sm font-medium bg-slate-800 border border-slate-700 hover:bg-slate-700 transition disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Payout Details'}
-          </button>
+          {settingsChallenge ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-400">
+                For your security, we sent a code to {settingsChallenge.maskedEmail}. Enter it to confirm the new
+                payout details.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={settingsOtp}
+                onChange={(e) => setSettingsOtp(e.target.value)}
+                placeholder="6-digit code"
+                className={inputClass}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmSettingsOtp}
+                  disabled={saving}
+                  className="flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition disabled:opacity-50"
+                >
+                  {saving ? 'Confirming...' : 'Confirm Change'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsChallenge(null)}
+                  className="px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full py-2.5 px-4 rounded-md text-sm font-medium bg-slate-800 border border-slate-700 hover:bg-slate-700 transition disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Payout Details'}
+            </button>
+          )}
         </div>
         </>
       )}

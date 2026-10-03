@@ -66,12 +66,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(409).json({ success: false, result: 'pending', error: 'This ticket has not been paid for yet.' });
   }
 
-  // Only remaining state is 'active' — admit the ticket.
+  // Only remaining state is 'active' — admit the ticket. Conditional on
+  // still being 'active', so if two gates scan the same code at the same
+  // moment only one of them admits it.
   try {
-    const updated = await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: { status: 'scanned', scannedAt: new Date() },
+    const scannedAt = new Date();
+    const admitted = await prisma.ticket.updateMany({
+      where: { id: ticket.id, status: 'active' },
+      data: { status: 'scanned', scannedAt },
     });
+
+    if (admitted.count === 0) {
+      const current = await prisma.ticket.findUnique({ where: { id: ticket.id } });
+      return res.status(409).json({
+        success: false,
+        result: 'already_scanned',
+        error: 'This ticket has already been scanned.',
+        data: {
+          buyerName: ticket.buyerName,
+          tierName: ticket.ticketTier.name,
+          scannedAt: current?.scannedAt ?? null,
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -81,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         buyerEmail: ticket.buyerEmail,
         tierName: ticket.ticketTier.name,
         eventTitle: ticket.event.title,
-        scannedAt: updated.scannedAt,
+        scannedAt,
       },
     });
   } catch (error) {

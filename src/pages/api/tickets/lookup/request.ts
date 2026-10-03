@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { createLookupToken } from "@/lib/ticketLookupAuth";
 import { sendLookupMagicLinkEmail } from "@/lib/email";
 import { sendWhatsappText } from "@/lib/whatsapp";
+import { getAppUrl } from "@/lib/mpesaCallbacks";
+import { normalizeKenyanPhone } from "@/lib/phone";
+import { getClientIp, rateLimit } from "@/lib/rateLimit";
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,8 +24,17 @@ export default async function handler(
 
   const normalizedEmail = email.toLowerCase().trim();
 
+  // Each request sends an email (and maybe a WhatsApp) — cap it per sender
+  // and per inbox so this can't be used to spam someone.
+  if (!rateLimit(res, `lookup:ip:${getClientIp(req)}`, 10, 15 * 60_000)) return;
+  if (!rateLimit(res, `lookup:email:${normalizedEmail}`, 3, 15 * 60_000)) return;
+
+  // `mode: insensitive` also matches tickets bought before emails were
+  // stored lowercased.
+  const emailFilter = { equals: normalizedEmail, mode: "insensitive" as const };
+
   const hasTickets = await prisma.ticket.findFirst({
-    where: { buyerEmail: normalizedEmail },
+    where: { buyerEmail: emailFilter },
     select: { id: true },
   });
 
@@ -39,8 +51,7 @@ export default async function handler(
   }
 
   const token = createLookupToken(normalizedEmail);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const magicLink = `${appUrl}/lookup/verify?token=${token}`;
+  const magicLink = `${getAppUrl()}/lookup/verify?token=${token}`;
 
   try {
     await sendLookupMagicLinkEmail(normalizedEmail, magicLink);
@@ -50,16 +61,29 @@ export default async function handler(
     // failures to the client, and don't block the flow.
   }
 
-  // Same convenience-channel treatment as ticket delivery at checkout —
-  // best-effort, never affects the response, never a substitute for email.
-  if (whatsapp && typeof whatsapp === "string") {
-    try {
-      await sendWhatsappText(
-        whatsapp.trim(),
-        `Here's your Tixflow tickets link: ${magicLink}\n\nIt expires in 15 minutes.`
-      );
-    } catch (error) {
-      console.error("CRITICAL_LOOKUP_WHATSAPP_SEND_ERROR:", error);
+  // The magic link is as good as the tickets themselves, so it only ever
+  // goes to a WhatsApp number the buyer gave at checkout for this email —
+  // never to whatever number is typed here, or anyone who knows a buyer's
+  // email could have their tickets sent to themselves.
+  const requestedWhatsapp = normalizeKenyanPhone(whatsapp);
+  if (requestedWhatsapp) {
+    const knownNumber = await prisma.pendingOrder.findFirst({
+      where: {
+        buyerEmail: emailFilter,
+        buyerWhatsapp: requestedWhatsapp,
+        status: "completed",
+      },
+      select: { id: true },
+    });
+    if (knownNumber) {
+      try {
+        await sendWhatsappText(
+          requestedWhatsapp,
+          `Here's your Tixflow tickets link: ${magicLink}\n\nIt expires in 15 minutes.`
+        );
+      } catch (error) {
+        console.error("CRITICAL_LOOKUP_WHATSAPP_SEND_ERROR:", error);
+      }
     }
   }
 

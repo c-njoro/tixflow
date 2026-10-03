@@ -36,6 +36,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!publicId || typeof publicId !== 'string') {
       return res.status(400).json({ error: 'publicId is required.' });
     }
+    // Uploads land in tixflow/<tenantId>/... — refuse to touch anything
+    // outside this tenant's folder (e.g. another organiser's event images).
+    if (!publicId.startsWith(`tixflow/${session.tenantId}/`) || publicId.includes('..')) {
+      return res.status(403).json({ error: 'You can only delete your own images.' });
+    }
 
     try {
       await deleteImage(publicId);

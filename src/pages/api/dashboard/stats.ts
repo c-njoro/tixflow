@@ -24,9 +24,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: { tenantId: session.tenantId, status: 'scanned' },
   });
 
+  // Revenue is what buyers actually paid on completed orders — the same
+  // figure payouts are calculated from — not sold × today's tier price,
+  // which drifts as soon as an organiser edits a price.
+  const paidOrders = await prisma.pendingOrder.aggregate({
+    where: { tenantId: session.tenantId, status: 'completed' },
+    _sum: { totalAmount: true },
+  });
+  const revenue = paidOrders._sum.totalAmount || 0;
+
   const now = new Date();
   let ticketsIssued = 0;
-  let revenue = 0;
   const upcomingEvents: {
     id: string;
     title: string;
@@ -39,13 +47,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (const event of events) {
     const eventSold = event.ticketTiers.reduce((sum, t) => sum + t.sold, 0);
     const eventCapacity = event.ticketTiers.reduce((sum, t) => sum + t.capacity, 0);
-    // Revenue is sold * current tier price — an approximation, since we don't
-    // snapshot the price paid on each ticket yet. That'll change once each
-    // ticket records its actual M-Pesa charge from the completed order.
-    const eventRevenue = event.ticketTiers.reduce((sum, t) => sum + t.sold * t.price, 0);
 
     ticketsIssued += eventSold;
-    revenue += eventRevenue;
 
     if (event.status === 'published' && new Date(event.date) >= now) {
       upcomingEvents.push({

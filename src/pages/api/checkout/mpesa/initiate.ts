@@ -1,15 +1,16 @@
 // src/pages/api/checkout/mpesa/initiate.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 import mpesaService from '@/lib/mpesaService';
+import { mpesaCallbackUrl } from '@/lib/mpesaCallbacks';
+import { getClientIp, rateLimit } from '@/lib/rateLimit';
+import { normalizeKenyanPhone } from '@/lib/phone';
 
 // Daraja hard-limits these — AccountReference max 12 chars, TransactionDesc max 13.
 const buildAccountReference = (orderId: string) => `TIX-${orderId.slice(-6)}`.slice(0, 12);
 
-// Accepts 07XXXXXXXX and 01XXXXXXXX — Safaricom's original and newer ranges.
-// Same shape WhatsApp numbers take in Kenya, so we reuse it for the
-// optional WhatsApp field rather than a separate looser check.
-const KENYA_PHONE_REGEX = /^0[17]\d{8}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -22,9 +23,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!eventId || !buyerName || !buyerEmail || !phoneNumber) {
     return res.status(400).json({ error: 'eventId, buyerName, buyerEmail, and phoneNumber are required.' });
   }
-  if (buyerWhatsapp && !KENYA_PHONE_REGEX.test(String(buyerWhatsapp).trim())) {
+  if (!EMAIL_REGEX.test(String(buyerEmail).trim())) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  const mpesaPhone = normalizeKenyanPhone(phoneNumber);
+  if (!mpesaPhone) {
+    return res.status(400).json({ error: 'Enter a valid M-Pesa number (e.g. 0712345678).' });
+  }
+  const whatsappPhone = buyerWhatsapp ? normalizeKenyanPhone(buyerWhatsapp) : null;
+  if (buyerWhatsapp && !whatsappPhone) {
     return res.status(400).json({ error: 'Enter a valid WhatsApp number (e.g. 0712345678), or leave it blank.' });
   }
+
+  // Every call pops a PIN prompt on someone's phone — don't let this be
+  // used to spam a number, or to hammer Daraja from one client.
+  if (!rateLimit(res, `stk:ip:${getClientIp(req)}`, 10, 10 * 60_000)) return;
+  if (!rateLimit(res, `stk:phone:${mpesaPhone}`, 5, 10 * 60_000)) return;
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'At least one ticket must be selected.' });
   }
@@ -51,7 +65,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const quantity = Number(item.quantity);
 
     if (!tier) return res.status(400).json({ error: 'One of the selected ticket tiers is invalid.' });
-    if (!tier.isActive) return res.status(409).json({ error: `${tier.name} is not currently on sale.` });
+    const now = new Date();
+    if (!tier.isActive || (tier.salesStart && tier.salesStart > now) || (tier.salesEnd && tier.salesEnd < now)) {
+      return res.status(409).json({ error: `${tier.name} is not currently on sale.` });
+    }
     if (!Number.isInteger(quantity) || quantity < 1) {
       return res.status(400).json({ error: 'Ticket quantities must be whole numbers of at least 1.' });
     }
@@ -71,16 +88,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Order total must be greater than zero.' });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
   try {
     const order = await prisma.pendingOrder.create({
       data: {
         status: 'pending',
-        buyerName: buyerName.trim(),
-        buyerEmail: buyerEmail.trim(),
-        buyerWhatsapp: buyerWhatsapp ? String(buyerWhatsapp).trim() : null,
-        buyerPhone: phoneNumber.trim(),
+        buyerName: String(buyerName).trim().slice(0, 120),
+        // Lowercased so ticket lookup by email always finds it.
+        buyerEmail: String(buyerEmail).toLowerCase().trim(),
+        buyerWhatsapp: whatsappPhone,
+        buyerPhone: mpesaPhone,
+        accessKey: crypto.randomBytes(24).toString('base64url'),
         totalAmount,
         items: orderItems,
         tenantId: tenant.id,
@@ -89,10 +106,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const stkResult = await mpesaService.initiateSTKPush({
-      phoneNumber: phoneNumber.trim(),
+      phoneNumber: mpesaPhone,
       amount: totalAmount,
       accountReference: buildAccountReference(order.id),
-      callbackUrl: `${appUrl}/api/mpesa/callback`,
+      callbackUrl: mpesaCallbackUrl('/api/mpesa/callback'),
       transactionDesc: event.title.slice(0, 13),
     });
 
@@ -116,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       success: true,
       data: {
         orderId: order.id,
-        checkoutRequestId: stkResult.checkoutRequestId,
+        accessKey: order.accessKey,
         customerMessage: stkResult.customerMessage,
       },
     });

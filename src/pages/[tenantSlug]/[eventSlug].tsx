@@ -90,10 +90,12 @@ export default function PublicEventPage({ tenant, event }: Props) {
     }
   }, [showCheckoutForm]);
 
-  const pollOrderStatus = (id: string) => {
+  const pollOrderStatus = (id: string, accessKey: string) => {
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/checkout/mpesa/status?orderId=${id}`);
+        const res = await fetch(
+          `/api/checkout/mpesa/status?orderId=${id}&key=${encodeURIComponent(accessKey)}`
+        );
         const result = await res.json();
         if (!res.ok) return;
 
@@ -150,7 +152,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
 
       setOrderId(result.data.orderId);
       setCheckoutStage('awaiting_pin');
-      pollOrderStatus(result.data.orderId);
+      pollOrderStatus(result.data.orderId, result.data.accessKey);
     } catch (err: any) {
       setCheckoutError(err.message);
       setCheckoutStage('idle');

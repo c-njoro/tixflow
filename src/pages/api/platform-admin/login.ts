@@ -2,13 +2,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
-import { PLATFORM_ADMIN_COOKIE_NAME, PLATFORM_ADMIN_JWT_SECRET } from '@/lib/platformAdminAuth';
+import { PLATFORM_ADMIN_COOKIE_NAME, getPlatformAdminSecret } from '@/lib/platformAdminAuth';
+import { safeEqual } from '@/lib/secrets';
+import { getClientIp, rateLimit } from '@/lib/rateLimit';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
+
+  // This login controls every tenant's money — keep guessing very slow.
+  if (!rateLimit(res, `platform-admin-login:${getClientIp(req)}`, 5, 15 * 60_000)) return;
 
   const { username, password } = req.body;
 
@@ -20,11 +25,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Platform admin login is not configured.' });
   }
 
-  if (username !== expectedUsername || password !== expectedPassword) {
+  // Evaluate both comparisons (no short-circuit) in constant time.
+  const usernameOk = safeEqual(String(username ?? ''), expectedUsername);
+  const passwordOk = safeEqual(String(password ?? ''), expectedPassword);
+  if (!usernameOk || !passwordOk) {
     return res.status(401).json({ error: 'Invalid credentials.' });
   }
 
-  const token = jwt.sign({ username }, PLATFORM_ADMIN_JWT_SECRET, { expiresIn: '12h' });
+  const token = jwt.sign({ username }, getPlatformAdminSecret(), { expiresIn: '12h' });
 
   res.setHeader(
     'Set-Cookie',

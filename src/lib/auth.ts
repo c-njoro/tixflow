@@ -1,8 +1,11 @@
 // src/lib/auth.ts
 import type { NextApiRequest } from 'next';
 import jwt from 'jsonwebtoken';
+import { getSecret } from './secrets';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secure-jwt-token-secret-key-12345';
+export const SESSION_COOKIE_NAME = 'tixflow_session';
+
+export const getSessionSecret = () => getSecret('JWT_SECRET');
 
 export interface SessionPayload {
   userId: string;
@@ -15,11 +18,11 @@ export interface SessionPayload {
 // Reads and verifies the tixflow_session cookie set at login.
 // Returns null if missing/invalid/expired — callers must handle that as unauthenticated.
 export function getSession(req: NextApiRequest): SessionPayload | null {
-  const token = req.cookies?.tixflow_session;
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
   if (!token) return null;
 
   try {
-    return jwt.verify(token, JWT_SECRET) as SessionPayload;
+    return jwt.verify(token, getSessionSecret()) as SessionPayload;
   } catch {
     return null;
   }

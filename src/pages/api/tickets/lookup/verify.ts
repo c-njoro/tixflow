@@ -27,7 +27,9 @@ export default async function handler(
   }
 
   const tickets = await prisma.ticket.findMany({
-    where: { buyerEmail: payload.email },
+    // Case-insensitive so tickets bought before emails were stored
+    // lowercased still show up.
+    where: { buyerEmail: { equals: payload.email, mode: "insensitive" } },
     orderBy: { createdAt: "desc" },
     include: {
       event: {

@@ -83,6 +83,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!publicId || typeof publicId !== 'string') {
           return res.status(400).json({ error: 'publicId is required to delete a gallery image.' });
         }
+        // Only images actually attached to this event — never an arbitrary
+        // Cloudinary asset id sent by the client.
+        if (!event.galleryImages.some((img) => img.publicId === publicId)) {
+          return res.status(404).json({ error: 'Image not found on this event.' });
+        }
         await deleteImage(publicId);
 
         // `deleteMany` on a MongoDB composite-type list isn't something I

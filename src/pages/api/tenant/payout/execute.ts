@@ -2,8 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { getTenantBalance, computePayoutSplit } from '@/lib/payouts';
-import { hashOtp, verifyOtpToken } from '@/lib/payoutOtp';
+import { getTenantBalance, computePayoutSplit, getPayoutDestination } from '@/lib/payouts';
+import { verifyOtpChallenge } from '@/lib/otp';
 
 // Confirming the OTP only files the request — it does NOT move any money.
 // The actual Daraja B2C/B2B call happens when a platform admin approves it
@@ -19,30 +19,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { token, otp } = req.body;
-  if (!token || !otp) {
-    return res.status(400).json({ error: 'token and otp are required.' });
+  const { challengeId, otp } = req.body;
+  if (typeof challengeId !== 'string' || !otp) {
+    return res.status(400).json({ error: 'challengeId and otp are required.' });
   }
 
-  const payload = verifyOtpToken(token);
-  if (!payload || payload.tenantId !== session.tenantId) {
-    return res.status(401).json({ error: 'This confirmation code has expired. Request a new one.' });
-  }
-  if (payload.otpHash !== hashOtp(otp)) {
-    return res.status(401).json({ error: 'Incorrect code.' });
+  const verified = await verifyOtpChallenge({
+    challengeId,
+    code: String(otp),
+    purpose: 'payout_request',
+    tenantId: session.tenantId,
+  });
+  if (!verified.ok) return res.status(401).json({ error: verified.error });
+
+  const amount = Number((verified.payload as { amount?: number } | null)?.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'This request is invalid. Start over with a new amount.' });
   }
 
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tenantId } });
   if (!tenant) return res.status(404).json({ error: 'Tenant not found.' });
 
-  const isMpesa = tenant.payoutMethod === 'mpesa' && tenant.payoutPhoneNumber;
-  const isBank = tenant.payoutMethod === 'bank' && tenant.payoutBankPaybill && tenant.payoutBankAccountNumber;
-
-  if (!isMpesa && !isBank) {
+  const dest = getPayoutDestination(tenant);
+  if (!dest) {
     return res.status(409).json({ error: 'Payout method is not configured correctly.' });
   }
-
-  const amount = payload.amount;
 
   // Recompute fresh — never trust a balance figure carried over from the
   // OTP request step.
@@ -54,9 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const split = computePayoutSplit(amount);
-  const destination = isMpesa
-    ? `M-Pesa: ${tenant.payoutPhoneNumber}`
-    : `${tenant.payoutBankName || 'Bank'} paybill ${tenant.payoutBankPaybill} — acct ${tenant.payoutBankAccountNumber}`;
 
   try {
     const payout = await prisma.payout.create({
@@ -66,8 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         feePercent: split.feePercent,
         feeAmount: split.feeAmount,
         netAmount: split.netAmount,
-        destination,
-        method: tenant.payoutMethod!,
+        ...dest,
         status: 'pending_approval',
         initiatedBy: 'tenant',
       },

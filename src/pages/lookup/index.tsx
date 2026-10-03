@@ -81,7 +81,8 @@ export default function LookupRequestPage() {
                 className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
               />
               <p className="text-[11px] text-slate-600 mt-1.5">
-                We&apos;ll also send the link on WhatsApp — the email link is what actually works either way.
+                Use the WhatsApp number you gave at checkout and we&apos;ll send the link there too. The email link
+                works either way.
               </p>
             </div>
             <button

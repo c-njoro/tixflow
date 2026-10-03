@@ -420,6 +420,12 @@ export default function EventDetailPage() {
           >
             View Attendees
           </a>
+          <a
+            href={`/dashboard/events/${event.id}/space`}
+            className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-emerald-800/60 rounded-md text-emerald-300 hover:text-white hover:bg-emerald-950/40 transition"
+          >
+            Event Space
+          </a>
           {isAdmin && (
             <button
               type="button"

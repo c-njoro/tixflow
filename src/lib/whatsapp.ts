@@ -31,6 +31,7 @@ import makeWASocket, {
 import QRCode from 'qrcode';
 import pino from 'pino';
 import mpesaService from './mpesaService';
+import { formatEventDate } from './email';
 
 export type WhatsappStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected';
 
@@ -234,7 +235,7 @@ export async function sendTicketWhatsapp(details: TicketWhatsappDetails): Promis
     await state.sock!.sendMessage(jid, {
       text:
         `Hi ${details.buyerName}, you're going to *${details.eventTitle}*!\n` +
-        `${new Date(details.eventDate).toLocaleString()} · ${details.eventLocation}\n\n` +
+        `${formatEventDate(details.eventDate)} · ${details.eventLocation}\n\n` +
         `Sending ${plural ? 'your tickets' : 'your ticket'} below — show the QR code${plural ? 's' : ''} at the door.`,
     });
 

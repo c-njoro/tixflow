@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { deleteImage } from '@/lib/cloudinary';
+import { deleteSpace } from '@/lib/eventSpace';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
@@ -81,6 +82,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           )
         )
       );
+
+      const space = await prisma.eventSpace.findUnique({ where: { eventId: id }, select: { id: true } });
+      if (space) await deleteSpace(space.id);
 
       await prisma.$transaction([
         prisma.ticketTier.deleteMany({ where: { eventId: id } }),

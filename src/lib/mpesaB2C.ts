@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import mpesaService from './mpesaService';
+import { mpesaCallbackUrl } from './mpesaCallbacks';
 
 export function getBaseURL() {
   return process.env.MPESA_ENVIRONMENT === 'production'
@@ -35,6 +36,10 @@ interface B2CResult {
   conversationId?: string;
   originatorConversationId?: string;
   error?: string;
+  // true when we can't tell whether Safaricom received the request (e.g. a
+  // network timeout after sending) — the money MAY have moved, so the
+  // payout must not be marked failed and its balance released.
+  uncertain?: boolean;
 }
 
 export async function initiateB2CPayment(options: {
@@ -46,18 +51,23 @@ export async function initiateB2CPayment(options: {
   const initiatorName = process.env.MPESA_B2C_INITIATOR_NAME;
   const initiatorPassword = process.env.MPESA_B2C_INITIATOR_PASSWORD;
   const shortcode = process.env.MPESA_B2C_SHORTCODE || process.env.MPESA_SHORTCODE;
-  const resultUrl = process.env.MPESA_B2C_RESULT_URL;
-  const timeoutUrl = process.env.MPESA_B2C_TIMEOUT_URL;
+  // Optional overrides (e.g. a tunnel URL in development); default to this app.
+  const resultUrl = mpesaCallbackUrl(process.env.MPESA_B2C_RESULT_URL || '/api/mpesa/b2c-result');
+  const timeoutUrl = mpesaCallbackUrl(process.env.MPESA_B2C_TIMEOUT_URL || '/api/mpesa/b2c-result');
 
-  if (!initiatorName || !initiatorPassword || !shortcode || !resultUrl || !timeoutUrl) {
+  if (!initiatorName || !initiatorPassword || !shortcode) {
     return { success: false, error: 'Payouts are not fully configured on the server yet.' };
   }
 
+  // Errors before the request leaves (bad cert, auth failure) mean nothing
+  // was sent; errors after it leaves mean we simply don't know.
+  let requestSent = false;
   try {
     const accessToken = await mpesaService.getAccessToken();
     const securityCredential = generateSecurityCredential(initiatorPassword);
     const formattedPhone = mpesaService.formatPhoneNumber(options.phoneNumber);
 
+    requestSent = true;
     const response = await fetch(`${getBaseURL()}/mpesa/b2c/v1/paymentrequest`, {
       method: 'POST',
       headers: {
@@ -94,7 +104,14 @@ export async function initiateB2CPayment(options: {
     };
   } catch (error) {
     console.error('CRITICAL_B2C_INITIATE_ERROR:', error);
-    return { success: false, error: 'Failed to initiate payout.' };
+    if (!requestSent) {
+      return { success: false, error: 'Failed to prepare the payout request — check server M-Pesa configuration.' };
+    }
+    return {
+      success: false,
+      uncertain: true,
+      error: 'No clear answer from M-Pesa — check the M-Pesa portal before retrying.',
+    };
   }
 }
 

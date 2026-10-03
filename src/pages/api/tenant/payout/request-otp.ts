@@ -2,28 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { getTenantBalance, computePayoutSplit } from '@/lib/payouts';
-import { generateOtp, hashOtp, createOtpToken } from '@/lib/payoutOtp';
+import { getTenantBalance, computePayoutSplit, getPayoutDestination } from '@/lib/payouts';
+import { createOtpChallenge, maskEmail } from '@/lib/otp';
 import { sendPayoutOtpEmail } from '@/lib/email';
-
-const maskEmail = (email: string) => {
-  const [name, domain] = email.split('@');
-  if (!domain) return email;
-  return `${name.slice(0, 2)}${'*'.repeat(Math.max(name.length - 2, 1))}@${domain}`;
-};
-
-function tenantHasValidPayoutMethod(tenant: {
-  payoutMethod: string | null;
-  payoutPhoneNumber: string | null;
-  payoutBankPaybill: string | null;
-  payoutBankAccountNumber: string | null;
-}): boolean {
-  if (tenant.payoutMethod === 'mpesa') return Boolean(tenant.payoutPhoneNumber);
-  if (tenant.payoutMethod === 'bank') {
-    return Boolean(tenant.payoutBankPaybill && tenant.payoutBankAccountNumber);
-  }
-  return false;
-}
+import { rateLimit } from '@/lib/rateLimit';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
@@ -36,16 +18,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
+  // Each call sends an email — don't let it be used to spam the inbox.
+  if (!rateLimit(res, `payout-otp:${session.tenantId}`, 5, 15 * 60_000)) return;
+
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tenantId } });
   if (!tenant) return res.status(404).json({ error: 'Tenant not found.' });
 
-  if (!tenantHasValidPayoutMethod(tenant)) {
+  if (!getPayoutDestination(tenant)) {
     return res.status(409).json({
       error: 'Your payout method is not fully set up yet. Complete your M-Pesa or bank details first.',
     });
   }
 
-  const amount = Number(req.body?.amount);
+  const amount = Math.round(Number(req.body?.amount) * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0) {
     return res.status(400).json({ error: 'Enter a valid amount to withdraw.' });
   }
@@ -62,28 +47,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const split = computePayoutSplit(amount);
 
-  const otp = generateOtp();
-  const token = createOtpToken(session.tenantId, hashOtp(otp), amount);
-
   try {
-    await sendPayoutOtpEmail(session.email, otp, {
+    // The amount lives on the server-side challenge, so the amount that
+    // gets filed is always the one the tenant confirmed by email.
+    const { challengeId, code } = await createOtpChallenge({
+      purpose: 'payout_request',
+      tenantId: session.tenantId,
+      userId: session.userId,
+      payload: { amount },
+    });
+
+    await sendPayoutOtpEmail(session.email, code, {
       amount,
       feeAmount: split.feeAmount,
       netAmount: split.netAmount,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        challengeId,
+        maskedEmail: maskEmail(session.email),
+        amount,
+        ...split,
+        outstandingBalance: balance.outstandingBalance,
+      },
     });
   } catch (error) {
     console.error('CRITICAL_PAYOUT_OTP_EMAIL_ERROR:', error);
     return res.status(500).json({ error: 'Failed to send confirmation code. Please try again.' });
   }
-
-  return res.status(200).json({
-    success: true,
-    data: {
-      token,
-      maskedEmail: maskEmail(session.email),
-      amount,
-      ...split,
-      outstandingBalance: balance.outstandingBalance,
-    },
-  });
 }
