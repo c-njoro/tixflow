@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { getPublicEvent } from '@/lib/publicQueries';
+import { captureRef, getRef } from '@/lib/referral';
 import {
   MapPinIcon,
   CalendarIcon,
@@ -38,6 +39,8 @@ interface Props {
     galleryImageUrls?: string[];
     galleryImages?: { url: string; publicId: string }[];
     ticketTiers: Tier[];
+    // Lipa Pole Pole terms while new plans can be started, else null.
+    installments: { minDepositPercent: number; dueAt: string } | null;
   };
 }
 
@@ -58,6 +61,10 @@ export default function PublicEventPage({ tenant, event }: Props) {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [purchasedTickets, setPurchasedTickets] = useState<{ ticketCode: string }[]>([]);
   const [failureReason, setFailureReason] = useState('');
+  // Lipa Pole Pole
+  const [payInInstalments, setPayInInstalments] = useState(false);
+  const [deposit, setDeposit] = useState('');
+  const [plan, setPlan] = useState<{ id: string; accessKey: string; paidAmount: number; totalAmount: number; dueAt: string } | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkoutRef = useRef<HTMLDivElement>(null);
@@ -72,6 +79,14 @@ export default function PublicEventPage({ tenant, event }: Props) {
     0
   );
 
+  const minDeposit = event.installments ? Math.max(Math.ceil((totalPrice * event.installments.minDepositPercent) / 100), 1) : 0;
+  const depositAmount = Math.round(Number(deposit) || minDeposit);
+  const usingInstalments = !!event.installments && payInInstalments && depositAmount < totalPrice;
+  const chargeNow = usingInstalments ? depositAmount : totalPrice;
+  const dueDateLabel = event.installments
+    ? new Date(event.installments.dueAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi', day: 'numeric', month: 'long' })
+    : '';
+
   const stopPolling = () => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -80,6 +95,9 @@ export default function PublicEventPage({ tenant, event }: Props) {
   };
 
   useEffect(() => stopPolling, []);
+
+  // Promoter links (?ref=code) — remembered so the sale is credited to them.
+  useEffect(() => captureRef(tenant.slug), [tenant.slug]);
 
   // Scroll to checkout when form opens
   useEffect(() => {
@@ -102,6 +120,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
         if (result.data.status === 'completed') {
           stopPolling();
           setPurchasedTickets(result.data.tickets);
+          if (result.data.installmentPlan) setPlan(result.data.installmentPlan);
           setCheckoutStage('completed');
         } else if (result.data.status === 'failed') {
           stopPolling();
@@ -142,6 +161,8 @@ export default function PublicEventPage({ tenant, event }: Props) {
           buyerEmail,
           buyerWhatsapp: buyerWhatsapp.trim() || undefined,
           phoneNumber: buyerPhone,
+          ref: getRef(tenant.slug),
+          installment: usingInstalments ? { deposit: depositAmount } : undefined,
           items: event.ticketTiers
             .filter((tier) => (quantities[tier.id] || 0) > 0)
             .map((tier) => ({ ticketTierId: tier.id, quantity: quantities[tier.id] })),
@@ -167,6 +188,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
     setFailureReason('');
     setOrderId(null);
     setPurchasedTickets([]);
+    setPlan(null);
   };
 
   const eventDate = new Date(event.date);
@@ -406,7 +428,28 @@ export default function PublicEventPage({ tenant, event }: Props) {
 
           {/* Checkout Flow */}
           <div ref={checkoutRef} className="space-y-4">
-            {checkoutStage === 'completed' ? (
+            {checkoutStage === 'completed' && plan ? (
+              <div className="p-8 rounded-2xl bg-emerald-950/20 border border-emerald-800/30 text-center space-y-5">
+                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-950/50 border border-emerald-800/30 flex items-center justify-center">
+                  <CheckCircleIcon className="w-8 h-8 text-emerald-400" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold text-emerald-400">Your seats are reserved</h2>
+                  <p className="text-sm text-slate-400 max-w-md mx-auto">
+                    KES {plan.paidAmount.toLocaleString()} paid of KES {plan.totalAmount.toLocaleString()}. Pay the rest — any
+                    amount, any time — by {dueDateLabel}. Your tickets are sent the moment it&apos;s fully paid.
+                  </p>
+                </div>
+                <a
+                  href={`/plan/${plan.id}?key=${encodeURIComponent(plan.accessKey)}`}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition"
+                >
+                  Open my payment plan
+                  <ChevronRightIcon className="w-4 h-4" />
+                </a>
+                <p className="text-xs text-slate-500">We&apos;ve also sent this link to your email{buyerWhatsapp ? ' and WhatsApp' : ''}.</p>
+              </div>
+            ) : checkoutStage === 'completed' ? (
               <div className="p-8 rounded-2xl bg-emerald-950/20 border border-emerald-800/30 text-center space-y-6">
                 <div className="w-16 h-16 mx-auto rounded-full bg-emerald-950/50 border border-emerald-800/30 flex items-center justify-center">
                   <CheckCircleIcon className="w-8 h-8 text-emerald-400" />
@@ -490,7 +533,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                     <span className="text-slate-300 font-mono">{buyerPhone}</span>{' '}
                     to complete payment of{' '}
                     <span className="text-slate-200 font-mono">
-                      KES {totalPrice.toLocaleString()}
+                      KES {chargeNow.toLocaleString()}
                     </span>
                     .
                   </p>
@@ -603,10 +646,50 @@ export default function PublicEventPage({ tenant, event }: Props) {
                     </p>
                   </div>
 
+                  {event.installments && totalPrice > 0 && (
+                    <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-3">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={payInInstalments}
+                          onChange={(e) => setPayInInstalments(e.target.checked)}
+                          className="mt-1"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium text-white">Lipa Pole Pole — pay in instalments</span>
+                          <span className="block text-xs text-slate-500 mt-0.5">
+                            Pay a deposit now to reserve your seats, then the rest in any amounts by {dueDateLabel}.
+                          </span>
+                        </span>
+                      </label>
+                      {payInInstalments && (
+                        <div className="space-y-1.5 pl-7">
+                          <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                            Deposit today (min KES {minDeposit.toLocaleString()})
+                          </label>
+                          <input
+                            type="number"
+                            min={minDeposit}
+                            max={totalPrice}
+                            step="1"
+                            value={deposit}
+                            onChange={(e) => setDeposit(e.target.value)}
+                            placeholder={String(minDeposit)}
+                            className="block w-full bg-[#0E131F] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
+                          />
+                          <p className="text-[11px] text-slate-600">
+                            KES {Math.max(totalPrice - chargeNow, 0).toLocaleString()}{' '}left to pay after today. If it
+                            isn&apos;t paid by {dueDateLabel}, the seats are released.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="pt-2">
                     <button
                       type="submit"
-                      disabled={checkoutStage === 'submitting'}
+                      disabled={checkoutStage === 'submitting' || (usingInstalments && depositAmount < minDeposit)}
                       className="w-full py-3.5 rounded-xl text-sm font-medium bg-white text-black hover:bg-slate-200 transition disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {checkoutStage === 'submitting' ? (
@@ -616,7 +699,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                         </>
                       ) : (
                         <>
-                          Pay KES {totalPrice.toLocaleString()}
+                          {usingInstalments ? `Pay deposit KES ${chargeNow.toLocaleString()}` : `Pay KES ${totalPrice.toLocaleString()}`}
                           <ChevronRightIcon className="w-4 h-4" />
                         </>
                       )}

@@ -1,5 +1,6 @@
 // src/lib/payouts.ts
 import { prisma } from './prisma';
+import { getOwedCommissionTotal } from './promoters';
 
 // The platform's cut, taken out of each individual payout request — not
 // pre-deducted from the tenant's overall balance. Change this one value to
@@ -40,11 +41,17 @@ export async function getTenantBalance(tenantId: string) {
   });
   const totalRequestedOrPaid = heldPayouts._sum.amount || 0;
 
+  // Commission earned by promoters but not yet paid to them is theirs, not
+  // the tenant's — it can't be withdrawn by the tenant. (Promoter payouts
+  // already made are part of heldPayouts above.)
+  const owedToPromoters = await getOwedCommissionTotal(tenantId);
+
   return {
     totalRevenue,
     platformFeePercent: getPlatformFeePercent(),
     totalPaidOrPending: totalRequestedOrPaid,
-    outstandingBalance: Math.max(totalRevenue - totalRequestedOrPaid, 0),
+    owedToPromoters,
+    outstandingBalance: Math.max(totalRevenue - totalRequestedOrPaid - owedToPromoters, 0),
   };
 }
 

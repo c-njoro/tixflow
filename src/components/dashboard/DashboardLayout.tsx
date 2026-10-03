@@ -108,6 +108,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             {[
               { name: "Dashboard Overview", href: "/dashboard" },
               { name: "Events Manager", href: "/dashboard/events" },
+              { name: "Promoters", href: "/dashboard/promoters" },
               { name: "Ticket Ledgers", href: "/dashboard/tickets" },
               { name: "Settings", href: "/dashboard/settings" },
             ].map((item) => (

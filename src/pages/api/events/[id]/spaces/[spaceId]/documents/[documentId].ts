@@ -1,9 +1,9 @@
-// src/pages/api/events/[id]/space/documents/[documentId].ts
+// src/pages/api/events/[id]/spaces/[spaceId]/documents/[documentId].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { deleteImage } from '@/lib/cloudinary';
 import { bumpSpace } from '@/lib/eventSpace';
-import { buildAdminState, loadExistingEventSpace } from '@/lib/spaceAdmin';
+import { buildAdminState, loadEventSpace } from '@/lib/spaceAdmin';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'DELETE') {
@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const loaded = await loadExistingEventSpace(req, res);
+  const loaded = await loadEventSpace(req, res);
   if (!loaded) return;
   const { event, space } = loaded;
 

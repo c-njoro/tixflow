@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { getSecret, safeEqual } from './secrets';
 
-export type OtpPurpose = 'payout_request' | 'payout_settings';
+export type OtpPurpose = 'payout_request' | 'payout_settings' | 'promoter_payout';
 
 const OTP_TTL_MS = 10 * 60_000;
 const MAX_ATTEMPTS = 5;

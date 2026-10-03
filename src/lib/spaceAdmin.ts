@@ -8,32 +8,31 @@ import { getSession, type SessionPayload } from './auth';
 import { ACTIVE_WINDOW_MS, getPollResults, serializeDocument, spaceUrl } from './eventSpace';
 import { inviteDueAt } from './spaceInvites';
 
-interface Loaded {
+interface LoadedEvent {
   session: SessionPayload;
   event: Event;
-  space: EventSpace | null;
 }
 
 // Sends the error response itself and returns null when the request can't
 // proceed. Reading is open to any staff on the tenant (scanner staff
 // included); changing anything is admin-only.
-export async function loadEventSpace(
+export async function loadEventForSpaces(
   req: NextApiRequest,
   res: NextApiResponse,
   { adminOnly }: { adminOnly: boolean }
-): Promise<Loaded | null> {
+): Promise<LoadedEvent | null> {
   const session = getSession(req);
   if (!session) {
     res.status(401).json({ error: 'Not authenticated.' });
     return null;
   }
   if (adminOnly && session.role !== 'admin') {
-    res.status(403).json({ error: 'Only admins can manage the Event Space.' });
+    res.status(403).json({ error: 'Only admins can manage Event Spaces.' });
     return null;
   }
 
   const { id } = req.query;
-  if (typeof id !== 'string') {
+  if (typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) {
     res.status(400).json({ error: 'Invalid event id.' });
     return null;
   }
@@ -43,20 +42,28 @@ export async function loadEventSpace(
     res.status(404).json({ error: 'Event not found.' });
     return null;
   }
-
-  const space = await prisma.eventSpace.findUnique({ where: { eventId: event.id } });
-  return { session, event, space };
+  return { session, event };
 }
 
-// Same as loadEventSpace, but a missing space is a 404.
-export async function loadExistingEventSpace(req: NextApiRequest, res: NextApiResponse) {
-  const loaded = await loadEventSpace(req, res, { adminOnly: true });
+// One room of the event, from the [spaceId] route segment.
+export async function loadEventSpace(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  { adminOnly }: { adminOnly: boolean } = { adminOnly: true }
+): Promise<(LoadedEvent & { space: EventSpace }) | null> {
+  const loaded = await loadEventForSpaces(req, res, { adminOnly });
   if (!loaded) return null;
-  if (!loaded.space) {
-    res.status(404).json({ error: 'This event has no Event Space yet.' });
+
+  const { spaceId } = req.query;
+  const space =
+    typeof spaceId === 'string' && /^[a-f0-9]{24}$/i.test(spaceId)
+      ? await prisma.eventSpace.findFirst({ where: { id: spaceId, eventId: loaded.event.id } })
+      : null;
+  if (!space) {
+    res.status(404).json({ error: 'Event Space not found.' });
     return null;
   }
-  return { ...loaded, space: loaded.space };
+  return { ...loaded, space };
 }
 
 // Everything the organiser dashboard shows — unlike the public state this

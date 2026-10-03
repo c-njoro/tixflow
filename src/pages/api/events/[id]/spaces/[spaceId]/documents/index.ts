@@ -1,9 +1,9 @@
-// src/pages/api/events/[id]/space/documents/index.ts
+// src/pages/api/events/[id]/spaces/[spaceId]/documents/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { uploadDocument } from '@/lib/cloudinary';
 import { bumpSpace } from '@/lib/eventSpace';
-import { buildAdminState, loadExistingEventSpace } from '@/lib/spaceAdmin';
+import { buildAdminState, loadEventSpace } from '@/lib/spaceAdmin';
 
 // Base64 inflates files by a third — this fits a ~10 MB file, which is
 // also Cloudinary's free-plan per-file limit.
@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const loaded = await loadExistingEventSpace(req, res);
+  const loaded = await loadEventSpace(req, res);
   if (!loaded) return;
   const { session, event, space } = loaded;
 

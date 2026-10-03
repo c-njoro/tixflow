@@ -192,25 +192,188 @@ interface SpaceInviteDetails {
   to: string;
   buyerName: string;
   eventTitle: string;
-  spaceTitle: string;
-  url: string;
+  rooms: { title: string; url: string }[];
 }
 
 export async function sendSpaceInviteEmail(details: SpaceInviteDetails) {
+  const single = details.rooms.length === 1;
+  const buttons = details.rooms
+    .map(
+      (room) => `
+        <p>
+          <a href="${room.url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
+            ${single ? 'Open the Event Space' : `Open ${escapeHtml(room.title)}`}
+          </a>
+        </p>`
+    )
+    .join('');
+
   await send(
     details.to,
     `Join the live space for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
     `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2>${escapeHtml(details.spaceTitle)}</h2>
-        <p>Hi ${escapeHtml(details.buyerName)}, ${escapeHtml(details.eventTitle)} has a live space for attendees.</p>
+        <h2>${escapeHtml(details.eventTitle)}</h2>
+        <p>Hi ${escapeHtml(details.buyerName)}, ${escapeHtml(details.eventTitle)} has a live space for attendees${single ? '' : ' in each room'}.</p>
         <p>Open it on your phone during the event to follow the programme and documents, answer live polls and ask questions.</p>
+        ${buttons}
+        <p style="color:#666;font-size:12px;">No app or sign-up needed. You can also join by scanning the QR code at the venue.</p>
+      </div>
+    `
+  );
+}
+
+interface EventReminderDetails {
+  to: string;
+  buyerName: string;
+  eventTitle: string;
+  eventDate: Date | string;
+  eventLocation: string;
+  mapsUrl: string;
+  lookupUrl: string;
+  when: 'tomorrow' | 'soon';
+}
+
+export async function sendEventReminderEmail(details: EventReminderDetails) {
+  const heading = details.when === 'tomorrow' ? 'See you tomorrow!' : 'Starting soon!';
+  await send(
+    details.to,
+    `${details.when === 'tomorrow' ? 'Tomorrow' : 'Starting soon'}: ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>${heading}</h2>
+        <p>Hi ${escapeHtml(details.buyerName)}, this is a reminder that <strong>${escapeHtml(details.eventTitle)}</strong>
+        ${details.when === 'tomorrow' ? 'is tomorrow' : 'starts in about 2 hours'}.</p>
+        <p style="font-size:15px;">
+          <strong>${formatEventDate(details.eventDate)}</strong><br />
+          ${escapeHtml(details.eventLocation)}
+        </p>
         <p>
-          <a href="${details.url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
-            Open the Event Space
+          <a href="${details.mapsUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
+            Get directions
           </a>
         </p>
-        <p style="color:#666;font-size:12px;">No app or sign-up needed. You can also join by scanning the QR code at the venue.</p>
+        <p style="color:#666;font-size:12px;">
+          Have your ticket QR code ready at the door. Can't find it? <a href="${details.lookupUrl}">Get your tickets again</a>.
+        </p>
+      </div>
+    `
+  );
+}
+
+export async function sendPromoterPayoutOtpEmail(
+  email: string,
+  otp: string,
+  details: { promoterName: string; phone: string; commission: number; feeAmount: number; amount: number }
+) {
+  await send(
+    email,
+    'Confirm a promoter commission payout',
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Confirm promoter payout</h2>
+        <p>Use this code to confirm paying commission to <strong>${escapeHtml(details.promoterName)}</strong>
+        (M-Pesa ${escapeHtml(details.phone)}). It expires in 10 minutes.</p>
+        <p style="font-size:32px;font-weight:700;letter-spacing:4px;text-align:center;background:#f4f4f4;padding:16px;border-radius:8px;">
+          ${otp}
+        </p>
+        <table style="width:100%;font-size:13px;color:#333;margin-top:12px;">
+          <tr><td>Promoter receives</td><td style="text-align:right;">KES ${details.commission.toLocaleString()}</td></tr>
+          <tr><td>Platform fee</td><td style="text-align:right;">KES ${details.feeAmount.toLocaleString()}</td></tr>
+          <tr><td style="font-weight:700;">Taken from your balance</td><td style="text-align:right;font-weight:700;">KES ${details.amount.toLocaleString()}</td></tr>
+        </table>
+        <p style="color:#b00;font-size:12px;margin-top:12px;">
+          If you didn't request this, do NOT share this code — someone may be using your account. Change your password.
+        </p>
+      </div>
+    `
+  );
+}
+
+interface InstallmentEmailDetails {
+  to: string;
+  buyerName: string;
+  eventTitle: string;
+  paidAmount: number;
+  totalAmount: number;
+  dueAt: Date | string;
+  planUrl: string;
+  kind: 'started' | 'payment' | 'reminder' | 'expired';
+  organiser?: string;
+}
+
+export async function sendInstallmentEmail(d: InstallmentEmailDetails) {
+  const remaining = Math.max(Math.round((d.totalAmount - d.paidAmount) * 100) / 100, 0);
+  const due = formatEventDate(d.dueAt);
+  const subjects = {
+    started: `Your seats for ${d.eventTitle} are reserved`,
+    payment: `Payment received — KES ${remaining.toLocaleString()} left for ${d.eventTitle}`,
+    reminder: `Reminder: KES ${remaining.toLocaleString()} due by ${due}`,
+    expired: `Your Lipa Pole Pole plan for ${d.eventTitle} has expired`,
+  };
+  const intro = {
+    started: `Your deposit is in and your seats for <strong>${escapeHtml(d.eventTitle)}</strong> are held for you.`,
+    payment: `We received your payment towards <strong>${escapeHtml(d.eventTitle)}</strong>.`,
+    reminder: `A reminder to finish paying for <strong>${escapeHtml(d.eventTitle)}</strong>.`,
+    expired: `The deadline for <strong>${escapeHtml(d.eventTitle)}</strong> passed before the plan was paid off, so the seats have been released. Contact ${escapeHtml(d.organiser || 'the organiser')} about what you've already paid.`,
+  };
+  await send(
+    d.to,
+    subjects[d.kind].replace(/[\r\n]+/g, ' '),
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Lipa Pole Pole</h2>
+        <p>Hi ${escapeHtml(d.buyerName)}, ${intro[d.kind]}</p>
+        <table style="width:100%;font-size:14px;color:#333;margin:12px 0;">
+          <tr><td>Paid so far</td><td style="text-align:right;">KES ${d.paidAmount.toLocaleString()}</td></tr>
+          <tr><td>Total</td><td style="text-align:right;">KES ${d.totalAmount.toLocaleString()}</td></tr>
+          <tr><td style="font-weight:700;">Left to pay</td><td style="text-align:right;font-weight:700;">KES ${remaining.toLocaleString()}</td></tr>
+          ${d.kind === 'expired' ? '' : `<tr><td>Pay by</td><td style="text-align:right;">${due}</td></tr>`}
+        </table>
+        ${
+          d.kind === 'expired'
+            ? ''
+            : `<p>
+          <a href="${d.planUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
+            Pay the next instalment
+          </a>
+        </p>
+        <p style="color:#666;font-size:12px;">Pay any amount, any time before the deadline. Your tickets are sent as soon as it's fully paid.</p>`
+        }
+      </div>
+    `
+  );
+}
+
+interface AfterEventEmailDetails {
+  to: string;
+  buyerName: string;
+  eventTitle: string;
+  surveyUrl?: string;
+  certificateUrls?: string[];
+}
+
+// The thank-you after an event: feedback survey and/or certificates.
+export async function sendAfterEventEmail(d: AfterEventEmailDetails) {
+  const certs = d.certificateUrls ?? [];
+  const button = (url: string, label: string) => `
+    <p>
+      <a href="${url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">${label}</a>
+    </p>`;
+  await send(
+    d.to,
+    `Thanks for coming to ${d.eventTitle.replace(/[\r\n]+/g, ' ')}`,
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Thank you for coming!</h2>
+        <p>Hi ${escapeHtml(d.buyerName)}, thanks for joining us at <strong>${escapeHtml(d.eventTitle)}</strong>.</p>
+        ${d.surveyUrl ? `<p>Tell us how it went — it takes about a minute.</p>${button(d.surveyUrl, 'Give feedback')}` : ''}
+        ${
+          certs.length
+            ? `<p>Your certificate of attendance is ready${certs.length > 1 ? ' (one per ticket)' : ''}:</p>` +
+              certs.map((url, i) => button(url, certs.length > 1 ? `Certificate ${i + 1}` : 'Download certificate')).join('')
+            : ''
+        }
       </div>
     `
   );

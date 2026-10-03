@@ -36,9 +36,10 @@ In production the app refuses to run a route that needs a missing secret (there 
 | `JWT_SECRET` | Tenant login sessions (also the fallback for the two below) |
 | `PLATFORM_ADMIN_JWT_SECRET` | Platform-admin sessions — separate on purpose, no fallback |
 | `TICKET_LOOKUP_JWT_SECRET` | "Find my tickets" magic links (optional, falls back to `JWT_SECRET`) |
+| `LINK_SIGNING_SECRET` | Personal feedback-survey and certificate links (optional, falls back to `JWT_SECRET`) |
 | `OTP_SECRET` | Hashing emailed confirmation codes (optional, falls back to `JWT_SECRET`) |
 | `MPESA_CALLBACK_SECRET` | Appended to every Daraja callback URL; callbacks without it are rejected |
-| `CRON_SECRET` | Authorises `/api/cron/reconcile` |
+| `CRON_SECRET` | Authorises `/api/cron/reconcile` and `/api/cron/scheduled` |
 | `PLATFORM_ADMIN_USERNAME` / `PLATFORM_ADMIN_PASSWORD` | Platform-admin login |
 
 ### Reconcile job
@@ -57,17 +58,37 @@ Payouts stuck in `processing` show up under "In progress" on `/platform-admin`. 
 
 Login, platform-admin login, STK push, OTP and ticket-lookup endpoints are rate-limited in memory (`src/lib/rateLimit.ts`), which assumes the same single `next start` process as WhatsApp. If you run behind a reverse proxy, make sure it sets `X-Forwarded-For` itself rather than passing through a client-supplied one.
 
-## Event Space (live attendee companion)
+### Scheduled jobs
 
-Each event can have one Event Space, managed from **Dashboard → Event → Event Space**. Attendees join by scanning its QR code (or opening `/space/<CODE>`). They don't need an account: anyone with the link can join, since the organiser controls who's in the room. Inside they get live polls (multiple choice, or open answers shown as a ranked word cloud), Q&A with upvotes and optional moderation, shared documents with a "follow the presenter" mode, and announcements. `/space/<CODE>/screen` is the projector view, and the dashboard controls what it shows.
+`/api/cron/scheduled` runs every time-based job other than payment reconciliation: Event Space invites, event reminders, Lipa Pole Pole reminders and expiry, and post-event feedback surveys. Run it every few minutes next to the reconcile job:
 
-- **Invites:** ticket holders get the link by email (and WhatsApp, if they gave a number) 1 hour before the event starts (`INVITE_LEAD_MS` in `src/lib/spaceInvites.ts`). If the space is created later than that, they go out immediately. People who buy a ticket after that also get the link with their ticket. Add this cron line alongside the reconcile job:
-  ```
-  */5 * * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/space-invites
-  ```
-- **Documents:** PDFs are uploaded to Cloudinary and shown page by page as images, which works on any plan. Free plans block downloading the original PDF (it returns 401), so the "Open the original file" link is hidden for PDFs. To offer downloads, enable *Cloudinary Settings → Security → "Allow delivery of PDF and ZIP files"* and set `NEXT_PUBLIC_ALLOW_PDF_DOWNLOAD=true`.
-- **Live updates** use polling every 3s with a version check plus an in-memory cache (`src/lib/eventSpace.ts`), and assume the same single `next start` process as WhatsApp and rate limiting.
-- After pulling this change, run `npx prisma db push` to create the new collections' indexes (the unique indexes are what stop double voting).
+```
+*/5 * * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/scheduled
+```
+
+(`/api/cron/space-invites` is an alias for the same job.) Each run first backfills new schema defaults onto older documents, once per server start (`src/lib/backfillDefaults.ts`), because MongoDB `where` filters don't match fields that were never stored. Messages go out spaced apart, so the unofficial WhatsApp number isn't flagged for bulk sending.
+
+After pulling schema changes, run `npx prisma db push` to create new collections and indexes. If API routes return 404 in `npm run dev` after routes have been renamed, delete `.next/dev` and restart: the dev server can keep a stale route cache.
+
+## Event features
+
+Every event's dashboard page has a tools grid linking to the following.
+
+- **Event Space** (live attendee companion), one or more rooms per event. Attendees join a room by scanning its QR code (or opening `/space/<CODE>`); no account is needed. Each room has live polls (multiple choice, or open answers shown as a ranked word cloud), Q&A with upvotes and optional moderation, shared documents with a "follow the presenter" mode, and announcements. `/space/<CODE>/screen` is the projector view, controlled from the dashboard. Ticket holders get one email/WhatsApp message listing every room, 1 hour before the event (`INVITE_LEAD_MS` in `src/lib/spaceInvites.ts`). If the room is created after that, it goes out right away; later buyers get it with their ticket.
+  - PDFs are uploaded to Cloudinary and shown page by page as images, which works on any plan. Free plans block downloading the original PDF, so that link is hidden for PDFs unless you enable *Cloudinary Settings → Security → "Allow delivery of PDF and ZIP files"* and set `NEXT_PUBLIC_ALLOW_PDF_DOWNLOAD=true`.
+  - Live updates poll every 3s with a version check plus an in-memory cache (`src/lib/eventSpace.ts`). Like WhatsApp and rate limiting, this assumes a single `next start` process.
+- **Reminders:** email and WhatsApp to ticket holders the day before and about 2 hours before, with a Google Maps link. Toggle per event on the event page.
+- **Gate:** live check-ins, arrivals per 5 minutes, progress per ticket type, scans per staff member, and the latest admissions.
+- **Lipa Pole Pole:** the organiser sets a minimum deposit % and a deadline (days before the event). The buyer's deposit reserves their seats, they top up from their personal plan page (`/plan/<id>?key=…`), and tickets are issued once it's fully paid. Reminders go out 7, 3 and 1 day before the deadline. Unpaid plans expire at the deadline and release their seats. The organiser can extend or reopen a plan (if the seats are still free) or cancel it. Money already paid stays in the balance; settle refunds with the buyer directly.
+- **Feedback:** a survey (ratings, choices, free text) sent automatically N hours after the event ends to scanned-in attendees, or sent on demand. Each person gets their own signed link and can answer once. Answers are stored without names.
+- **Certificates:** a printable A4 certificate of attendance for every scanned-in ticket (`/certificate/<code>?t=…`, "Save as PDF" from the browser). The attendee can set the name it shows. Sent from the Certificates page, or automatically with the feedback survey.
+- **Exhibitors:** sponsors get a private portal link (`/exhibitor/<token>`) to scan attendees' ticket QR codes at their stand, add notes and a hot/warm/cold rating, and export leads to CSV. Leads contain name and email only, never phone numbers.
+
+## Promoters
+
+**Dashboard → Promoters.** Each promoter has a tracked link (`/<org>?ref=<code>` or `/<org>/<event>?ref=<code>`) and their own private stats page (`/promoter/<token>`). The `ref` is remembered on the buyer's device for 30 days, last click wins. Commission (a % of the sale, or KES per ticket) is fixed on each order when it's placed.
+
+Commission owed to promoters is held back from the organiser's withdrawable balance. Paying a promoter goes through the same safeguards as the organiser's own payouts: an emailed confirmation code, then platform-admin approval, then M-Pesa B2C to the promoter's number. The promoter receives exactly the commission; the platform fee is added on top and comes out of the organiser's balance.
 
 ## WhatsApp ticket delivery (optional, unofficial)
 

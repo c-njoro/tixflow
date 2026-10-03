@@ -28,6 +28,7 @@ interface EventDetail {
   endDate: string | null;
   location: string;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
+  remindersEnabled: boolean;
   coverImageUrl: string | null;
   coverImagePublicId: string | null;
   galleryImages: EventImage[];
@@ -162,17 +163,19 @@ export default function EventDetailPage() {
     }
   };
 
-  const changeStatus = async (status: string) => {
+  const changeStatus = (status: string) => patchEvent({ status });
+
+  const patchEvent = async (updates: Record<string, unknown>) => {
     if (typeof id !== 'string') return;
     setError('');
     try {
       const res = await fetch(`/api/events/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(updates),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to update status.');
+      if (!res.ok) throw new Error(result.error || 'Failed to update the event.');
       setEvent(result.data);
     } catch (err: any) {
       setError(err.message);
@@ -406,25 +409,13 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Action bar */}
-        <div className="flex flex-wrap gap-2">
+        {/* Event tools */}
+        <div className="flex flex-wrap items-center gap-2">
           <a
             href={`/dashboard/events/${event.id}/checkin`}
             className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition"
           >
             Check-In
-          </a>
-          <a
-            href={`/dashboard/events/${event.id}/attendees`}
-            className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
-          >
-            View Attendees
-          </a>
-          <a
-            href={`/dashboard/events/${event.id}/space`}
-            className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-emerald-800/60 rounded-md text-emerald-300 hover:text-white hover:bg-emerald-950/40 transition"
-          >
-            Event Space
           </a>
           {isAdmin && (
             <button
@@ -435,6 +426,28 @@ export default function EventDetailPage() {
               Edit Event
             </button>
           )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { href: 'attendees', label: 'Attendees', hint: 'Tickets & buyers', adminOnly: false },
+            { href: 'gate', label: 'Gate', hint: 'Live arrivals', adminOnly: false },
+            { href: 'spaces', label: 'Event Space', hint: 'Polls, Q&A, slides', adminOnly: false },
+            { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true },
+            { href: 'feedback', label: 'Feedback', hint: 'Post-event survey', adminOnly: true },
+            { href: 'certificates', label: 'Certificates', hint: 'Proof of attendance', adminOnly: true },
+            { href: 'exhibitors', label: 'Exhibitors', hint: 'Sponsor lead scanning', adminOnly: true },
+          ]
+            .filter((tool) => isAdmin || !tool.adminOnly)
+            .map((tool) => (
+              <a
+                key={tool.href}
+                href={`/dashboard/events/${event.id}/${tool.href}`}
+                className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-lg hover:border-slate-600 transition"
+              >
+                <span className="block text-xs font-mono uppercase tracking-wider text-white">{tool.label}</span>
+                <span className="block text-[11px] text-slate-500 mt-0.5">{tool.hint}</span>
+              </a>
+            ))}
         </div>
 
         {/* Status controls — admin only */}
@@ -454,6 +467,25 @@ export default function EventDetailPage() {
                   {s}
                 </button>
               ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Reminders</div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Email + WhatsApp to ticket holders the day before and ~2 hours before, with directions.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => patchEvent({ remindersEnabled: !event.remindersEnabled })}
+                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
+                  event.remindersEnabled
+                    ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
+                    : 'border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {event.remindersEnabled ? 'On' : 'Off'}
+              </button>
             </div>
           </div>
         )}

@@ -6,6 +6,7 @@ import {
   CalendarDaysIcon,
   UserGroupIcon,
   Cog6ToothIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
 
@@ -23,6 +24,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
     { name: 'Events Manager', href: '/dashboard/events', icon: CalendarDaysIcon, adminOnly: false },
     // Staff and Settings involve revenue, payouts, and teammate emails —
     // scanner_staff accounts don't see them at all, not even the nav link.
+    { name: 'Promoters', href: '/dashboard/promoters', icon: MegaphoneIcon, adminOnly: true },
     { name: 'Staff', href: '/dashboard/staff', icon: UserGroupIcon, adminOnly: true },
     { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon, adminOnly: true },
   ].filter((item) => !item.adminOnly || isAdmin);

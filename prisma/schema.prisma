@@ -109,6 +109,25 @@ model Event {
   coverImagePublicId String?
   galleryImages      EventImage[]
 
+  // Reminders to ticket holders (email + WhatsApp). The *SentAt fields are
+  // also the claim that stops a reminder going out twice.
+  remindersEnabled     Boolean   @default(true)
+  reminderDaySentAt    DateTime?
+  reminderHoursSentAt  DateTime?
+
+  // Lipa Pole Pole — buyers pay a deposit, then the rest by a deadline.
+  installmentsEnabled          Boolean @default(false)
+  installmentMinDepositPercent Int     @default(25)
+  installmentDueDaysBefore     Int     @default(3) // full payment due this many days before `date`
+
+  // Attendance certificates for scanned-in attendees.
+  certificatesEnabled       Boolean   @default(false)
+  certificateTitle          String?   // default "Certificate of Attendance"
+  certificateSignatory      String?
+  certificateSignatoryTitle String?
+  certificateNote           String?   // e.g. "Awarded 6 CPD points"
+  certificatesSentAt        DateTime?
+
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -117,7 +136,7 @@ model Event {
 
   ticketTiers      TicketTier[]
   tickets          Ticket[]
-  space            EventSpace?
+  spaces           EventSpace[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -155,6 +174,8 @@ model Ticket {
   mpesaReceiptNumber String?
   orderId         String?      @db.ObjectId // links back to the PendingOrder that produced this ticket, if any
   scannedAt       DateTime?
+  scannedById     String?      @db.ObjectId // staff User who admitted it — per-gate stats
+  certificateName String?      // name as the attendee wants it on their certificate
   createdAt       DateTime     @default(now())
 
   tenantId        String       @db.ObjectId
@@ -171,6 +192,7 @@ model Ticket {
   @@index([ticketTierId])
   @@index([tenantId, status])
   @@index([orderId])
+  @@index([eventId, status])
 }
 
 // 5. A cart/checkout attempt paid via M-Pesa STK Push. Created before the
@@ -213,6 +235,21 @@ model PendingOrder {
 
   eventId            String      @db.ObjectId
 
+  // Sold through a promoter's link — commission is fixed at order time, so
+  // later changes to the promoter's rate never rewrite past sales.
+  promoterId         String?     @db.ObjectId
+  promoterCommission Float?
+
+  // 'purchase'            — normal checkout, tickets issued on payment
+  // 'installment_deposit' — first payment of a Lipa Pole Pole plan; creates
+  //                         the plan and reserves seats (planTotal and
+  //                         planCommissionTotal describe the whole plan)
+  // 'installment_payment' — a top-up towards an existing plan
+  kind                String     @default("purchase")
+  installmentPlanId   String?    @db.ObjectId
+  planTotal           Float?
+  planCommissionTotal Float?
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -220,6 +257,8 @@ model PendingOrder {
   @@index([eventId])
   @@index([checkoutRequestId])
   @@index([status, createdAt])
+  @@index([promoterId, status])
+  @@index([installmentPlanId])
 }
 
 // pending_approval — tenant requested + confirmed via OTP, awaiting admin review.
@@ -277,6 +316,11 @@ model Payout {
   approvedBy   String?      // platform-admin username who approved/rejected this
   approvedAt   DateTime?
 
+  // Set when this pays a promoter's commission (to the promoter's M-Pesa)
+  // rather than the tenant themselves. netAmount is the commission; amount
+  // (deducted from the tenant's balance) also covers the platform fee.
+  promoterId   String?      @db.ObjectId
+
   tenantId     String       @db.ObjectId
   tenant       Tenant       @relation(fields: [tenantId], references: [id])
 
@@ -286,6 +330,7 @@ model Payout {
   @@index([originatorConversationId])
   @@index([tenantId, status])
   @@index([status, approvedAt])
+  @@index([promoterId])
 }
 
 // A one-time code emailed to a tenant admin to confirm a sensitive action
@@ -294,7 +339,7 @@ model Payout {
 // attempts can be capped, and each code can only be used once.
 model OtpChallenge {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  purpose    String   // 'payout_request' | 'payout_settings'
+  purpose    String   // 'payout_request' | 'payout_settings' | 'promoter_payout'
   codeHash   String   // HMAC of the code with a server secret
   payload    Json     // what the code confirms, e.g. { amount } or the new payout details
   attempts   Int      @default(0)
@@ -310,9 +355,9 @@ model OtpChallenge {
 }
 
 // ---------------------------------------------------------------------------
-// Event Space — the live, in-event companion for attendees. Anyone with the
-// join link/QR code can enter (the organiser controls who's in the room);
-// ticket holders are additionally sent the link shortly before the event.
+// Event Space — the live, in-event companion for attendees, one per room.
+// Anyone with the join link/QR code can enter (the organiser controls who's
+// in the room); ticket holders are sent the links shortly before the event.
 // ---------------------------------------------------------------------------
 
 // Embedded — short, few, newest first.
@@ -346,13 +391,15 @@ model EventSpace {
   invitesSentAt     DateTime?
   inviteCount       Int       @default(0)
 
-  eventId           String   @unique @db.ObjectId
+  // An event can have several spaces — one per room or track.
+  eventId           String   @db.ObjectId
   event             Event    @relation(fields: [eventId], references: [id])
   tenantId          String   @db.ObjectId
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@index([eventId])
   @@index([tenantId])
   @@index([inviteStatus])
 }
@@ -442,4 +489,141 @@ model SpaceDocument {
   createdAt DateTime @default(now())
 
   @@index([spaceId])
+}
+
+// Someone who sells an organiser's tickets through a tracked link
+// (?ref=<code>) and earns a commission on each sale.
+model Promoter {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String   @db.ObjectId
+  name            String
+  phone           String   // M-Pesa number commission is paid to (07XXXXXXXX)
+  email           String?
+  code            String   // the ?ref= value, unique per tenant
+  commissionType  String   // 'percent' (of the order total) | 'fixed' (KES per ticket)
+  commissionValue Float
+  eventId         String?  @db.ObjectId // null = all of the tenant's events
+  isActive        Boolean  @default(true)
+  // Secret link to the promoter's own stats page — no login needed.
+  accessToken     String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+// Lipa Pole Pole: a buyer paying for tickets over time. The deposit
+// reserves the seats (counted in TicketTier.sold); tickets are issued once
+// paidAmount reaches totalAmount. Each payment is a PendingOrder of kind
+// 'installment_*', so revenue, reconciliation and callbacks all work as
+// for normal orders.
+// status: 'active' | 'completed' | 'expired' (deadline passed, seats
+// released) | 'cancelled' (by the organiser, seats released)
+model InstallmentPlan {
+  id                  String      @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId            String      @db.ObjectId
+  eventId             String      @db.ObjectId
+  buyerName           String
+  buyerEmail          String
+  buyerPhone          String
+  buyerWhatsapp       String?
+  items               OrderItem[]
+  totalAmount         Float
+  paidAmount          Float       @default(0)
+  status              String      @default("active")
+  dueAt               DateTime
+  accessKey           String      // secret in the buyer's plan link
+  promoterId          String?     @db.ObjectId
+  planCommissionTotal Float?      // commission on the whole plan; each payment earns its share
+  remindersSent       Int         @default(0)
+  completedAt         DateTime?
+  closedAt            DateTime?   // when it expired or was cancelled
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([eventId])
+  @@index([status, dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// Post-event feedback survey — sent automatically after the event ends.
+// ---------------------------------------------------------------------------
+
+// kind: 'rating' (1–5) | 'choice' (one of `options`) | 'text'
+type SurveyQuestion {
+  id       String
+  kind     String
+  prompt   String
+  options  String[]
+  required Boolean @default(false)
+}
+
+// status: 'draft' | 'scheduled' (sends sendAfterHours after the event ends)
+//         | 'sent' | 'closed' (no more responses)
+model FeedbackSurvey {
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  eventId        String           @unique @db.ObjectId
+  tenantId       String           @db.ObjectId
+  intro          String?
+  questions      SurveyQuestion[]
+  status         String           @default("draft")
+  audience       String           @default("attended") // 'attended' (scanned in) | 'all' ticket holders
+  sendAfterHours Int              @default(2)
+  sentAt         DateTime?
+  sentCount      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status])
+}
+
+// Anonymous to the organiser: respondentKey is a keyed hash of the
+// respondent's email, only used to allow one response per person.
+model FeedbackResponse {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  surveyId      String   @db.ObjectId
+  respondentKey String
+  answers       Json     // { [questionId]: number | string }
+  createdAt     DateTime @default(now())
+
+  @@unique([surveyId, respondentKey])
+  @@index([surveyId])
+}
+
+// ---------------------------------------------------------------------------
+// Exhibitor lead scanning — sponsors scan attendees' ticket QR codes at
+// their stand to collect contacts. Organisers set exhibitors up and can
+// charge for access.
+// ---------------------------------------------------------------------------
+
+model Exhibitor {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId     String   @db.ObjectId
+  eventId      String   @db.ObjectId
+  name         String
+  contactEmail String?
+  accessToken  String   @unique // secret link to their scanning portal
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model ExhibitorLead {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  exhibitorId String   @db.ObjectId
+  eventId     String   @db.ObjectId
+  ticketId    String   @db.ObjectId
+  name        String
+  email       String
+  phone       String?
+  notes       String?
+  rating      Int?     // 1 (cold) – 3 (hot)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([exhibitorId, ticketId])
+  @@index([exhibitorId])
 }

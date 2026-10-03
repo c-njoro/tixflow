@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const scannedAt = new Date();
     const admitted = await prisma.ticket.updateMany({
       where: { id: ticket.id, status: 'active' },
-      data: { status: 'scanned', scannedAt },
+      data: { status: 'scanned', scannedAt, scannedById: session.userId },
     });
 
     if (admitted.count === 0) {

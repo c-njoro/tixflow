@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // /api/events/[id]/images, which keeps Cloudinary and the event record
     // in sync (upload+attach or delete+detach as one atomic step). This
     // endpoint only ever touches the event's non-image fields.
-    const { title, description, category, date, endDate, location, status } = req.body;
+    const { title, description, category, date, endDate, location, status, remindersEnabled } = req.body;
 
     const allowedStatuses = ['draft', 'published', 'cancelled', 'completed'];
     if (status && !allowedStatuses.includes(status)) {
@@ -49,6 +49,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
           ...(location && { location: location.trim() }),
           ...(status && { status }),
+          ...(typeof remindersEnabled === 'boolean' && { remindersEnabled }),
+          // Moving the start time re-arms reminders for the new time.
+          ...(date && new Date(date).getTime() !== event.date.getTime() && {
+            reminderDaySentAt: null,
+            reminderHoursSentAt: null,
+          }),
         },
         include: { ticketTiers: true, _count: { select: { tickets: true } } },
       });
@@ -83,8 +89,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         )
       );
 
-      const space = await prisma.eventSpace.findUnique({ where: { eventId: id }, select: { id: true } });
-      if (space) await deleteSpace(space.id);
+      const spaces = await prisma.eventSpace.findMany({ where: { eventId: id }, select: { id: true } });
+      for (const space of spaces) await deleteSpace(space.id);
 
       await prisma.$transaction([
         prisma.ticketTier.deleteMany({ where: { eventId: id } }),

@@ -50,6 +50,8 @@ export interface PublicSpaceState {
   questions: PublicQuestion[];
   spotlightQuestion: PublicQuestion | null;
   activeCount: number;
+  // The event's other open rooms, for switching between parallel tracks.
+  otherRooms: { title: string; joinCode: string }[];
 }
 
 export interface ParticipantState {

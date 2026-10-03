@@ -1,9 +1,9 @@
-// src/pages/api/events/[id]/space/invites.ts
+// src/pages/api/events/[id]/spaces/[spaceId]/invites.ts
 //
-// "Send now" — lets the organiser send ticket holders the link earlier
+// "Send now" — lets the organiser send ticket holders the links earlier
 // than the automatic send shortly before the event.
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { loadExistingEventSpace } from '@/lib/spaceAdmin';
+import { loadEventSpace } from '@/lib/spaceAdmin';
 import { sendSpaceInvites } from '@/lib/spaceInvites';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const loaded = await loadExistingEventSpace(req, res);
+  const loaded = await loadEventSpace(req, res);
   if (!loaded) return;
   const { event, space } = loaded;
 
@@ -23,6 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'This event is cancelled.' });
   }
 
-  sendSpaceInvites(space.id).catch((error) => console.error('CRITICAL_SPACE_INVITES_ERROR:', space.id, error));
+  // Sends every room of this event that's still waiting, in one message.
+  sendSpaceInvites(event.id).catch((error) => console.error('CRITICAL_SPACE_INVITES_ERROR:', event.id, error));
   return res.status(202).json({ success: true, message: 'Sending invites to ticket holders.' });
 }

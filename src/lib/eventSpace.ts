@@ -264,10 +264,20 @@ async function buildPublicState(space: SpaceWithEvent) {
     },
   };
   if (!space.isOpen) {
-    return { ...base, announcements: [], poll: null, documents: [], live: null, questions: [], spotlightQuestion: null, activeCount: 0 };
+    return {
+      ...base,
+      announcements: [],
+      poll: null,
+      documents: [],
+      live: null,
+      questions: [],
+      spotlightQuestion: null,
+      activeCount: 0,
+      otherRooms: [] as { title: string; joinCode: string }[],
+    };
   }
 
-  const [livePoll, documents, questions, activeCount] = await Promise.all([
+  const [livePoll, documents, questions, activeCount, otherRooms] = await Promise.all([
     space.livePollId ? prisma.spacePoll.findFirst({ where: { id: space.livePollId, spaceId: space.id } }) : null,
     prisma.spaceDocument.findMany({ where: { spaceId: space.id }, orderBy: { createdAt: 'asc' } }),
     prisma.spaceQuestion.findMany({
@@ -278,6 +288,11 @@ async function buildPublicState(space: SpaceWithEvent) {
     }),
     prisma.spaceParticipant.count({
       where: { spaceId: space.id, lastSeenAt: { gte: new Date(Date.now() - ACTIVE_WINDOW_MS) } },
+    }),
+    prisma.eventSpace.findMany({
+      where: { eventId: space.eventId, isOpen: true, id: { not: space.id } },
+      orderBy: { createdAt: 'asc' },
+      select: { title: true, joinCode: true },
     }),
   ]);
 
@@ -314,6 +329,7 @@ async function buildPublicState(space: SpaceWithEvent) {
     questions,
     spotlightQuestion,
     activeCount,
+    otherRooms,
   };
 }
 

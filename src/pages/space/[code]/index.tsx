@@ -280,6 +280,22 @@ function Header({ state, offline }: { state: PublicSpaceState; offline?: boolean
       </div>
       <h1 className="text-xl font-bold mt-1">{state.title}</h1>
       {state.title !== state.event.title && <p className="text-xs text-slate-400 mt-0.5">{state.event.title}</p>}
+      {state.otherRooms.length > 0 && (
+        // Full page loads, not client-side navigation: each room's polling
+        // state (version, cookie join) starts fresh.
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 self-center shrink-0">Other rooms</span>
+          {state.otherRooms.map((room) => (
+            <a
+              key={room.joinCode}
+              href={`/space/${room.joinCode}`}
+              className="px-3 py-1 rounded-full border border-slate-700 text-xs text-slate-300 hover:text-white whitespace-nowrap"
+            >
+              {room.title}
+            </a>
+          ))}
+        </div>
+      )}
       {offline && (
         <p className="mt-2 text-[11px] text-amber-400">Connection lost — reconnecting. You&apos;re seeing the last update.</p>
       )}

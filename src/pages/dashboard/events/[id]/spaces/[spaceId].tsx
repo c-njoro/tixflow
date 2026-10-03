@@ -1,6 +1,6 @@
-// pages/dashboard/events/[id]/space.tsx
+// pages/dashboard/events/[id]/spaces/[spaceId].tsx
 //
-// Organiser control room for an event's live Event Space: QR code, polls,
+// Organiser control room for one room's live Event Space: QR code, polls,
 // Q&A moderation, document presenting, announcements and the projector.
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
@@ -113,6 +113,7 @@ function Badge({ status }: { status: string }) {
 export default function EventSpacePage() {
   const router = useRouter();
   const id = typeof router.query.id === 'string' ? router.query.id : undefined;
+  const spaceId = typeof router.query.spaceId === 'string' ? router.query.spaceId : undefined;
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -123,7 +124,7 @@ export default function EventSpacePage() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('polls');
 
-  const base = id ? `/api/events/${id}/space` : '';
+  const base = id && spaceId ? `/api/events/${id}/spaces/${spaceId}` : '';
 
   const load = useCallback(async () => {
     if (!base) return;
@@ -201,12 +202,12 @@ export default function EventSpacePage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Event Space</h1>
+          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">{space?.title || 'Event Space'}</h1>
           <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
-          <Link href={`/dashboard/events/${id}`} className={buttonClass}>
-            Back to Event
+          <Link href={`/dashboard/events/${id}/spaces`} className={buttonClass}>
+            All rooms
           </Link>
         )}
       </div>
@@ -216,13 +217,9 @@ export default function EventSpacePage() {
       )}
 
       {!space ? (
-        isAdmin ? (
-          <CreateSpace eventTitle={eventTitle} busy={busy} onCreate={(body) => call('', 'POST', body)} />
-        ) : (
-          <div className={cardClass}>
-            <p className="text-sm text-slate-400">This event doesn&apos;t have an Event Space yet. Ask an admin to create one.</p>
-          </div>
-        )
+        <div className={cardClass}>
+          <p className="text-sm text-slate-400">This room doesn&apos;t exist any more.</p>
+        </div>
       ) : (
         <>
           <Overview space={space} isAdmin={isAdmin} busy={busy} patch={patch} sendInvites={() => call('/invites', 'POST')} reload={load} />
@@ -292,65 +289,15 @@ export default function EventSpacePage() {
                   space={space}
                   busy={busy}
                   patch={patch}
-                  onDelete={() => call('', 'DELETE')}
+                  onDelete={async () => {
+                    if (await call('', 'DELETE')) router.push(`/dashboard/events/${id}/spaces`);
+                  }}
                 />
               )}
             </>
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function CreateSpace({
-  eventTitle,
-  busy,
-  onCreate,
-}: {
-  eventTitle: string;
-  busy: boolean;
-  onCreate: (body: { title: string; welcomeMessage: string }) => void;
-}) {
-  const [title, setTitle] = useState('');
-  const [welcomeMessage, setWelcomeMessage] = useState('');
-
-  return (
-    <div className={`${cardClass} space-y-5 max-w-2xl`}>
-      <div>
-        <h2 className="text-base font-semibold text-white">Give attendees a live space for this event</h2>
-        <p className="text-sm text-slate-400 mt-2">
-          People scan a QR code in the room and get, on their phones: live polls with results and word clouds, Q&amp;A with
-          upvotes, your programme and slides (following along with the presenter&apos;s page), and announcements.
-        </p>
-        <p className="text-sm text-slate-400 mt-2">
-          Ticket holders are sent the link by email and WhatsApp an hour before the event starts.
-        </p>
-      </div>
-      <div className="space-y-4">
-        <div>
-          <label className={labelClass}>Space name</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={eventTitle || 'e.g. Main Hall'}
-            className={`${inputClass} mt-1`}
-          />
-        </div>
-        <div>
-          <label className={labelClass}>Welcome message (optional)</label>
-          <textarea
-            value={welcomeMessage}
-            onChange={(e) => setWelcomeMessage(e.target.value)}
-            rows={3}
-            placeholder="Wi-Fi: Venue-Guest · Password: ..."
-            className={`${inputClass} mt-1 resize-none`}
-          />
-        </div>
-      </div>
-      <button type="button" disabled={busy} onClick={() => onCreate({ title, welcomeMessage })} className={primaryButtonClass}>
-        {busy ? 'Creating...' : 'Create Event Space'}
-      </button>
     </div>
   );
 }
@@ -1034,7 +981,7 @@ function SettingsTab({
         </button>
       </div>
       <div className="p-5 border border-rose-900/50 rounded-xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">Delete Event Space</h3>
+        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">Delete this room</h3>
         <p className="text-sm text-slate-400">
           Removes every poll, response, question and document. The join link stops working. This can&apos;t be undone.
         </p>
@@ -1042,11 +989,11 @@ function SettingsTab({
           type="button"
           disabled={busy}
           onClick={() => {
-            if (confirm('Delete this Event Space and everything in it?')) onDelete();
+            if (confirm("Delete this room and everything in it?")) onDelete();
           }}
           className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-rose-800 text-rose-400 rounded-md hover:bg-rose-950/40 transition disabled:opacity-40"
         >
-          Delete space
+          Delete room
         </button>
       </div>
     </div>

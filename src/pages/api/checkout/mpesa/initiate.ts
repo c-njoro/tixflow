@@ -1,14 +1,11 @@
 // src/pages/api/checkout/mpesa/initiate.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
-import mpesaService from '@/lib/mpesaService';
-import { mpesaCallbackUrl } from '@/lib/mpesaCallbacks';
+import { createOrderAndPush } from '@/lib/checkout';
+import { installmentsOpen, minimumDeposit } from '@/lib/installments';
 import { getClientIp, rateLimit } from '@/lib/rateLimit';
 import { normalizeKenyanPhone } from '@/lib/phone';
-
-// Daraja hard-limits these — AccountReference max 12 chars, TransactionDesc max 13.
-const buildAccountReference = (orderId: string) => `TIX-${orderId.slice(-6)}`.slice(0, 12);
+import { computeCommission, resolvePromoter } from '@/lib/promoters';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { eventId, buyerName, buyerEmail, buyerWhatsapp, phoneNumber, items } = req.body;
+  const { eventId, buyerName, buyerEmail, buyerWhatsapp, phoneNumber, items, ref } = req.body;
 
   if (!eventId || !buyerName || !buyerEmail || !phoneNumber) {
     return res.status(400).json({ error: 'eventId, buyerName, buyerEmail, and phoneNumber are required.' });
@@ -88,54 +85,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Order total must be greater than zero.' });
   }
 
+  const ticketCount = orderItems.reduce((n, item) => n + item.quantity, 0);
+  const promoter = await resolvePromoter(tenant.id, event.id, ref);
+  const fullCommission = promoter ? computeCommission(promoter, { totalAmount, ticketCount }) : null;
+
+  // Lipa Pole Pole: pay a deposit now, the rest by the event's deadline.
+  // The deposit reserves the seats; tickets come when it's paid off.
+  let chargeNow = totalAmount;
+  let installment: { planTotal: number } | null = null;
+  if (req.body.installment) {
+    if (!installmentsOpen(event)) {
+      return res.status(409).json({ error: 'Paying in instalments is not available for this event.' });
+    }
+    const deposit = Math.round(Number(req.body.installment.deposit));
+    const minDeposit = minimumDeposit(event, totalAmount);
+    if (!Number.isFinite(deposit) || deposit < minDeposit) {
+      return res.status(400).json({ error: `The deposit must be at least KES ${minDeposit.toLocaleString()}.` });
+    }
+    // Paying it all now is just a normal purchase.
+    if (deposit < totalAmount) {
+      chargeNow = deposit;
+      installment = { planTotal: totalAmount };
+    }
+  }
+
   try {
-    const order = await prisma.pendingOrder.create({
-      data: {
-        status: 'pending',
+    const result = await createOrderAndPush(
+      {
         buyerName: String(buyerName).trim().slice(0, 120),
         // Lowercased so ticket lookup by email always finds it.
         buyerEmail: String(buyerEmail).toLowerCase().trim(),
         buyerWhatsapp: whatsappPhone,
         buyerPhone: mpesaPhone,
-        accessKey: crypto.randomBytes(24).toString('base64url'),
-        totalAmount,
+        totalAmount: chargeNow,
         items: orderItems,
         tenantId: tenant.id,
         eventId: event.id,
+        promoterId: promoter?.id ?? null,
+        promoterCommission:
+          fullCommission === null ? null : Math.round(((fullCommission * chargeNow) / totalAmount) * 100) / 100,
+        ...(installment && {
+          kind: 'installment_deposit',
+          planTotal: installment.planTotal,
+          planCommissionTotal: fullCommission,
+        }),
       },
-    });
-
-    const stkResult = await mpesaService.initiateSTKPush({
-      phoneNumber: mpesaPhone,
-      amount: totalAmount,
-      accountReference: buildAccountReference(order.id),
-      callbackUrl: mpesaCallbackUrl('/api/mpesa/callback'),
-      transactionDesc: event.title.slice(0, 13),
-    });
-
-    if (!stkResult.success) {
-      await prisma.pendingOrder.update({
-        where: { id: order.id },
-        data: { status: 'failed', failureReason: stkResult.error || 'Failed to initiate payment.' },
-      });
-      return res.status(502).json({ error: stkResult.error || 'Failed to start M-Pesa payment.' });
-    }
-
-    await prisma.pendingOrder.update({
-      where: { id: order.id },
-      data: {
-        checkoutRequestId: stkResult.checkoutRequestId,
-        merchantRequestId: stkResult.merchantRequestId,
-      },
-    });
+      event.title
+    );
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
 
     return res.status(200).json({
       success: true,
-      data: {
-        orderId: order.id,
-        accessKey: order.accessKey,
-        customerMessage: stkResult.customerMessage,
-      },
+      data: { orderId: result.orderId, accessKey: result.accessKey, customerMessage: result.customerMessage },
     });
   } catch (error) {
     console.error('CRITICAL_MPESA_INITIATE_ERROR:', error);

@@ -64,6 +64,7 @@ export default function PayoutSettingsPage() {
 
   // Self-payout request state
   const [balance, setBalance] = useState<number | null>(null);
+  const [owedToPromoters, setOwedToPromoters] = useState(0);
   const [feePercent, setFeePercent] = useState<number>(3);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutStage, setPayoutStage] = useState<'idle' | 'otp' | 'submitted'>('idle');
@@ -80,6 +81,7 @@ export default function PayoutSettingsPage() {
     const result = await res.json();
     if (res.ok) {
       setBalance(result.data.outstandingBalance);
+      setOwedToPromoters(result.data.owedToPromoters || 0);
       setFeePercent(result.data.platformFeePercent);
     }
   };
@@ -284,6 +286,12 @@ export default function PayoutSettingsPage() {
               <p className="text-[11px] text-slate-500 -mt-2">
                 A {feePercent}% platform fee applies to the amount you withdraw, not your full balance.
               </p>
+              {owedToPromoters > 0 && (
+                <p className="text-[11px] text-amber-400/80 -mt-2">
+                  KES {owedToPromoters.toLocaleString()} of commission owed to your promoters is held back until you pay them
+                  from the Promoters page.
+                </p>
+              )}
 
               {payoutError && (
                 <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">

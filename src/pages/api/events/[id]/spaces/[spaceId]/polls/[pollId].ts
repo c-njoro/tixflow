@@ -1,4 +1,4 @@
-// src/pages/api/events/[id]/space/polls/[pollId].ts
+// src/pages/api/events/[id]/spaces/[spaceId]/polls/[pollId].ts
 //
 // PATCH { action } where action is one of:
 //   'go_live'      — show this poll to attendees and accept answers (only one poll is live at a time)
@@ -9,7 +9,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { bumpSpace, normalizeAnswer } from '@/lib/eventSpace';
-import { buildAdminState, loadExistingEventSpace } from '@/lib/spaceAdmin';
+import { buildAdminState, loadEventSpace } from '@/lib/spaceAdmin';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH' && req.method !== 'DELETE') {
@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const loaded = await loadExistingEventSpace(req, res);
+  const loaded = await loadEventSpace(req, res);
   if (!loaded) return;
   const { event, space } = loaded;
 

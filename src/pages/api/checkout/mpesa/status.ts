@@ -53,12 +53,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  // A Lipa Pole Pole deposit or top-up: hand back the plan (and its secret
+  // link) so the buyer's page can show progress — this request already
+  // proved it holds the order's key.
+  let installmentPlan = null;
+  if (order.status === 'completed' && order.installmentPlanId) {
+    const plan = await prisma.installmentPlan.findUnique({ where: { id: order.installmentPlanId } });
+    if (plan) {
+      installmentPlan = {
+        id: plan.id,
+        accessKey: plan.accessKey,
+        status: plan.status,
+        paidAmount: plan.paidAmount,
+        totalAmount: plan.totalAmount,
+        dueAt: plan.dueAt,
+      };
+    }
+  }
+
   return res.status(200).json({
     success: true,
     data: {
       status: order.status,
       failureReason: order.failureReason,
       tickets,
+      installmentPlan,
     },
   });
 }

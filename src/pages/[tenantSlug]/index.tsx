@@ -1,7 +1,9 @@
 // pages/[tenantSlug]/index.tsx
+import { useEffect } from "react";
 import { GetServerSideProps } from "next";
 import Link from "next/link";
 import { getTenantStorefront } from "@/lib/publicQueries";
+import { captureRef } from "@/lib/referral";
 
 interface StorefrontEvent {
   slug: string;
@@ -23,6 +25,9 @@ interface Props {
 
 // pages/[tenantSlug]/index.tsx
 export default function TenantStorefrontPage({ tenant }: Props) {
+  // A promoter's storefront link (?ref=code) credits whichever event they buy.
+  useEffect(() => captureRef(tenant.slug), [tenant.slug]);
+
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white">
       <header className="border-b border-slate-800/80 p-6 flex items-center gap-4">

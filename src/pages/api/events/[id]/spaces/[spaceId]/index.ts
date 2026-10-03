@@ -1,18 +1,19 @@
-// src/pages/api/events/[id]/space/index.ts
+// src/pages/api/events/[id]/spaces/[spaceId]/index.ts
+//
+// One room's settings and live controls. Creating rooms is spaces/index.ts.
 import type { NextApiRequest, NextApiResponse } from 'next';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { addAnnouncement, bumpSpace, deleteSpace, generateUniqueJoinCode, SCREEN_MODES } from '@/lib/eventSpace';
+import { addAnnouncement, bumpSpace, deleteSpace, SCREEN_MODES } from '@/lib/eventSpace';
 import { buildAdminState, loadEventSpace } from '@/lib/spaceAdmin';
-import { sendSpaceInvitesIfDue } from '@/lib/spaceInvites';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_WELCOME_LENGTH = 1000;
 const MAX_ANNOUNCEMENT_LENGTH = 500;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method || '')) {
-    res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'DELETE']);
+  if (!['GET', 'PATCH', 'DELETE'].includes(req.method || '')) {
+    res.setHeader('Allow', ['GET', 'PATCH', 'DELETE']);
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
@@ -21,40 +22,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { event, space } = loaded;
 
   if (req.method === 'GET') {
-    return res.status(200).json({ success: true, data: space ? await buildAdminState(event, space) : null });
+    return res.status(200).json({ success: true, data: await buildAdminState(event, space) });
   }
-
-  if (req.method === 'POST') {
-    if (space) return res.status(409).json({ error: 'This event already has an Event Space.' });
-    if (event.status === 'cancelled') {
-      return res.status(400).json({ error: 'Cancelled events cannot have an Event Space.' });
-    }
-
-    const { title, welcomeMessage } = req.body || {};
-    try {
-      const created = await prisma.eventSpace.create({
-        data: {
-          joinCode: await generateUniqueJoinCode(),
-          title: (typeof title === 'string' && title.trim().slice(0, MAX_TITLE_LENGTH)) || event.title,
-          welcomeMessage:
-            typeof welcomeMessage === 'string' && welcomeMessage.trim()
-              ? welcomeMessage.trim().slice(0, MAX_WELCOME_LENGTH)
-              : null,
-          eventId: event.id,
-          tenantId: event.tenantId,
-        },
-      });
-      // Created with less than an hour to go (or mid-event) — no reason to
-      // make ticket holders wait for the next cron run.
-      sendSpaceInvitesIfDue(created.id, event);
-      return res.status(201).json({ success: true, data: await buildAdminState(event, created) });
-    } catch (error) {
-      console.error('CRITICAL_EVENT_SPACE_CREATE_ERROR:', error);
-      return res.status(500).json({ error: 'An internal server error occurred.' });
-    }
-  }
-
-  if (!space) return res.status(404).json({ error: 'This event has no Event Space yet.' });
 
   if (req.method === 'DELETE') {
     try {

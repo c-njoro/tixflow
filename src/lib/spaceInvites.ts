@@ -1,28 +1,23 @@
 // src/lib/spaceInvites.ts
 //
-// Sends ticket holders the link to their event's Event Space. A space
-// created well before the event waits until INVITE_LEAD_MS before the
-// start (picked up by /api/cron/space-invites); one created later than
+// Sends ticket holders the links to their event's Event Spaces (rooms). A
+// space created well before the event waits until INVITE_LEAD_MS before
+// the start (picked up by /api/cron/scheduled); one created later than
 // that sends right away. Tickets bought after the invites went out get the
-// link along with their ticket (see deliverTickets in src/lib/orders.ts).
+// links along with their ticket (see deliverTickets in src/lib/orders.ts).
 //
-// Sends are spaced out on purpose — the WhatsApp number is an unofficial
-// Baileys session, and a burst of hundreds of identical messages is the
-// quickest way to get it banned.
-import type { PendingOrder } from '@prisma/client';
+// Invites are per event, not per room: everyone gets one message listing
+// every room that's due. A room added after the others' invites went out
+// gets its own short follow-up.
+import type { EventSpace, PendingOrder } from '@prisma/client';
 import { prisma } from './prisma';
 import { sendSpaceInviteEmail } from './email';
-import { sendWhatsappText } from './whatsapp';
-import { normalizeKenyanPhone } from './phone';
 import { spaceUrl } from './eventSpace';
+import { collectEventRecipients, deliverMessage, deliverToAll, recipientFromOrder } from './attendeeMessaging';
 
 export const INVITE_LEAD_MS = 60 * 60_000;
 // No invites for an event that has already finished.
 const DEFAULT_EVENT_LENGTH_MS = 12 * 60 * 60_000;
-const EMAIL_GAP_MS = 600;
-const WHATSAPP_GAP_MS = 2_500;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface EventTiming {
   date: Date;
@@ -32,142 +27,98 @@ interface EventTiming {
 
 export const inviteDueAt = (event: EventTiming) => new Date(event.date.getTime() - INVITE_LEAD_MS);
 
-const eventEndsAt = (event: EventTiming) => event.endDate ?? new Date(event.date.getTime() + DEFAULT_EVENT_LENGTH_MS);
+export const eventEndsAt = (event: Pick<EventTiming, 'date' | 'endDate'>) =>
+  event.endDate ?? new Date(event.date.getTime() + DEFAULT_EVENT_LENGTH_MS);
 
 export function invitesAreDue(event: EventTiming, now = new Date()) {
   return event.status !== 'cancelled' && inviteDueAt(event) <= now && now < eventEndsAt(event);
 }
 
-interface Recipient {
-  name: string;
-  email: string | null;
-  whatsapp: string | null;
-}
+type Room = Pick<EventSpace, 'title' | 'joinCode'>;
 
-const whatsappMessage = (name: string, eventTitle: string, url: string) =>
-  `Hi ${name}, *${eventTitle}* has a live space for attendees.\n\n` +
-  `Open it during the event to follow the programme, answer live polls and ask questions:\n${url}`;
-
-// One message per person: tickets bought in one order (or several orders
-// by the same buyer) share an email, and possibly a WhatsApp number.
-async function collectRecipients(eventId: string): Promise<Recipient[]> {
-  const tickets = await prisma.ticket.findMany({
-    where: { eventId, status: { in: ['active', 'scanned'] } },
-    select: { buyerName: true, buyerEmail: true, orderId: true },
-  });
-
-  const orderIds = [...new Set(tickets.map((t) => t.orderId).filter((id): id is string => !!id))];
-  const orders = orderIds.length
-    ? await prisma.pendingOrder.findMany({ where: { id: { in: orderIds } }, select: { id: true, buyerWhatsapp: true } })
-    : [];
-  const whatsappByOrder = new Map(orders.map((o) => [o.id, o.buyerWhatsapp]));
-
-  const byEmail = new Map<string, Recipient>();
-  for (const ticket of tickets) {
-    const email = ticket.buyerEmail.toLowerCase().trim();
-    const whatsapp = ticket.orderId ? normalizeKenyanPhone(whatsappByOrder.get(ticket.orderId) ?? '') : null;
-    const existing = byEmail.get(email);
-    if (existing) {
-      existing.whatsapp ??= whatsapp;
-    } else {
-      byEmail.set(email, { name: ticket.buyerName, email, whatsapp });
-    }
-  }
-
-  // Two emails sharing one WhatsApp number (e.g. a parent who bought for
-  // family) should still get only one WhatsApp message.
-  const seenWhatsapp = new Set<string>();
-  for (const recipient of byEmail.values()) {
-    if (!recipient.whatsapp) continue;
-    if (seenWhatsapp.has(recipient.whatsapp)) recipient.whatsapp = null;
-    else seenWhatsapp.add(recipient.whatsapp);
-  }
-  return [...byEmail.values()];
-}
-
-async function deliverInvite(recipient: Recipient, eventTitle: string, spaceTitle: string, url: string) {
-  let delivered = false;
-  if (recipient.email) {
-    try {
-      await sendSpaceInviteEmail({ to: recipient.email, buyerName: recipient.name, eventTitle, spaceTitle, url });
-      delivered = true;
-    } catch (error) {
-      console.error('CRITICAL_SPACE_INVITE_EMAIL_ERROR:', recipient.email, error);
-    }
-    await sleep(EMAIL_GAP_MS);
-  }
-  if (recipient.whatsapp) {
-    const result = await sendWhatsappText(recipient.whatsapp, whatsappMessage(recipient.name, eventTitle, url));
-    if (result.success) delivered = true;
-    await sleep(WHATSAPP_GAP_MS);
-  }
-  return delivered;
+function inviteMessage(name: string, eventTitle: string, rooms: Room[]) {
+  const links = rooms.map((r) => ({ title: r.title, url: spaceUrl(r.joinCode) }));
+  return {
+    email: (to: string) => sendSpaceInviteEmail({ to, buyerName: name, eventTitle, rooms: links }),
+    whatsapp:
+      `Hi ${name}, *${eventTitle}* has a live space for attendees.\n\n` +
+      `Open it during the event to follow the programme, answer live polls and ask questions:\n` +
+      links.map((l) => (links.length > 1 ? `• ${l.title}: ${l.url}` : l.url)).join('\n'),
+  };
 }
 
 // Safe to call from several places at once — the pending → sending claim
-// means only one caller ever sends a given space's invites.
-export async function sendSpaceInvites(spaceId: string): Promise<'sent' | 'already_handled'> {
+// means each room's invites only ever go out once.
+export async function sendSpaceInvites(eventId: string): Promise<number> {
+  const claimedAt = new Date();
   const claim = await prisma.eventSpace.updateMany({
-    where: { id: spaceId, inviteStatus: 'pending' },
-    data: { inviteStatus: 'sending' },
+    where: { eventId, inviteStatus: 'pending', isOpen: true },
+    data: { inviteStatus: 'sending', invitesSentAt: claimedAt },
   });
-  if (claim.count === 0) return 'already_handled';
+  if (claim.count === 0) return 0;
 
-  const space = await prisma.eventSpace.findUniqueOrThrow({
-    where: { id: spaceId },
-    include: { event: { select: { id: true, title: true } } },
+  // invitesSentAt doubles as the claim marker, so a concurrent caller's
+  // rooms (claimed at a different instant) aren't sent twice.
+  const rooms = await prisma.eventSpace.findMany({
+    where: { eventId, inviteStatus: 'sending', invitesSentAt: claimedAt },
+    orderBy: { createdAt: 'asc' },
   });
-  const url = spaceUrl(space.joinCode);
-  const recipients = await collectRecipients(space.event.id);
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { title: true } });
 
-  let delivered = 0;
-  for (const recipient of recipients) {
-    if (await deliverInvite(recipient, space.event.title, space.title, url)) delivered++;
-  }
+  const recipients = await collectEventRecipients(eventId);
+  const delivered = await deliverToAll(
+    recipients,
+    (r) => inviteMessage(r.name, event.title, rooms),
+    'SPACE_INVITE'
+  );
 
-  await prisma.eventSpace.update({
-    where: { id: spaceId },
+  await prisma.eventSpace.updateMany({
+    where: { id: { in: rooms.map((r) => r.id) } },
     data: { inviteStatus: 'sent', invitesSentAt: new Date(), inviteCount: delivered },
   });
-  return 'sent';
+  return delivered;
 }
 
-// Kicks off sending in the background if the space's invites are due now.
-// The request that triggered it doesn't wait for hundreds of messages.
-export function sendSpaceInvitesIfDue(spaceId: string, event: EventTiming) {
+// Kicks off sending in the background if the event's invites are due now.
+export function sendSpaceInvitesIfDue(eventId: string, event: EventTiming) {
   if (!invitesAreDue(event)) return;
-  sendSpaceInvites(spaceId).catch((error) => console.error('CRITICAL_SPACE_INVITES_ERROR:', spaceId, error));
+  sendSpaceInvites(eventId).catch((error) => console.error('CRITICAL_SPACE_INVITES_ERROR:', eventId, error));
 }
 
 export async function sendDueSpaceInvites() {
   const spaces = await prisma.eventSpace.findMany({
     where: { inviteStatus: 'pending', isOpen: true },
-    include: { event: { select: { date: true, endDate: true, status: true } } },
+    include: { event: { select: { id: true, date: true, endDate: true, status: true } } },
   });
 
-  const due = spaces.filter((space) => invitesAreDue(space.event));
-  for (const space of due) {
+  const dueEventIds = [...new Set(spaces.filter((s) => invitesAreDue(s.event)).map((s) => s.event.id))];
+  for (const eventId of dueEventIds) {
     try {
-      await sendSpaceInvites(space.id);
+      await sendSpaceInvites(eventId);
     } catch (error) {
-      console.error('CRITICAL_SPACE_INVITES_ERROR:', space.id, error);
+      console.error('CRITICAL_SPACE_INVITES_ERROR:', eventId, error);
     }
   }
-  return { checked: spaces.length, sent: due.length };
+  return { checkedRooms: spaces.length, eventsSent: dueEventIds.length };
 }
 
-// For a ticket bought after the space's invites already went out.
+// For a ticket bought after the event's room invites already went out.
 export async function sendSpaceInviteForOrder(order: PendingOrder, eventTitle: string) {
-  const space = await prisma.eventSpace.findUnique({ where: { eventId: order.eventId } });
-  if (!space || !space.isOpen || space.inviteStatus !== 'sent') return;
+  const rooms = await prisma.eventSpace.findMany({
+    where: { eventId: order.eventId, isOpen: true, inviteStatus: 'sent' },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (rooms.length === 0) return;
 
-  const delivered = await deliverInvite(
-    { name: order.buyerName, email: order.buyerEmail, whatsapp: normalizeKenyanPhone(order.buyerWhatsapp ?? '') },
-    eventTitle,
-    space.title,
-    spaceUrl(space.joinCode)
+  const delivered = await deliverMessage(
+    recipientFromOrder(order),
+    inviteMessage(order.buyerName, eventTitle, rooms),
+    'SPACE_INVITE'
   );
   if (delivered) {
-    await prisma.eventSpace.update({ where: { id: space.id }, data: { inviteCount: { increment: 1 } } });
+    await prisma.eventSpace.updateMany({
+      where: { id: { in: rooms.map((r) => r.id) } },
+      data: { inviteCount: { increment: 1 } },
+    });
   }
 }

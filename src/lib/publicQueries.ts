@@ -1,5 +1,6 @@
 // src/lib/publicQueries.ts
 import { prisma } from '@/lib/prisma';
+import { installmentDueAt, installmentsOpen } from '@/lib/installments';
 
 export async function getTenantStorefront(slug: string) {
   const tenant = await prisma.tenant.findUnique({
@@ -45,6 +46,9 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
       location: true,
       coverImageUrl: true,
       galleryImages: true,
+      installmentsEnabled: true,
+      installmentMinDepositPercent: true,
+      installmentDueDaysBefore: true,
       ticketTiers: {
         where: { isActive: true },
         select: {
@@ -72,9 +76,20 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
     available: Math.max(t.capacity - t.sold, 0),
   }));
 
+  const { installmentsEnabled, installmentMinDepositPercent, installmentDueDaysBefore, ...publicEvent } = event;
+  const installmentConfig = { installmentsEnabled, installmentMinDepositPercent, installmentDueDaysBefore, date: event.date };
+
   return {
     tenant,
-    event: { ...event, ticketTiers: tiers, galleryImages: event.galleryImages.map((img) => img.url) },
+    event: {
+      ...publicEvent,
+      ticketTiers: tiers,
+      galleryImages: event.galleryImages.map((img) => img.url),
+      // Lipa Pole Pole terms, only while new plans can still be started.
+      installments: installmentsOpen(installmentConfig)
+        ? { minDepositPercent: installmentMinDepositPercent, dueAt: installmentDueAt(installmentConfig).toISOString() }
+        : null,
+    },
   };
 }
 

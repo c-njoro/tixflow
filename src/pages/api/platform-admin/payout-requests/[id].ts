@@ -86,7 +86,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(409).json({ error: `This request is already ${payout.status.replace('_', ' ')}.` });
   }
 
-  const narrative = `Tixflow payout - ${payout.tenant.businessName}`.slice(0, 100);
+  const narrative = (
+    payout.promoterId
+      ? `Tixflow promoter commission - ${payout.tenant.businessName}`
+      : `Tixflow payout - ${payout.tenant.businessName}`
+  ).slice(0, 100);
   const netAmount = payout.netAmount ?? payout.amount;
 
   const result = isMpesa
