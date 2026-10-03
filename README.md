@@ -96,7 +96,7 @@ Tickets always go by email, which is the source of truth for ticket ownership an
 
 | `WHATSAPP_PROVIDER` | What it is | Where it works |
 | --- | --- | --- |
-| `baileys` (default) | Unofficial WhatsApp Web link ([Baileys](https://github.com/WhiskeySockets/Baileys)). Connect it in `/platform-admin` → WhatsApp → scan the QR with the sending phone. | One long-running server with a writable disk (Render, Railway, a VPS). **Not** Vercel or other serverless hosts. |
+| `baileys` (default) | Unofficial WhatsApp Web link ([Baileys](https://github.com/WhiskeySockets/Baileys)). Connect it in `/platform-admin` → WhatsApp → scan the QR with the sending phone. The login is stored in MongoDB (`WhatsappAuthKey`), so it survives restarts and deploys. | One long-running server process (Render, Railway, a VPS). **Not** Vercel or other serverless hosts, which can't keep the connection open and run several copies at once. |
 | `cloud` | Meta's official WhatsApp Cloud API with pre-approved templates. | Anywhere, serverless included. |
 
 Baileys is unofficial: WhatsApp can disconnect or ban the number without warning. The app reconnects after drops and restarts, but a real logout needs someone to re-scan the QR code.
@@ -126,8 +126,8 @@ Notes:
 
 The app needs one long-running Node server. That's why it doesn't fully work on Vercel: Baileys can't run there, and background sends and the in-memory caches assume a single process. Render runs it as a normal server and gives you a public URL (`https://<name>.onrender.com`) for both the website and the API.
 
-1. **Blueprint.** Push this repo to GitHub, then in Render choose **New → Blueprint** and pick the repo. Render reads `render.yaml`: one Starter web service in Frankfurt, a 1 GB disk at `/var/data` for the WhatsApp login, health checks on `/api/health`, and random values generated for every secret. You'll be asked for the rest: `DATABASE_URL`, the M-Pesa, Resend and Cloudinary keys, and the platform-admin login.
-2. **Plan.** Use **Starter or higher**. The free plan sleeps after 15 idle minutes (dropping the WhatsApp connection and missing cron runs) and can't have a disk (so the QR code needs re-scanning after every deploy).
+1. **Create the service.** Either **New → Blueprint** with this repo (it reads `render.yaml`: one free web service in Frankfurt, health checks on `/api/health`, random values for every secret), or **New → Web Service** by hand with build command `npm ci && npm run build`, start command `npm start`, and the variables from `render.yaml`. You fill in `DATABASE_URL`, the M-Pesa, Resend and Cloudinary keys, and the platform-admin login.
+2. **Plan.** The **free** plan works. The WhatsApp login lives in MongoDB, so no disk is needed. A free instance sleeps after 15 idle minutes; the 5-minute cron jobs below keep it awake (750 free hours a month covers one service running all month), and after any restart the scheduler reconnects WhatsApp by itself. **Starter** never sleeps. Never run more than one instance.
 3. **MongoDB Atlas.** Under Network Access, allow Render's outbound IPs (listed on the service's *Connect* tab), or `0.0.0.0/0`.
 4. **Public URL.** Leave `NEXT_PUBLIC_APP_URL` empty to use the `onrender.com` address automatically. M-Pesa callbacks, emailed links and QR codes all use it. Once you add a custom domain, set `NEXT_PUBLIC_APP_URL` to it and redeploy (`NEXT_PUBLIC_*` values are baked in at build time).
 5. **Cron.** Two jobs, every 5 minutes, each a `POST` with header `Authorization: Bearer <CRON_SECRET>`:
@@ -137,6 +137,4 @@ The app needs one long-running Node server. That's why it doesn't fully work on 
    Either use a free scheduler such as [cron-job.org](https://cron-job.org) (it supports custom headers), or add a Render Cron Job running `curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-url>/api/cron/scheduled` (and the same for `reconcile`).
 6. **Database.** Run `npx prisma db push` against the production database after schema changes; this repo doesn't use migrations.
 7. **M-Pesa payouts (B2C/B2B).** Commit Safaricom's public certificate as `certs/sandbox_cert.cer` or `certs/production_cert.cer`; see `src/lib/mpesaB2C.ts` for the download links. These are public certificates, safe to commit.
-8. **WhatsApp.** Open `/platform-admin` → WhatsApp → Connect, and scan the QR code once. The login is saved to the disk and survives deploys.
-
-Render doesn't do zero-downtime deploys for a service with a disk: expect a few seconds of downtime per deploy. That's the trade-off for the single-process design.
+8. **WhatsApp.** Open `/platform-admin` → WhatsApp → Connect, and scan the QR code once. The login is saved in MongoDB and survives restarts and deploys. Disconnecting from that tab (or logging the device out on the phone) deletes it.

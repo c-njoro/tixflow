@@ -627,3 +627,15 @@ model ExhibitorLead {
   @@unique([exhibitorId, ticketId])
   @@index([exhibitorId])
 }
+
+// The QR-linked WhatsApp (Baileys) login, stored in the database instead of
+// on disk so it survives restarts and deploys on hosts without a persistent
+// disk (e.g. Render's free plan). One row per Baileys key: 'creds' plus one
+// per signal key ("pre-key-12", "session-2547…", …). value is JSON written
+// with Baileys' BufferJSON so binary keys round-trip.
+model WhatsappAuthKey {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

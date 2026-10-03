@@ -15,15 +15,13 @@
 // email is the source of truth, this is a convenience layer on top.
 //
 // Single-process assumption: the live socket lives in this process's
-// memory (and on disk at WA_SESSION_DIR). This only works correctly when
-// the app runs as ONE long-running `next start` process — it will NOT
-// work behind serverless functions or multiple clustered instances, since
-// each instance would fight over the same WhatsApp session file and only
-// one could ever hold the real connection.
-import path from 'path';
-import fs from 'fs';
+// memory. The login itself is stored in MongoDB (src/lib/whatsappAuthStore.ts),
+// so it survives restarts and deploys without a disk — but only ONE
+// long-running `next start` process may use it. Serverless functions or
+// several instances would each connect with the same login and WhatsApp
+// would keep kicking them off (and may ban the number).
 import makeWASocket, {
-  useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
   DisconnectReason,
   fetchLatestBaileysVersion,
   type WASocket,
@@ -32,6 +30,7 @@ import QRCode from 'qrcode';
 import pino from 'pino';
 import mpesaService from './mpesaService';
 import { formatEventDate } from './email';
+import { clearStoredWhatsappSession, hasStoredWhatsappSession, useMongoAuthState } from './whatsappAuthStore';
 
 export type WhatsappStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected';
 
@@ -62,19 +61,10 @@ const state: WhatsappState =
 
 if (process.env.NODE_ENV !== 'production') globalForWa.__tixflowWa = state;
 
-const SESSION_DIR = process.env.WA_SESSION_DIR || path.join(process.cwd(), 'wa-session');
 const baileysLogger = pino({ level: 'warn' });
 
-const clearSession = () => {
-  if (fs.existsSync(SESSION_DIR)) {
-    fs.rmSync(SESSION_DIR, { recursive: true, force: true });
-  }
-};
-
-// Baileys writes creds.json the moment pairing first succeeds — its
-// presence means "resume this session automatically," independent of
-// whether anyone has opened the admin dashboard since the server restarted.
-const hasExistingSession = () => fs.existsSync(path.join(SESSION_DIR, 'creds.json'));
+const clearSession = () =>
+  clearStoredWhatsappSession().catch((err) => console.error('CRITICAL_WHATSAPP_SESSION_CLEAR_ERROR:', err));
 
 export function getWhatsappStatus() {
   return {
@@ -89,12 +79,12 @@ export function isWhatsappConnected() {
   return state.status === 'connected' && !!state.sock;
 }
 
-// Serverless hosts (Vercel, AWS Lambda) have a read-only filesystem and
-// short-lived processes — a Baileys session can't live there. Say so
-// plainly instead of failing with ENOENT on mkdir.
+// Serverless hosts (Vercel, AWS Lambda) run short-lived, parallel copies
+// of the app — a Baileys connection can't stay open there, and copies
+// would fight over the one login. Say so plainly instead of failing.
 export const SERVERLESS_HOST_ERROR =
-  'The QR-linked WhatsApp connection needs one long-running server with a writable disk (e.g. Render or Railway), ' +
-  'not a serverless host like Vercel. Deploy there, or switch to the official Cloud API (WHATSAPP_PROVIDER=cloud).';
+  'The QR-linked WhatsApp connection needs one long-running server (e.g. Render or Railway), not a serverless ' +
+  'host like Vercel. Deploy there, or switch to the official Cloud API (WHATSAPP_PROVIDER=cloud).';
 
 export const isServerlessHost = () => !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
@@ -110,17 +100,16 @@ export async function connectWhatsapp() {
   state.lastError = null;
 
   try {
-    if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
-
-    // `useMultiFileAuthState` is a Baileys utility, not a React hook — it
-    // just happens to be named like one. eslint-plugin-react-hooks can't
-    // tell the difference from the name alone.
+    // `useMongoAuthState` follows Baileys' naming (useMultiFileAuthState);
+    // it's not a React hook. eslint-plugin-react-hooks can't tell from the name.
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { state: authState, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+    const { state: authState, saveCreds } = await useMongoAuthState();
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
-      auth: authState,
+      // Keys cached in memory in front of the database — Baileys reads
+      // them on every message.
+      auth: { creds: authState.creds, keys: makeCacheableSignalKeyStore(authState.keys, baileysLogger) },
       version,
       logger: baileysLogger,
       syncFullHistory: false,
@@ -153,7 +142,7 @@ export async function connectWhatsapp() {
         const loggedOut = statusCode === DisconnectReason.loggedOut;
 
         if (loggedOut) {
-          clearSession();
+          await clearSession();
           state.status = 'disconnected';
           state.qrDataUrl = null;
           state.phoneNumber = null;
@@ -188,23 +177,38 @@ export async function disconnectWhatsapp() {
     }
     state.sock = null;
   }
-  clearSession();
+  await clearSession();
   state.status = 'disconnected';
   state.qrDataUrl = null;
   state.phoneNumber = null;
   state.lastError = null;
 }
 
-// Called before every send attempt so a plain server restart (session
-// still valid on disk, just not loaded into memory yet) doesn't require
-// an admin to visit the dashboard first for sends to start working again.
+const RESUME_WAIT_MS = 15_000;
+
+// Called before every send attempt so a plain server restart (login still
+// stored, just not loaded into memory yet) doesn't require an admin to
+// visit the dashboard first for sends to start working again. Waits for
+// the connection to actually open, so the first message after a restart
+// isn't dropped as "not connected".
 async function ensureResumed() {
   if (isServerlessHost()) return;
-  if (!state.sock && !state.starting && state.status !== 'qr_pending' && hasExistingSession()) {
+  if (!state.sock && !state.starting && state.status !== 'qr_pending' && (await hasStoredWhatsappSession())) {
     await connectWhatsapp().catch((err) => {
       state.lastError = err?.message || 'Failed to resume WhatsApp session.';
     });
   }
+  const deadline = Date.now() + RESUME_WAIT_MS;
+  while (state.status === 'connecting' && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
+// Reconnects a stored login in the background — e.g. from the scheduled
+// jobs, so the number is online again soon after a restart rather than
+// only when the next message is due.
+export function resumeWhatsappIfStored() {
+  ensureResumed().catch((err) => console.error('WHATSAPP_RESUME_ERROR:', err));
 }
 
 const toWhatsappJid = (phone: string) => `${mpesaService.formatPhoneNumber(phone)}@s.whatsapp.net`;

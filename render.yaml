@@ -3,29 +3,25 @@
 # file, creates the service, and asks you for every `sync: false` value.
 #
 # Why these settings:
-#  - One instance on the Starter plan: the WhatsApp (Baileys) connection,
-#    in-memory rate limits and live Event Space cache all assume a single
-#    long-running `next start` process. Starter also never sleeps.
-#  - A persistent disk keeps the WhatsApp login across deploys and restarts
-#    (otherwise you'd re-scan the QR code every deploy).
+#  - ONE instance: the WhatsApp (Baileys) connection, in-memory rate limits
+#    and live Event Space cache all assume a single long-running
+#    `next start` process. Never scale this service to more than 1.
+#  - Free plan works: the WhatsApp login is stored in MongoDB, so no disk
+#    is needed. Free instances sleep after 15 idle minutes — the cron jobs
+#    (every 5 min, see README) keep it awake. Change `plan` to starter for
+#    an instance that never sleeps.
 services:
   - type: web
     name: tixflow
     runtime: node
-    plan: starter
+    plan: free
     region: frankfurt
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    disk:
-      name: tixflow-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: WA_SESSION_DIR
-        value: /var/data/wa-session
       - key: WHATSAPP_PROVIDER
         value: baileys
       # Your public URL. Leave unset to use https://<service>.onrender.com

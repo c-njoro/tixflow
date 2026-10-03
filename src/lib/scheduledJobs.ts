@@ -6,11 +6,18 @@ import { sendDueEventReminders } from './eventReminders';
 import { expireOverduePlans, sendDueInstallmentReminders } from './installments';
 import { sendDueSurveys } from './feedback';
 import { backfillDefaults } from './backfillDefaults';
+import { getWhatsappProvider } from './whatsappSender';
+import { resumeWhatsappIfStored } from './whatsapp';
 
 // Each job is independent — one failing never stops the others.
 const JOBS: Record<string, () => Promise<unknown>> = {
   // First, so the jobs below can filter on fields old documents lacked.
   backfillDefaults,
+  // Bring a stored WhatsApp login back online after a restart.
+  whatsappResume: async () => {
+    if (getWhatsappProvider() === 'baileys') resumeWhatsappIfStored();
+    return { ok: true };
+  },
   spaceInvites: sendDueSpaceInvites,
   eventReminders: () => sendDueEventReminders(),
   installmentReminders: () => sendDueInstallmentReminders(),
