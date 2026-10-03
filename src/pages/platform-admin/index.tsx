@@ -249,6 +249,7 @@ export default function PlatformAdminDashboard() {
     qr: string | null;
     phoneNumber: string | null;
     lastError: string | null;
+    provider?: 'baileys' | 'cloud';
   } | null>(null);
   const [waActionLoading, setWaActionLoading] = useState(false);
   const waPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -646,11 +647,18 @@ export default function PlatformAdminDashboard() {
                 </span>
               </div>
 
-              <p className="text-[11px] text-slate-500">
-                This is an unofficial WhatsApp connection (not Meta&apos;s Business API) — a convenience channel
-                alongside email, not a replacement for it. It can disconnect without warning; switch to the
-                official API once your business account is approved.
-              </p>
+              {waStatus?.provider === 'cloud' ? (
+                <p className="text-[11px] text-slate-500">
+                  Sending through Meta&apos;s official WhatsApp Cloud API with approved message templates. Nothing to
+                  link here — the connection is configured with environment variables.
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500">
+                  This is an unofficial WhatsApp connection (not Meta&apos;s Business API) — a convenience channel
+                  alongside email, not a replacement for it. It can disconnect without warning; switch to the
+                  official API (WHATSAPP_PROVIDER=cloud) once your business account is approved.
+                </p>
+              )}
 
               {waStatus?.lastError && (
                 <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
@@ -658,7 +666,9 @@ export default function PlatformAdminDashboard() {
                 </div>
               )}
 
-              {waStatus?.status === 'connected' ? (
+              {waStatus?.provider === 'cloud' ? (
+                waStatus.phoneNumber && <div className="text-sm text-white font-mono">{waStatus.phoneNumber}</div>
+              ) : waStatus?.status === 'connected' ? (
                 <div className="space-y-3">
                   <div className="text-sm text-white font-mono">
                     +{waStatus.phoneNumber}

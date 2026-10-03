@@ -8,18 +8,14 @@ import { prisma } from './prisma';
 import { getAppUrl } from './mpesaCallbacks';
 import { createLinkToken } from './signedLinks';
 import { sendAfterEventEmail } from './email';
-import { collectEventRecipients, deliverToAll, type Recipient } from './attendeeMessaging';
+import { collectEventRecipients, deliverToAll } from './attendeeMessaging';
 import { notSet } from './mongoFilters';
+import { certificateMessage } from './whatsappTemplates';
 
 export const DEFAULT_CERTIFICATE_TITLE = 'Certificate of Attendance';
 
 export const certificateUrl = (ticketCode: string) =>
   `${getAppUrl()}/certificate/${encodeURIComponent(ticketCode)}?t=${createLinkToken('certificate', ticketCode)}`;
-
-export const certificateLines = (r: Recipient) =>
-  r.ticketCodes.length === 1
-    ? `Your certificate of attendance: ${certificateUrl(r.ticketCodes[0])}`
-    : `Your certificates of attendance:\n${r.ticketCodes.map((c, i) => `${i + 1}. ${certificateUrl(c)}`).join('\n')}`;
 
 // Claims the event's one-time certificate send. Returns false if they were
 // already sent (by an earlier click, or with the feedback survey).
@@ -40,7 +36,7 @@ export async function sendCertificates(eventId: string) {
     (r) => ({
       email: (to) =>
         sendAfterEventEmail({ to, buyerName: r.name, eventTitle: event.title, certificateUrls: r.ticketCodes.map(certificateUrl) }),
-      whatsapp: `Hi ${r.name}, thanks for attending *${event.title}*!\n\n${certificateLines(r)}`,
+      whatsapp: certificateMessage(r.name, event.title, r.ticketCodes.map(certificateUrl)),
     }),
     'CERTIFICATE'
   );

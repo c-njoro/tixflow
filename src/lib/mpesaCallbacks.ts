@@ -9,8 +9,11 @@ import { getSecret, safeEqual } from './secrets';
 
 const getCallbackSecret = () => getSecret('MPESA_CALLBACK_SECRET');
 
+// The app's public URL — used in M-Pesa callbacks and every link we send.
+// On Render, RENDER_EXTERNAL_URL (https://<service>.onrender.com) is the
+// fallback when NEXT_PUBLIC_APP_URL isn't set.
 export function getAppUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return (process.env.NEXT_PUBLIC_APP_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
 // `path` is either an app path like '/api/mpesa/callback' or a full URL

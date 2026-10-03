@@ -11,7 +11,8 @@ import { createLinkToken } from './signedLinks';
 import { sendAfterEventEmail } from './email';
 import { collectEventRecipients, deliverToAll } from './attendeeMessaging';
 import { eventEndsAt } from './spaceInvites';
-import { certificateLines, certificateUrl, claimCertificateSend } from './certificates';
+import { certificateUrl, claimCertificateSend } from './certificates';
+import { certificateMessage, feedbackMessage } from './whatsappTemplates';
 
 export const QUESTION_KINDS = ['rating', 'choice', 'text'] as const;
 export const MAX_QUESTIONS = 12;
@@ -69,9 +70,11 @@ export async function sendSurvey(surveyId: string) {
             surveyUrl: url,
             certificateUrls: certs ? certs.ticketCodes.map(certificateUrl) : undefined,
           }),
-        whatsapp:
-          `Hi ${r.name}, thanks for coming to *${event.title}*! How did it go? 1-minute feedback:\n${url}` +
-          (certs ? `\n\n${certificateLines(certs)}` : ''),
+        // Two templates on the Cloud API (each needs its own approval);
+        // Baileys sends them as two texts as well.
+        whatsapp: certs
+          ? [feedbackMessage(r.name, event.title, url), certificateMessage(r.name, event.title, certs.ticketCodes.map(certificateUrl))]
+          : feedbackMessage(r.name, event.title, url),
       };
     },
     'FEEDBACK'

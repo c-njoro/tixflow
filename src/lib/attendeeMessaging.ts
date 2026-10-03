@@ -8,7 +8,8 @@
 // quickest way to get it banned. Callers run this in the background.
 import type { TicketStatus } from '@prisma/client';
 import { prisma } from './prisma';
-import { sendWhatsappText } from './whatsapp';
+import { sendWhatsapp } from './whatsappSender';
+import type { WhatsappMessage } from './whatsappTemplates';
 import { normalizeKenyanPhone } from './phone';
 
 const EMAIL_GAP_MS = 600;
@@ -69,7 +70,8 @@ export async function collectEventRecipients(
 export interface Message {
   // Throws on failure, like the functions in src/lib/email.ts.
   email?: (to: string) => Promise<void>;
-  whatsapp?: string;
+  // Built with src/lib/whatsappTemplates.ts so it works on either provider.
+  whatsapp?: WhatsappMessage | WhatsappMessage[];
 }
 
 // Returns whether at least one channel reached the person.
@@ -85,7 +87,7 @@ export async function deliverMessage(recipient: Recipient, message: Message, lab
     await sleep(EMAIL_GAP_MS);
   }
   if (recipient.whatsapp && message.whatsapp) {
-    const result = await sendWhatsappText(recipient.whatsapp, message.whatsapp);
+    const result = await sendWhatsapp(recipient.whatsapp, message.whatsapp);
     if (result.success) delivered = true;
     await sleep(WHATSAPP_GAP_MS);
   }

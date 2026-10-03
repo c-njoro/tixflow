@@ -3,7 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
 import { createLookupToken } from "@/lib/ticketLookupAuth";
 import { sendLookupMagicLinkEmail } from "@/lib/email";
-import { sendWhatsappText } from "@/lib/whatsapp";
+import { sendWhatsapp } from "@/lib/whatsappSender";
+import { ticketLookupMessage } from "@/lib/whatsappTemplates";
 import { getAppUrl } from "@/lib/mpesaCallbacks";
 import { normalizeKenyanPhone } from "@/lib/phone";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
@@ -77,10 +78,7 @@ export default async function handler(
     });
     if (knownNumber) {
       try {
-        await sendWhatsappText(
-          requestedWhatsapp,
-          `Here's your Tixflow tickets link: ${magicLink}\n\nIt expires in 15 minutes.`
-        );
+        await sendWhatsapp(requestedWhatsapp, ticketLookupMessage(magicLink));
       } catch (error) {
         console.error("CRITICAL_LOOKUP_WHATSAPP_SEND_ERROR:", error);
       }

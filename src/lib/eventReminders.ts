@@ -5,10 +5,11 @@
 // /api/cron/scheduled. A reminder whose window was missed (cron down, or
 // the event was created after it) is skipped rather than sent late.
 import { prisma } from './prisma';
-import { formatEventDate, sendEventReminderEmail } from './email';
+import { sendEventReminderEmail } from './email';
 import { getAppUrl } from './mpesaCallbacks';
 import { collectEventRecipients, deliverToAll, mapsLink } from './attendeeMessaging';
 import { notSet } from './mongoFilters';
+import { eventReminderMessage } from './whatsappTemplates';
 
 const HOUR = 60 * 60_000;
 
@@ -19,16 +20,6 @@ const WINDOWS = {
   hours: { from: 2 * HOUR, to: 0, field: 'reminderHoursSentAt' as const },
 };
 type Kind = keyof typeof WINDOWS;
-
-function whatsappText(kind: Kind, name: string, event: { title: string; date: Date; location: string }) {
-  const when = kind === 'day' ? 'is *tomorrow*' : 'starts in about *2 hours*';
-  return (
-    `Hi ${name}, a reminder that *${event.title}* ${when}.\n\n` +
-    `🗓 ${formatEventDate(event.date)}\n📍 ${event.location}\n` +
-    `Directions: ${mapsLink(event.location)}\n\n` +
-    `Have your ticket QR code ready at the door. Lost it? ${getAppUrl()}/lookup`
-  );
-}
 
 async function sendReminder(kind: Kind, eventId: string) {
   const window = WINDOWS[kind];
@@ -55,7 +46,15 @@ async function sendReminder(kind: Kind, eventId: string) {
           lookupUrl: `${getAppUrl()}/lookup`,
           when: kind === 'day' ? 'tomorrow' : 'soon',
         }),
-      whatsapp: whatsappText(kind, r.name, event),
+      whatsapp: eventReminderMessage({
+        name: r.name,
+        eventTitle: event.title,
+        when: kind === 'day' ? 'tomorrow' : 'in about 2 hours',
+        eventDate: event.date,
+        eventLocation: event.location,
+        mapsUrl: mapsLink(event.location),
+        lookupUrl: `${getAppUrl()}/lookup`,
+      }),
     }),
     'EVENT_REMINDER'
   );

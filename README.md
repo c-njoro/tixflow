@@ -90,32 +90,53 @@ Every event's dashboard page has a tools grid linking to the following.
 
 Commission owed to promoters is held back from the organiser's withdrawable balance. Paying a promoter goes through the same safeguards as the organiser's own payouts: an emailed confirmation code, then platform-admin approval, then M-Pesa B2C to the promoter's number. The promoter receives exactly the commission; the platform fee is added on top and comes out of the organiser's balance.
 
-## WhatsApp ticket delivery (optional, unofficial)
+## WhatsApp
 
-Tickets are always sent by email — that's the source of truth for ticket ownership and lookup. If a buyer also gives a WhatsApp number at checkout (or at `/lookup`), the same tickets/link are additionally sent via an unofficial WhatsApp Web connection ([Baileys](https://github.com/WhiskeySockets/Baileys)), since it doesn't require Meta Business API approval. This is a bonus channel only:
+Tickets always go by email, which is the source of truth for ticket ownership and lookup. WhatsApp is an extra channel: tickets, lookup links, Event Space invites, reminders, Lipa Pole Pole updates, feedback requests and certificates. Every send goes through `src/lib/whatsappSender.ts`, which uses one of two providers, chosen by `WHATSAPP_PROVIDER`:
 
-- Connect it from `/platform-admin` → the "WhatsApp" tab → scan the QR code with the phone that should send tickets, the same way you'd link WhatsApp Web.
-- It's one number for the whole platform (like the M-Pesa shortcode), and only works reliably as a single `next start` process — it won't survive being deployed across multiple serverless instances.
-- Because it's unofficial, WhatsApp can disconnect the number at any time without warning. The app auto-reconnects on drops and on server restart where possible, but a real logout needs a human to re-scan.
-- Once you get your Meta Business API approval, swap `src/lib/whatsapp.ts`'s `sendTicketWhatsapp`/`sendWhatsappText` for calls to the official Cloud API — every call site (checkout, lookup) is already isolated behind those two functions.
+| `WHATSAPP_PROVIDER` | What it is | Where it works |
+| --- | --- | --- |
+| `baileys` (default) | Unofficial WhatsApp Web link ([Baileys](https://github.com/WhiskeySockets/Baileys)). Connect it in `/platform-admin` → WhatsApp → scan the QR with the sending phone. | One long-running server with a writable disk (Render, Railway, a VPS). **Not** Vercel or other serverless hosts. |
+| `cloud` | Meta's official WhatsApp Cloud API with pre-approved templates. | Anywhere, serverless included. |
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+Baileys is unofficial: WhatsApp can disconnect or ban the number without warning. The app reconnects after drops and restarts, but a real logout needs someone to re-scan the QR code.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+### Moving to the official Meta Cloud API
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The code is already in place; switching is configuration only. Every message has a template defined in `src/lib/whatsappTemplates.json`, eight in all, every one in the UTILITY category.
 
-## Learn More
+1. In [Meta for Developers](https://developers.facebook.com/), create an app (type Business), add the **WhatsApp** product, and connect your WhatsApp Business Account and phone number.
+2. In Business Settings → System Users, create a system user, give it the app and your WhatsApp account, and generate a **permanent token** with the `whatsapp_business_messaging` and `whatsapp_business_management` permissions.
+3. Note the ids: the **Phone number ID** and **WhatsApp Business Account ID** (WhatsApp → API Setup) and the **App ID** (app dashboard).
+4. Submit the templates for approval: put `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID` and `META_APP_ID` in your local `.env` and run:
+   ```
+   node scripts/create-whatsapp-templates.mjs --dry-run   # preview
+   node scripts/create-whatsapp-templates.mjs             # submit
+   node scripts/create-whatsapp-templates.mjs --status    # wait until all say APPROVED
+   ```
+5. On the server, set `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and `WHATSAPP_PROVIDER=cloud`, then redeploy. The platform-admin WhatsApp tab shows "Cloud API".
 
-To learn more about Next.js, take a look at the following resources:
+Notes:
+- **Ticket template:** its header image is the ticket's QR code, which Meta fetches from `<your URL>/api/tickets/qr/<code>`. The app must be reachable on a public HTTPS URL.
+- **Changing wording:** edit `whatsappTemplates.json` (positional `{{1}}`… placeholders, never the first or last thing in the body) and the matching builder in `whatsappTemplates.ts`, then submit again. A send fails loudly if its parameter count doesn't match the template.
+- **Optional settings:** `WHATSAPP_TEMPLATE_LANGUAGE` (default `en`) must match the language the templates were approved in. `WHATSAPP_GRAPH_VERSION` defaults to `v23.0`.
+- **Pricing:** Meta charges per template message; utility templates are the cheapest category.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+## Deploying on Render
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The app needs one long-running Node server. That's why it doesn't fully work on Vercel: Baileys can't run there, and background sends and the in-memory caches assume a single process. Render runs it as a normal server and gives you a public URL (`https://<name>.onrender.com`) for both the website and the API.
 
-## Deploy on Vercel
+1. **Blueprint.** Push this repo to GitHub, then in Render choose **New → Blueprint** and pick the repo. Render reads `render.yaml`: one Starter web service in Frankfurt, a 1 GB disk at `/var/data` for the WhatsApp login, health checks on `/api/health`, and random values generated for every secret. You'll be asked for the rest: `DATABASE_URL`, the M-Pesa, Resend and Cloudinary keys, and the platform-admin login.
+2. **Plan.** Use **Starter or higher**. The free plan sleeps after 15 idle minutes (dropping the WhatsApp connection and missing cron runs) and can't have a disk (so the QR code needs re-scanning after every deploy).
+3. **MongoDB Atlas.** Under Network Access, allow Render's outbound IPs (listed on the service's *Connect* tab), or `0.0.0.0/0`.
+4. **Public URL.** Leave `NEXT_PUBLIC_APP_URL` empty to use the `onrender.com` address automatically. M-Pesa callbacks, emailed links and QR codes all use it. Once you add a custom domain, set `NEXT_PUBLIC_APP_URL` to it and redeploy (`NEXT_PUBLIC_*` values are baked in at build time).
+5. **Cron.** Two jobs, every 5 minutes, each a `POST` with header `Authorization: Bearer <CRON_SECRET>`:
+   - `https://<your-url>/api/cron/reconcile`
+   - `https://<your-url>/api/cron/scheduled`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Either use a free scheduler such as [cron-job.org](https://cron-job.org) (it supports custom headers), or add a Render Cron Job running `curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-url>/api/cron/scheduled` (and the same for `reconcile`).
+6. **Database.** Run `npx prisma db push` against the production database after schema changes; this repo doesn't use migrations.
+7. **M-Pesa payouts (B2C/B2B).** Commit Safaricom's public certificate as `certs/sandbox_cert.cer` or `certs/production_cert.cer`; see `src/lib/mpesaB2C.ts` for the download links. These are public certificates, safe to commit.
+8. **WhatsApp.** Open `/platform-admin` → WhatsApp → Connect, and scan the QR code once. The login is saved to the disk and survives deploys.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+Render doesn't do zero-downtime deploys for a service with a disk: expect a few seconds of downtime per deploy. That's the trade-off for the single-process design.

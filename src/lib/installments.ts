@@ -7,7 +7,8 @@
 // the deadline and expire unpaid plans, releasing their seats.
 import type { Event, InstallmentPlan, PendingOrder } from '@prisma/client';
 import { prisma } from './prisma';
-import { sendInstallmentEmail, formatEventDate } from './email';
+import { sendInstallmentEmail } from './email';
+import { installmentExpiredMessage, installmentUpdateMessage } from './whatsappTemplates';
 import { getAppUrl } from './mpesaCallbacks';
 import { deliverMessage, recipientFromOrder } from './attendeeMessaging';
 
@@ -68,12 +69,24 @@ async function messagePlan(plan: InstallmentPlan, kind: Kind) {
   if (!event) return;
   const remaining = remainingAmount(plan);
   const url = planUrl(plan);
-  const lines: Record<Kind, string> = {
-    started: `Your seats for *${event.title}* are reserved! KES ${plan.paidAmount.toLocaleString()} paid, KES ${remaining.toLocaleString()} left — pay by ${formatEventDate(plan.dueAt)}:\n${url}`,
-    payment: `Payment received for *${event.title}*. KES ${remaining.toLocaleString()} left, due by ${formatEventDate(plan.dueAt)}:\n${url}`,
-    reminder: `Reminder: KES ${remaining.toLocaleString()} left for *${event.title}*, due by ${formatEventDate(plan.dueAt)}. Pay any amount here:\n${url}`,
-    expired: `Your Lipa Pole Pole plan for *${event.title}* passed its deadline before it was paid off, so the seats were released. Contact ${event.tenant.businessName} about the KES ${plan.paidAmount.toLocaleString()} you paid.`,
-  };
+  const whatsapp =
+    kind === 'expired'
+      ? installmentExpiredMessage({
+          name: plan.buyerName,
+          eventTitle: event.title,
+          organiser: event.tenant.businessName,
+          paid: plan.paidAmount,
+        })
+      : installmentUpdateMessage({
+          kind,
+          name: plan.buyerName,
+          eventTitle: event.title,
+          paid: plan.paidAmount,
+          total: plan.totalAmount,
+          remaining,
+          dueAt: plan.dueAt,
+          planUrl: url,
+        });
   await deliverMessage(
     recipientFromOrder(plan),
     {
@@ -89,7 +102,7 @@ async function messagePlan(plan: InstallmentPlan, kind: Kind) {
           kind,
           organiser: event.tenant.businessName,
         }),
-      whatsapp: `Hi ${plan.buyerName}, ${lines[kind]}`,
+      whatsapp,
     },
     'INSTALLMENT'
   );

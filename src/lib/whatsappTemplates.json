@@ -1,0 +1,86 @@
+{
+  "tixflow_ticket": {
+    "category": "UTILITY",
+    "header": "IMAGE",
+    "body": "Hi {{1}}, your {{2}} ticket for {{3}} is confirmed. When: {{4}}. Where: {{5}}. Ticket code: {{6}}. Show this QR code at the entrance.",
+    "example": [
+      "Wanjiku",
+      "VIP",
+      "DevConf Nairobi",
+      "23 Oct 2026, 09:00",
+      "KICC, Nairobi",
+      "TIX-1A2B3C4D5E"
+    ]
+  },
+  "tixflow_ticket_lookup": {
+    "category": "UTILITY",
+    "body": "Here is your link to view your Tixflow tickets: {{1}} It expires in 15 minutes. If you did not ask for it, ignore this message.",
+    "example": [
+      "https://tixflow.example/lookup/verify?token=abc123"
+    ]
+  },
+  "tixflow_event_space": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, {{2}} has a live space for attendees. Open it during the event to follow the programme, answer polls and ask questions: {{3}} See you there!",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "https://tixflow.example/space/AB12CD"
+    ]
+  },
+  "tixflow_event_reminder": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, a reminder that {{2}} starts {{3}}. When: {{4}}. Where: {{5}}. Directions: {{6}} Have your ticket QR code ready at the door. Lost it? Get it again at {{7}} anytime.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "tomorrow",
+      "23 Oct 2026, 09:00",
+      "KICC, Nairobi",
+      "https://www.google.com/maps/search/?api=1&query=KICC",
+      "https://tixflow.example/lookup"
+    ]
+  },
+  "tixflow_installment_update": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, {{2}} for {{3}}. KES {{4}} paid of KES {{5}}; KES {{6}} left to pay by {{7}}. Pay any amount here: {{8}} Your tickets are sent as soon as it is fully paid.",
+    "example": [
+      "Wanjiku",
+      "your seats are reserved",
+      "DevConf Nairobi",
+      "1,500",
+      "5,000",
+      "3,500",
+      "20 Oct 2026, 09:00",
+      "https://tixflow.example/plan/abc?key=xyz"
+    ]
+  },
+  "tixflow_installment_expired": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, your Lipa Pole Pole plan for {{2}} passed its deadline before it was fully paid, so the seats were released. Please contact {{3}} about the KES {{4}} you paid.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "Nairobi Tech Week",
+      "1,500"
+    ]
+  },
+  "tixflow_feedback": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, thanks for coming to {{2}}! How did it go? Share your feedback here, it takes about a minute: {{3}} Thank you!",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "https://tixflow.example/feedback/abc?t=xyz"
+    ]
+  },
+  "tixflow_certificate": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, your certificate of attendance for {{2}} is ready: {{3}} Download or print it anytime.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "https://tixflow.example/certificate/TIX-1A2B?t=xyz"
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+# render.yaml — Render Blueprint for Tixflow.
+# Render dashboard → New → Blueprint → pick this repo. Render reads this
+# file, creates the service, and asks you for every `sync: false` value.
+#
+# Why these settings:
+#  - One instance on the Starter plan: the WhatsApp (Baileys) connection,
+#    in-memory rate limits and live Event Space cache all assume a single
+#    long-running `next start` process. Starter also never sleeps.
+#  - A persistent disk keeps the WhatsApp login across deploys and restarts
+#    (otherwise you'd re-scan the QR code every deploy).
+services:
+  - type: web
+    name: tixflow
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: tixflow-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: WA_SESSION_DIR
+        value: /var/data/wa-session
+      - key: WHATSAPP_PROVIDER
+        value: baileys
+      # Your public URL. Leave unset to use https://<service>.onrender.com
+      # automatically; set it once you add a custom domain.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PLATFORM_ADMIN_JWT_SECRET
+        generateValue: true
+      - key: TICKET_LOOKUP_JWT_SECRET
+        generateValue: true
+      - key: OTP_SECRET
+        generateValue: true
+      - key: LINK_SIGNING_SECRET
+        generateValue: true
+      - key: MPESA_CALLBACK_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: PLATFORM_ADMIN_USERNAME
+        sync: false
+      - key: PLATFORM_ADMIN_PASSWORD
+        sync: false
+      - key: PLATFORM_FEE_PERCENT
+        sync: false
+      - key: MPESA_ENVIRONMENT
+        sync: false
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_PASSKEY
+        sync: false
+      - key: MPESA_SHORTCODE
+        sync: false
+      - key: MPESA_B2C_SHORTCODE
+        sync: false
+      - key: MPESA_B2B_SHORTCODE
+        sync: false
+      - key: MPESA_B2C_INITIATOR_NAME
+        sync: false
+      - key: MPESA_B2C_INITIATOR_PASSWORD
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_ALLOW_PDF_DOWNLOAD
+        value: "true"
+      # Meta WhatsApp Cloud API — only needed once WHATSAPP_PROVIDER=cloud.
+      - key: WHATSAPP_CLOUD_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false

@@ -8,7 +8,7 @@ import type { PendingOrder } from '@prisma/client';
 import { prisma } from './prisma';
 import mpesaService from './mpesaService';
 import { sendTicketConfirmationEmail } from './email';
-import { sendTicketWhatsapp } from './whatsapp';
+import { sendTicketsWhatsapp } from './whatsappSender';
 import { sendSpaceInviteForOrder } from './spaceInvites';
 import { installmentDueAt, notifyPlanPayment, remindersAlreadyPast } from './installments';
 
@@ -250,7 +250,7 @@ async function deliverTickets(order: PendingOrder, tickets: CreatedTicket[]) {
     let whatsappStatus = 'failed';
     let whatsappError: string | null = null;
     try {
-      const result = await sendTicketWhatsapp({
+      const result = await sendTicketsWhatsapp({
         phone: order.buyerWhatsapp,
         buyerName: order.buyerName,
         eventTitle: event.title,

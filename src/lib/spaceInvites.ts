@@ -14,6 +14,7 @@ import { prisma } from './prisma';
 import { sendSpaceInviteEmail } from './email';
 import { spaceUrl } from './eventSpace';
 import { collectEventRecipients, deliverMessage, deliverToAll, recipientFromOrder } from './attendeeMessaging';
+import { eventSpaceMessage } from './whatsappTemplates';
 
 export const INVITE_LEAD_MS = 60 * 60_000;
 // No invites for an event that has already finished.
@@ -40,10 +41,7 @@ function inviteMessage(name: string, eventTitle: string, rooms: Room[]) {
   const links = rooms.map((r) => ({ title: r.title, url: spaceUrl(r.joinCode) }));
   return {
     email: (to: string) => sendSpaceInviteEmail({ to, buyerName: name, eventTitle, rooms: links }),
-    whatsapp:
-      `Hi ${name}, *${eventTitle}* has a live space for attendees.\n\n` +
-      `Open it during the event to follow the programme, answer live polls and ask questions:\n` +
-      links.map((l) => (links.length > 1 ? `• ${l.title}: ${l.url}` : l.url)).join('\n'),
+    whatsapp: eventSpaceMessage(name, eventTitle, links),
   };
 }
 

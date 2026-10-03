@@ -89,8 +89,22 @@ export function isWhatsappConnected() {
   return state.status === 'connected' && !!state.sock;
 }
 
+// Serverless hosts (Vercel, AWS Lambda) have a read-only filesystem and
+// short-lived processes — a Baileys session can't live there. Say so
+// plainly instead of failing with ENOENT on mkdir.
+export const SERVERLESS_HOST_ERROR =
+  'The QR-linked WhatsApp connection needs one long-running server with a writable disk (e.g. Render or Railway), ' +
+  'not a serverless host like Vercel. Deploy there, or switch to the official Cloud API (WHATSAPP_PROVIDER=cloud).';
+
+export const isServerlessHost = () => !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 export async function connectWhatsapp() {
   if (state.starting || state.sock) return;
+  if (isServerlessHost()) {
+    state.status = 'disconnected';
+    state.lastError = SERVERLESS_HOST_ERROR;
+    return;
+  }
   state.starting = true;
   state.status = 'connecting';
   state.lastError = null;
@@ -185,6 +199,7 @@ export async function disconnectWhatsapp() {
 // still valid on disk, just not loaded into memory yet) doesn't require
 // an admin to visit the dashboard first for sends to start working again.
 async function ensureResumed() {
+  if (isServerlessHost()) return;
   if (!state.sock && !state.starting && state.status !== 'qr_pending' && hasExistingSession()) {
     await connectWhatsapp().catch((err) => {
       state.lastError = err?.message || 'Failed to resume WhatsApp session.';
