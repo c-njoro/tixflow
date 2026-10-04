@@ -43,10 +43,12 @@ interface WhatsappState {
   lastError: string | null;
 }
 
-// Survives Next.js dev-mode hot reload the same way src/lib/prisma.ts's
-// PrismaClient singleton does — without this, every file edit in dev would
-// spin up a second competing Baileys socket.
-const globalForWa = globalThis as unknown as { __tixflowWa?: WhatsappState };
+// One connection per PROCESS, kept on globalThis in every environment:
+// Next bundles API routes and the startup hook (src/instrumentation.ts)
+// separately, and in production each bundle can get its own copy of this
+// module — without this they'd each see (and open) a different socket.
+// Also survives dev-mode hot reload.
+const globalForWa = globalThis as unknown as { __tixflowWa?: WhatsappState; __tixflowWaOnOpen?: (() => void)[] };
 
 const state: WhatsappState =
   globalForWa.__tixflowWa ??
@@ -59,7 +61,14 @@ const state: WhatsappState =
     lastError: null,
   } as WhatsappState);
 
-if (process.env.NODE_ENV !== 'production') globalForWa.__tixflowWa = state;
+globalForWa.__tixflowWa = state;
+const openListeners = (globalForWa.__tixflowWaOnOpen ??= []);
+
+// Called every time the connection opens — used to flush the outbox
+// (src/lib/whatsappOutbox.ts) without a circular import.
+export function onWhatsappOpen(listener: () => void) {
+  openListeners.push(listener);
+}
 
 const baileysLogger = pino({ level: 'warn' });
 
@@ -133,6 +142,13 @@ export async function connectWhatsapp() {
         state.qrDataUrl = null;
         state.phoneNumber = phoneNumber;
         state.lastError = null;
+        for (const listener of openListeners) {
+          try {
+            listener();
+          } catch (err) {
+            console.error('WHATSAPP_OPEN_LISTENER_ERROR:', err);
+          }
+        }
       }
 
       if (connection === 'close') {
@@ -191,7 +207,7 @@ const RESUME_WAIT_MS = 15_000;
 // visit the dashboard first for sends to start working again. Waits for
 // the connection to actually open, so the first message after a restart
 // isn't dropped as "not connected".
-async function ensureResumed() {
+export async function ensureResumed() {
   if (isServerlessHost()) return;
   if (!state.sock && !state.starting && state.status !== 'qr_pending' && (await hasStoredWhatsappSession())) {
     await connectWhatsapp().catch((err) => {

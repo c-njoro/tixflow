@@ -9,8 +9,9 @@
 //                         templates (src/lib/whatsappTemplates.ts).
 // Moving to Meta is configuration only: create the templates, set the
 // Cloud API env vars, set WHATSAPP_PROVIDER=cloud.
-import { sendTicketWhatsapp, sendWhatsappText } from './whatsapp';
+import { ensureResumed, isWhatsappConnected, sendTicketWhatsapp, sendWhatsappText } from './whatsapp';
 import { cloudConfig, sendCloudTemplate, type SendResult } from './whatsappCloud';
+import { enqueueWhatsapp } from './whatsappOutbox';
 import { ticketMessage, type WhatsappMessage } from './whatsappTemplates';
 import { getAppUrl } from './mpesaCallbacks';
 
@@ -23,9 +24,27 @@ export function isWhatsappConfigured() {
   return getWhatsappProvider() === 'baileys' || !!cloudConfig();
 }
 
+// `queued`: the QR-linked connection was down, so the message is waiting in
+// the outbox and goes out when it reconnects (src/lib/whatsappOutbox.ts).
+export type WhatsappSendResult = SendResult & { queued?: boolean };
+
+// Baileys only: is the connection up (reconnecting first if a login is
+// stored)? If not, the caller queues instead of failing.
+async function baileysReady() {
+  await ensureResumed().catch(() => {});
+  return isWhatsappConnected();
+}
+
 // Sends one or more messages in order; succeeds if every one did.
-export async function sendWhatsapp(phone: string, messages: WhatsappMessage | WhatsappMessage[]): Promise<SendResult> {
+export async function sendWhatsapp(
+  phone: string,
+  messages: WhatsappMessage | WhatsappMessage[]
+): Promise<WhatsappSendResult> {
   const list = Array.isArray(messages) ? messages : [messages];
+  if (getWhatsappProvider() === 'baileys' && !(await baileysReady())) {
+    await enqueueWhatsapp(phone, { kind: 'text', texts: list.map((m) => m.text) });
+    return { success: true, queued: true };
+  }
   for (const message of list) {
     const result =
       getWhatsappProvider() === 'cloud'
@@ -48,8 +67,14 @@ interface TicketDetails {
 // Tickets with their QR codes. Baileys sends the QR images directly; the
 // Cloud API sends one template per ticket with the QR as its header image
 // (fetched by Meta from this app's public QR endpoint).
-export async function sendTicketsWhatsapp(details: TicketDetails): Promise<SendResult> {
-  if (getWhatsappProvider() === 'baileys') return sendTicketWhatsapp(details);
+export async function sendTicketsWhatsapp(details: TicketDetails, orderId?: string): Promise<WhatsappSendResult> {
+  if (getWhatsappProvider() === 'baileys') {
+    if (!(await baileysReady())) {
+      await enqueueWhatsapp(details.phone, { kind: 'tickets', details }, orderId);
+      return { success: true, queued: true };
+    }
+    return sendTicketWhatsapp(details);
+  }
   return sendWhatsapp(
     details.phone,
     details.tickets.map((t) =>

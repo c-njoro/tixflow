@@ -45,36 +45,45 @@ function inviteMessage(name: string, eventTitle: string, rooms: Room[]) {
   };
 }
 
-// Safe to call from several places at once — the pending → sending claim
-// means each room's invites only ever go out once.
-export async function sendSpaceInvites(eventId: string): Promise<number> {
+// Step 1 — claim (pending → sending) every room of the event that's still
+// waiting, and work out who gets the message. Safe to call from several
+// places at once: invitesSentAt doubles as the claim marker, so each room's
+// invites only ever go out once. Returns null if there was nothing to claim.
+export async function claimSpaceInvites(eventId: string) {
   const claimedAt = new Date();
   const claim = await prisma.eventSpace.updateMany({
     where: { eventId, inviteStatus: 'pending', isOpen: true },
     data: { inviteStatus: 'sending', invitesSentAt: claimedAt },
   });
-  if (claim.count === 0) return 0;
+  if (claim.count === 0) return null;
 
-  // invitesSentAt doubles as the claim marker, so a concurrent caller's
-  // rooms (claimed at a different instant) aren't sent twice.
   const rooms = await prisma.eventSpace.findMany({
     where: { eventId, inviteStatus: 'sending', invitesSentAt: claimedAt },
     orderBy: { createdAt: 'asc' },
   });
   const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId }, select: { title: true } });
-
   const recipients = await collectEventRecipients(eventId);
+  return { eventTitle: event.title, rooms, recipients };
+}
+
+// Step 2 — send to everyone (slow on purpose: sends are spaced out), then
+// mark the rooms sent.
+export async function deliverClaimedInvites(claimed: NonNullable<Awaited<ReturnType<typeof claimSpaceInvites>>>) {
   const delivered = await deliverToAll(
-    recipients,
-    (r) => inviteMessage(r.name, event.title, rooms),
+    claimed.recipients,
+    (r) => inviteMessage(r.name, claimed.eventTitle, claimed.rooms),
     'SPACE_INVITE'
   );
-
   await prisma.eventSpace.updateMany({
-    where: { id: { in: rooms.map((r) => r.id) } },
+    where: { id: { in: claimed.rooms.map((r) => r.id) } },
     data: { inviteStatus: 'sent', invitesSentAt: new Date(), inviteCount: delivered },
   });
   return delivered;
+}
+
+export async function sendSpaceInvites(eventId: string): Promise<number> {
+  const claimed = await claimSpaceInvites(eventId);
+  return claimed ? deliverClaimedInvites(claimed) : 0;
 }
 
 // Kicks off sending in the background if the event's invites are due now.

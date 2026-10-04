@@ -211,7 +211,7 @@ model PendingOrder {
   // number used for the STK push). Purely a delivery address: tickets are
   // still looked up and owned by buyerEmail, never by this number.
   buyerWhatsapp      String?
-  whatsappStatus     String?     // 'sent' | 'failed' — absent/null means no number was given
+  whatsappStatus     String?     // 'sent' | 'queued' (waiting in WhatsappOutbox) | 'failed' — null means no number was given
   whatsappError      String?
 
   totalAmount        Float
@@ -638,4 +638,23 @@ model WhatsappAuthKey {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// WhatsApp messages waiting for the QR-linked (Baileys) connection — e.g.
+// sent while the server was restarting. Flushed as soon as the connection
+// opens (and by the scheduled jobs); dropped after 24 hours.
+// status: 'queued' | 'sending' | 'sent' | 'expired' | 'failed'
+model WhatsappOutbox {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  phone     String
+  // { kind: 'text', texts: string[] } | { kind: 'tickets', details: {...} }
+  payload   Json
+  status    String    @default("queued")
+  attempts  Int       @default(0)
+  lastError String?
+  orderId   String?   @db.ObjectId // ticket messages: updates PendingOrder.whatsappStatus when sent
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([status, createdAt])
 }

@@ -8,6 +8,7 @@ import { sendDueSurveys } from './feedback';
 import { backfillDefaults } from './backfillDefaults';
 import { getWhatsappProvider } from './whatsappSender';
 import { resumeWhatsappIfStored } from './whatsapp';
+import { flushWhatsappOutbox } from './whatsappOutbox';
 
 // Each job is independent — one failing never stops the others.
 const JOBS: Record<string, () => Promise<unknown>> = {
@@ -18,6 +19,9 @@ const JOBS: Record<string, () => Promise<unknown>> = {
     if (getWhatsappProvider() === 'baileys') resumeWhatsappIfStored();
     return { ok: true };
   },
+  // Messages queued while the connection was down (also flushed the moment
+  // it reopens — this is the safety net).
+  whatsappOutbox: () => flushWhatsappOutbox(),
   spaceInvites: sendDueSpaceInvites,
   eventReminders: () => sendDueEventReminders(),
   installmentReminders: () => sendDueInstallmentReminders(),

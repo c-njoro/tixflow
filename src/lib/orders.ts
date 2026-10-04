@@ -257,8 +257,10 @@ async function deliverTickets(order: PendingOrder, tickets: CreatedTicket[]) {
         eventDate: event.date,
         eventLocation: event.location,
         tickets,
-      });
-      whatsappStatus = result.success ? 'sent' : 'failed';
+      }, order.id);
+      // 'queued' = waiting in the outbox for the connection to come back;
+      // the outbox flips it to 'sent' once delivered.
+      whatsappStatus = result.queued ? 'queued' : result.success ? 'sent' : 'failed';
       whatsappError = result.success ? null : result.error || null;
     } catch (error) {
       console.error('CRITICAL_TICKET_WHATSAPP_SEND_ERROR:', error);
