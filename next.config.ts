@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   // bundling it. The server-start hook (src/instrumentation.ts) is bundled,
   // and Baileys' optional image libraries (jimp/sharp) can't be resolved
   // by the bundler.
-  serverExternalPackages: ["@whiskeysockets/baileys"],
+  serverExternalPackages: ["@whiskeysockets/baileys", "sharp"],
 };
 
 export default nextConfig;

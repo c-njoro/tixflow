@@ -23,6 +23,7 @@ interface Ticket {
   createdAt: string;
   ticketTierId: string;
   ticketTier: { name: string; price: number };
+  whatsapp: string | null;
 }
 
 interface EventSummary {
@@ -57,7 +58,9 @@ export default function AttendeesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [tierFilter, setTierFilter] = useState('');
 
-  const [newTicket, setNewTicket] = useState({ ticketTierId: '', buyerName: '', buyerEmail: '' });
+  const [newTicket, setNewTicket] = useState({ ticketTierId: '', buyerName: '', buyerEmail: '', buyerWhatsapp: '' });
+  const [notice, setNotice] = useState('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -116,12 +119,41 @@ export default function AttendeesPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to issue ticket.');
 
       setTickets((prev) => [result.data, ...prev]);
-      setNewTicket({ ticketTierId: '', buyerName: '', buyerEmail: '' });
+      setNewTicket({ ticketTierId: '', buyerName: '', buyerEmail: '', buyerWhatsapp: '' });
+      setNotice(result.message || 'Ticket issued and sent.');
       loadEvent(); // refresh tier sold counts
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIssuing(false);
+    }
+  };
+
+  const handleResend = async (ticket: Ticket) => {
+    if (typeof id !== 'string') return;
+    // Older tickets may have no WhatsApp number on file — offer to add one.
+    let whatsapp: string | null = null;
+    if (!ticket.whatsapp) {
+      whatsapp = prompt(`Resend ${ticket.ticketCode} to ${ticket.buyerEmail}.\n\nAlso send on WhatsApp? Enter their number, or leave empty for email only:`, '');
+      if (whatsapp === null) return; // cancelled
+    }
+    setResendingId(ticket.id);
+    setError('');
+    setNotice('');
+    try {
+      const res = await fetch(`/api/events/${id}/tickets/${ticket.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resend', whatsapp: whatsapp?.trim() || undefined }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to resend the ticket.');
+      setNotice(result.message);
+      setTickets((prev) => prev.map((t) => (t.id === ticket.id ? { ...t, whatsapp: result.data.whatsapp } : t)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend the ticket.');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -173,6 +205,11 @@ export default function AttendeesPage() {
           {error}
         </div>
       )}
+      {notice && (
+        <div className="p-3 text-xs font-medium border rounded-md bg-emerald-950/30 text-emerald-400 border-emerald-800/50">
+          {notice}
+        </div>
+      )}
 
       {/* Issue a comp/manual ticket — admin only */}
       {isAdmin && (
@@ -180,7 +217,10 @@ export default function AttendeesPage() {
         <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
           Issue Ticket Manually
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <p className="text-xs text-slate-500 -mt-2">
+          The ticket is emailed to the holder straight away — and sent on WhatsApp too if you add their number.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
             <label className={labelClass}>Tier</label>
             <div className="mt-1">
@@ -222,6 +262,18 @@ export default function AttendeesPage() {
               />
             </div>
           </div>
+          <div>
+            <label className={labelClass}>WhatsApp (optional)</label>
+            <div className="mt-1">
+              <input
+                type="tel"
+                value={newTicket.buyerWhatsapp}
+                onChange={(e) => setNewTicket({ ...newTicket, buyerWhatsapp: e.target.value })}
+                placeholder="0712345678"
+                className={inputClass}
+              />
+            </div>
+          </div>
           <div className="flex items-end">
             <button
               type="button"
@@ -229,7 +281,7 @@ export default function AttendeesPage() {
               disabled={issuing}
               className="w-full px-3 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50"
             >
-              {issuing ? 'Issuing...' : 'Issue Ticket'}
+              {issuing ? 'Issuing...' : 'Issue & Send'}
             </button>
           </div>
         </div>
@@ -293,6 +345,7 @@ export default function AttendeesPage() {
                   <td className="p-3">
                     <div className="text-white">{ticket.buyerName}</div>
                     <div className="text-xs text-slate-500">{ticket.buyerEmail}</div>
+                    {ticket.whatsapp && <div className="text-xs text-slate-600">WhatsApp {ticket.whatsapp}</div>}
                   </td>
                   <td className="p-3 text-slate-300">{ticket.ticketTier.name}</td>
                   <td className="p-3 font-mono text-xs text-slate-400">
@@ -316,6 +369,15 @@ export default function AttendeesPage() {
                   <td className="p-3">
                     {isAdmin && ['pending', 'active', 'scanned'].includes(ticket.status) && (
                       <div className="flex gap-2">
+                        {['active', 'scanned'].includes(ticket.status) && (
+                          <button
+                            onClick={() => handleResend(ticket)}
+                            disabled={resendingId === ticket.id}
+                            className="text-[10px] font-mono uppercase text-sky-400 hover:text-sky-300 disabled:opacity-30"
+                          >
+                            {resendingId === ticket.id ? 'Sending…' : 'Resend'}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleUpdateStatus(ticket.id, 'cancelled')}
                           disabled={updatingId === ticket.id}

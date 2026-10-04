@@ -135,41 +135,50 @@ interface TicketConfirmationDetails {
   eventDate: Date | string;
   eventLocation: string;
   tickets: { ticketCode: string; tierName: string }[];
+  // Designed ticket cards (src/lib/ticketImage.tsx). Any ticket without
+  // one falls back to a plain QR code, so a rendering problem never means
+  // a missing ticket.
+  ticketImages?: { ticketCode: string; data: Buffer; extension: string }[];
+  // For "download ticket" links (the card at /api/tickets/<code>/image).
+  appUrl?: string;
 }
 
 export async function sendTicketConfirmationEmail(details: TicketConfirmationDetails) {
-  // QR codes are embedded as inline CID attachments rather than <img src="https://...">
+  // Tickets are embedded as inline CID attachments rather than <img src="https://...">
   // pointing back at the app. A remote-URL image depends on the app being
-  // reachable *at the moment the email is opened* (breaks entirely behind a
-  // dev tunnel like ngrok, and many email clients block remote images by
-  // default anyway) — an embedded attachment has none of that risk since
-  // the image data travels with the email itself.
+  // reachable *at the moment the email is opened* (and many email clients
+  // block remote images by default) — an embedded attachment travels with
+  // the email itself, and most mail apps also offer it as a download.
   const attachments: Attachment[] = [];
+  const single = details.tickets.length === 1;
 
-  const ticketRows = await Promise.all(
-    details.tickets.map(async (t) => {
-      const pngBuffer = await QRCode.toBuffer(t.ticketCode, { type: 'png', width: 240, margin: 1 });
+  const ticketBlocks = await Promise.all(
+    details.tickets.map(async (t, i) => {
+      const card = details.ticketImages?.find((img) => img.ticketCode === t.ticketCode);
+      if (card) {
+        const contentId = `ticket-${t.ticketCode}`;
+        attachments.push({ filename: `ticket-${t.ticketCode}.${card.extension}`, content: card.data.toString('base64'), contentId });
+        const download = details.appUrl
+          ? `<p style="margin:8px 0 0;font-size:13px;"><a href="${details.appUrl}/api/tickets/${encodeURIComponent(t.ticketCode)}/image?download=1" style="color:#111;">Download ticket${single ? '' : ` ${i + 1}`}</a></p>`
+          : '';
+        return `
+          <div style="margin:0 0 24px;text-align:center;">
+            <img src="cid:${contentId}" width="340" alt="Ticket ${escapeHtml(t.ticketCode)} — ${escapeHtml(t.tierName)}" style="width:340px;max-width:100%;height:auto;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,0.15);" />
+            ${download}
+          </div>`;
+      }
+
+      const pngBuffer = await QRCode.toBuffer(t.ticketCode, { type: 'png', width: 480, margin: 1 });
       const contentId = `qr-${t.ticketCode}`;
-
-      attachments.push({
-        filename: `${t.ticketCode}.png`,
-        content: pngBuffer.toString('base64'),
-        contentId,
-      });
-
+      attachments.push({ filename: `${t.ticketCode}.png`, content: pngBuffer.toString('base64'), contentId });
       return `
-        <div style="border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;">
-          <img src="cid:${contentId}" width="80" height="80" alt="QR code" style="border-radius:6px;" />
-          <div>
-            <div style="font-weight:600;">${escapeHtml(t.tierName)}</div>
-            <div style="font-family:monospace;font-size:12px;color:#555;">${t.ticketCode}</div>
-          </div>
-        </div>
-      `;
+        <div style="border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;">
+          <img src="cid:${contentId}" width="240" height="240" alt="QR code" />
+          <div style="font-weight:600;margin-top:8px;">${escapeHtml(t.tierName)}</div>
+          <div style="font-family:monospace;font-size:14px;color:#555;">${t.ticketCode}</div>
+        </div>`;
     })
   );
-
-  const plural = details.tickets.length === 1;
 
   await send(
     details.buyerEmail,
@@ -179,10 +188,11 @@ export async function sendTicketConfirmationEmail(details: TicketConfirmationDet
         <h2>You're going to ${escapeHtml(details.eventTitle)}!</h2>
         <p>${formatEventDate(details.eventDate)} &middot; ${escapeHtml(details.eventLocation)}</p>
         <p>
-          Hi ${escapeHtml(details.buyerName)}, here ${plural ? 'is your ticket' : 'are your tickets'}.
-          Screenshot the QR code${plural ? '' : 's'} below — you'll need ${plural ? 'it' : 'them'} at the door.
+          Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your ticket' : `are your ${details.tickets.length} tickets`}.
+          Show the QR code at the entrance — on your phone, or printed.${single ? '' : ' Each person needs their own ticket.'}
         </p>
-        ${ticketRows.join('')}
+        ${ticketBlocks.join('')}
+        <p style="color:#666;font-size:12px;">Lost this email? You can always get your tickets again at ${details.appUrl ? `<a href="${details.appUrl}/lookup">${details.appUrl.replace(/^https?:\/\//, '')}/lookup</a>` : 'the Tixflow lookup page'}.</p>
       </div>
     `,
     attachments

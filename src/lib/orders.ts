@@ -10,6 +10,8 @@ import mpesaService from './mpesaService';
 import { sendTicketConfirmationEmail } from './email';
 import { sendTicketsWhatsapp } from './whatsappSender';
 import { sendSpaceInviteForOrder } from './spaceInvites';
+import { renderTicketImages } from './ticketImage';
+import { getAppUrl } from './mpesaCallbacks';
 import { installmentDueAt, notifyPlanPayment, remindersAlreadyPast } from './installments';
 
 const generateTicketCode = () => `TIX-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
@@ -22,7 +24,7 @@ const EXPIRE_AFTER_MS = 24 * 60 * 60_000;
 // An order whose STK push never got a CheckoutRequestID can't be paid.
 const UNSTARTED_EXPIRE_MS = 10 * 60_000;
 
-type CreatedTicket = { ticketCode: string; tierName: string };
+export type CreatedTicket = { ticketCode: string; tierName: string };
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 type Items = PendingOrder['items'];
 
@@ -221,12 +223,31 @@ export async function failPendingOrder(orderId: string, reason: string) {
   });
 }
 
-async function deliverTickets(order: PendingOrder, tickets: CreatedTicket[]) {
+// Who tickets go to. A paid order, a manual (KES 0) order from an admin
+// issuing a ticket, or a resend — only these fields are needed.
+export type TicketRecipient = Pick<PendingOrder, 'id' | 'eventId' | 'buyerName' | 'buyerEmail' | 'buyerWhatsapp'>;
+
+// Emails the designed tickets and, if there's a WhatsApp number, sends them
+// there too (queued if the connection is down). `spaceInvite`: also send the
+// Event Space links when the event's invites already went out — off for a
+// plain resend, so people don't get the links twice.
+export async function deliverTickets(
+  order: TicketRecipient,
+  tickets: CreatedTicket[],
+  { spaceInvite = true }: { spaceInvite?: boolean } = {}
+) {
   const event = await prisma.event.findUnique({
     where: { id: order.eventId },
     select: { title: true, date: true, location: true },
   });
   if (!event) return;
+
+  // The designed ticket cards. Best-effort: if rendering fails the email
+  // falls back to plain QR codes rather than going out late or not at all.
+  const ticketImages = await renderTicketImages(tickets.map((t) => t.ticketCode)).catch((error) => {
+    console.error('CRITICAL_TICKET_IMAGES_ERROR:', order.id, error);
+    return [];
+  });
 
   try {
     await sendTicketConfirmationEmail({
@@ -236,6 +257,8 @@ async function deliverTickets(order: PendingOrder, tickets: CreatedTicket[]) {
       eventDate: event.date,
       eventLocation: event.location,
       tickets,
+      ticketImages,
+      appUrl: getAppUrl(),
     });
   } catch (emailError) {
     // The purchase itself already succeeded — a failed confirmation email
@@ -274,9 +297,11 @@ async function deliverTickets(order: PendingOrder, tickets: CreatedTicket[]) {
   // Bought after the event's live space invites already went out — send
   // this buyer the link too. Not awaited: sends are deliberately spaced out
   // and the M-Pesa callback shouldn't wait on that.
-  sendSpaceInviteForOrder(order, event.title).catch((error) =>
-    console.error('CRITICAL_SPACE_INVITE_FOR_ORDER_ERROR:', order.id, error)
-  );
+  if (spaceInvite) {
+    sendSpaceInviteForOrder(order, event.title).catch((error) =>
+      console.error('CRITICAL_SPACE_INVITE_FOR_ORDER_ERROR:', order.id, error)
+    );
+  }
 }
 
 // Resolves a pending order by asking Safaricom directly. Used when the

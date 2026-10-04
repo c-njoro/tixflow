@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import TicketCard from '@/components/TicketCard';
 
 interface Plan {
   status: 'active' | 'completed' | 'expired' | 'cancelled';
@@ -155,16 +156,11 @@ export default function PlanPage() {
                 <p className="flex items-center gap-2 text-emerald-300 font-semibold">
                   <CheckCircleIcon className="w-5 h-5" /> Fully paid — here {plan.tickets.length === 1 ? 'is your ticket' : 'are your tickets'}
                 </p>
-                {plan.tickets.map((t) => (
-                  <div key={t.ticketCode} className="flex items-center gap-4 bg-[#0B0F17] border border-slate-800/60 rounded-xl p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/api/tickets/qr/${t.ticketCode}`} alt={`QR code for ${t.ticketCode}`} className="w-20 h-20 rounded-lg bg-white p-1.5" />
-                    <div>
-                      <p className="text-sm text-white">{t.tierName}</p>
-                      <p className="font-mono text-xs text-slate-400">{t.ticketCode}</p>
-                    </div>
-                  </div>
-                ))}
+                <div className="space-y-8">
+                  {plan.tickets.map((t) => (
+                    <TicketCard key={t.ticketCode} ticketCode={t.ticketCode} label={t.tierName} />
+                  ))}
+                </div>
                 <p className="text-xs text-slate-500">We&apos;ve also emailed them to you.</p>
               </div>
             )}

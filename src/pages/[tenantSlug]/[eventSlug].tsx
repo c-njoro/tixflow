@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { getPublicEvent } from '@/lib/publicQueries';
 import { captureRef, getRef } from '@/lib/referral';
+import TicketCard from '@/components/TicketCard';
 import {
   MapPinIcon,
   CalendarIcon,
@@ -459,31 +460,13 @@ export default function PublicEventPage({ tenant, event }: Props) {
                     Payment Successful
                   </h2>
                   <p className="text-sm text-slate-400 max-w-md mx-auto">
-                    Your {purchasedTickets.length === 1 ? 'ticket is' : 'tickets are'} confirmed. Screenshot the QR code{purchasedTickets.length === 1 ? '' : 's'} below — you'll need {purchasedTickets.length === 1 ? 'it' : 'them'} at the door.
+                    Your {purchasedTickets.length === 1 ? 'ticket is' : 'tickets are'} confirmed and on {purchasedTickets.length === 1 ? 'its' : 'their'} way to your email. Download {purchasedTickets.length === 1 ? 'it' : 'them'} now too — you&apos;ll show the QR code at the door.
                   </p>
                 </div>
 
-                <div className="space-y-3 max-w-sm mx-auto">
+                <div className="space-y-8">
                   {purchasedTickets.map((t) => (
-                    <div
-                      key={t.ticketCode}
-                      className="flex items-center gap-4 bg-[#0B0F17] border border-slate-800/60 rounded-xl p-4 text-left"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api/tickets/qr/${t.ticketCode}`}
-                        alt={`QR code for ${t.ticketCode}`}
-                        className="w-20 h-20 rounded-lg bg-white p-1.5 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-1">
-                          Ticket Code
-                        </div>
-                        <span className="font-mono text-sm text-slate-200 truncate block">
-                          {t.ticketCode}
-                        </span>
-                      </div>
-                    </div>
+                    <TicketCard key={t.ticketCode} ticketCode={t.ticketCode} />
                   ))}
                 </div>
 

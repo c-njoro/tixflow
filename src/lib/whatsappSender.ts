@@ -64,9 +64,9 @@ interface TicketDetails {
   tickets: { ticketCode: string; tierName: string }[];
 }
 
-// Tickets with their QR codes. Baileys sends the QR images directly; the
-// Cloud API sends one template per ticket with the QR as its header image
-// (fetched by Meta from this app's public QR endpoint).
+// Tickets as designed cards (src/lib/ticketImage.tsx). Baileys sends the
+// images directly; the Cloud API sends one template per ticket with the card
+// as its header image (fetched by Meta from /api/tickets/<code>/image).
 export async function sendTicketsWhatsapp(details: TicketDetails, orderId?: string): Promise<WhatsappSendResult> {
   if (getWhatsappProvider() === 'baileys') {
     if (!(await baileysReady())) {
@@ -85,7 +85,8 @@ export async function sendTicketsWhatsapp(details: TicketDetails, orderId?: stri
         eventDate: details.eventDate,
         eventLocation: details.eventLocation,
         ticketCode: t.ticketCode,
-        qrImageUrl: `${getAppUrl()}/api/tickets/qr/${encodeURIComponent(t.ticketCode)}`,
+        // Meta fetches the header image itself — the full designed card.
+        qrImageUrl: `${getAppUrl()}/api/tickets/${encodeURIComponent(t.ticketCode)}/image`,
       })
     )
   );

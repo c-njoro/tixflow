@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import TicketCard from "@/components/TicketCard";
 
 interface TicketResult {
   id: string;
@@ -87,16 +88,11 @@ export default function LookupVerifyPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="flex items-center gap-4 p-4 border border-slate-800/80 rounded-xl"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/tickets/qr/${ticket.ticketCode}`}
-                  alt={`QR code for ${ticket.ticketCode}`}
-                  className="w-20 h-20 rounded-md bg-white p-1 shrink-0"
-                />
+              <div key={ticket.id} className="p-4 border border-slate-800/80 rounded-xl space-y-4">
+                {(ticket.status === 'active' || ticket.status === 'scanned') && (
+                  <TicketCard ticketCode={ticket.ticketCode} label={ticket.ticketTier.name} />
+                )}
+              <div className="flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold truncate">
                     {ticket.event.title}
@@ -117,6 +113,7 @@ export default function LookupVerifyPage() {
                 >
                   {ticket.status}
                 </span>
+              </div>
               </div>
             ))}
           </div>

@@ -110,7 +110,10 @@ export async function sendDueSpaceInvites() {
 }
 
 // For a ticket bought after the event's room invites already went out.
-export async function sendSpaceInviteForOrder(order: PendingOrder, eventTitle: string) {
+export async function sendSpaceInviteForOrder(
+  order: Pick<PendingOrder, 'eventId' | 'buyerName' | 'buyerEmail' | 'buyerWhatsapp'>,
+  eventTitle: string
+) {
   const rooms = await prisma.eventSpace.findMany({
     where: { eventId: order.eventId, isOpen: true, inviteStatus: 'sent' },
     orderBy: { createdAt: 'asc' },

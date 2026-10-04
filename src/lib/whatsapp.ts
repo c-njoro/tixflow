@@ -31,6 +31,7 @@ import pino from 'pino';
 import mpesaService from './mpesaService';
 import { formatEventDate } from './email';
 import { clearStoredWhatsappSession, hasStoredWhatsappSession, useMongoAuthState } from './whatsappAuthStore';
+import { renderTicketImages } from './ticketImage';
 
 export type WhatsappStatus = 'disconnected' | 'connecting' | 'qr_pending' | 'connected';
 
@@ -271,14 +272,18 @@ export async function sendTicketWhatsapp(details: TicketWhatsappDetails): Promis
       text:
         `Hi ${details.buyerName}, you're going to *${details.eventTitle}*!\n` +
         `${formatEventDate(details.eventDate)} · ${details.eventLocation}\n\n` +
-        `Sending ${plural ? 'your tickets' : 'your ticket'} below — show the QR code${plural ? 's' : ''} at the door.`,
+        `Sending ${plural ? 'your tickets' : 'your ticket'} below — show the QR code${plural ? 's' : ''} at the door (save the image${plural ? 's' : ''} or print ${plural ? 'them' : 'it'}).`,
     });
 
-    for (const ticket of details.tickets) {
-      const qrBuffer = await QRCode.toBuffer(ticket.ticketCode, { type: 'png', width: 480, margin: 1 });
+    // The designed ticket card per ticket; a plain QR for any card that
+    // couldn't be rendered.
+    const cards = await renderTicketImages(details.tickets.map((t) => t.ticketCode)).catch(() => []);
+    for (const [i, ticket] of details.tickets.entries()) {
+      const card = cards.find((c) => c.ticketCode === ticket.ticketCode);
+      const image = card?.data ?? (await QRCode.toBuffer(ticket.ticketCode, { type: 'png', width: 480, margin: 1 }));
       await state.sock!.sendMessage(jid, {
-        image: qrBuffer,
-        caption: `${ticket.tierName}\n${ticket.ticketCode}`,
+        image,
+        caption: `${plural ? `Ticket ${i + 1} of ${details.tickets.length} · ` : ''}${ticket.tierName}\n${ticket.ticketCode}`,
       });
     }
 

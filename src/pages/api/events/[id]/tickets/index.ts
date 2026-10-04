@@ -3,6 +3,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { normalizeKenyanPhone } from '@/lib/phone';
+import { deliverTickets } from '@/lib/orders';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const generateTicketCode = () =>
   `TIX-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
@@ -31,7 +35,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       orderBy: { createdAt: 'desc' },
     });
 
-    return res.status(200).json({ success: true, data: tickets });
+    // The WhatsApp number each ticket was delivered to, if any.
+    const orderIds = [...new Set(tickets.map((t) => t.orderId).filter((oid): oid is string => !!oid))];
+    const orders = orderIds.length
+      ? await prisma.pendingOrder.findMany({ where: { id: { in: orderIds } }, select: { id: true, buyerWhatsapp: true } })
+      : [];
+    const whatsappByOrder = new Map(orders.map((o) => [o.id, o.buyerWhatsapp]));
+
+    return res.status(200).json({
+      success: true,
+      data: tickets.map((t) => ({ ...t, whatsapp: (t.orderId && whatsappByOrder.get(t.orderId)) || null })),
+    });
   }
 
   if (req.method === 'POST') {
@@ -39,9 +53,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Only admins can issue tickets.' });
     }
 
-    const { ticketTierId, buyerName, buyerEmail } = req.body;
+    const { ticketTierId, buyerName, buyerEmail, buyerWhatsapp } = req.body;
     if (!ticketTierId || !buyerName || !buyerEmail) {
       return res.status(400).json({ error: 'ticketTierId, buyerName, and buyerEmail are required.' });
+    }
+    const email = String(buyerEmail).toLowerCase().trim();
+    if (!EMAIL_REGEX.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+    const whatsapp = buyerWhatsapp ? normalizeKenyanPhone(buyerWhatsapp) : null;
+    if (buyerWhatsapp && !whatsapp) {
+      return res.status(400).json({ error: 'Enter a valid WhatsApp number (e.g. 0712345678), or leave it blank.' });
     }
 
     const tier = await prisma.ticketTier.findFirst({
@@ -66,21 +86,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('SOLD_OUT');
         }
 
-        return tx.ticket.create({
+        // A KES 0 'manual' order alongside the ticket, like a sale has: it
+        // records the WhatsApp number, so this holder also gets Event Space
+        // links, reminders and surveys. totalAmount 0 → revenue unaffected.
+        const order = await tx.pendingOrder.create({
+          data: {
+            kind: 'manual',
+            status: 'completed',
+            buyerName: String(buyerName).trim().slice(0, 120),
+            buyerEmail: email,
+            buyerPhone: whatsapp ?? '',
+            buyerWhatsapp: whatsapp,
+            totalAmount: 0,
+            items: [{ ticketTierId, quantity: 1, unitPrice: 0 }],
+            tenantId: session.tenantId,
+            eventId: id,
+          },
+        });
+
+        const created = await tx.ticket.create({
           data: {
             ticketCode: generateTicketCode(),
             status: 'active',
-            buyerName: buyerName.trim(),
-            buyerEmail: buyerEmail.trim(),
+            buyerName: String(buyerName).trim().slice(0, 120),
+            buyerEmail: email,
+            orderId: order.id,
             tenantId: session.tenantId,
             eventId: id,
             ticketTierId,
           },
           include: { ticketTier: { select: { name: true, price: true } } },
         });
+        return { ticket: created, order };
       });
 
-      return res.status(201).json({ success: true, data: ticket });
+      // Send it — email always, WhatsApp if a number was given. Not awaited:
+      // rendering the ticket image and the WhatsApp send take a few seconds.
+      deliverTickets(ticket.order, [{ ticketCode: ticket.ticket.ticketCode, tierName: ticket.ticket.ticketTier.name }]).catch(
+        (error) => console.error('CRITICAL_MANUAL_TICKET_DELIVERY_ERROR:', ticket.ticket.id, error)
+      );
+
+      return res.status(201).json({
+        success: true,
+        data: { ...ticket.ticket, whatsapp: whatsapp },
+        message: `Ticket issued and sent to ${email}${whatsapp ? ` and WhatsApp ${whatsapp}` : ''}.`,
+      });
     } catch (error: any) {
       if (error.message === 'SOLD_OUT') {
         return res.status(409).json({ error: 'This ticket tier is sold out.' });
