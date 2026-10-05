@@ -19,7 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { name, price, capacity, tierColor, description } = req.body;
+  const { name, price, capacity, tierColor, description, doorPrice } = req.body;
+  const door = doorPrice === '' || doorPrice == null ? null : Number(doorPrice);
+  if (door !== null && !(door >= 0)) return res.status(400).json({ error: 'Door price cannot be negative.' });
   if (!name || price == null || capacity == null) {
     return res.status(400).json({ error: 'name, price, and capacity are required.' });
   }
@@ -32,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: {
         name: name.trim(),
         price: Number(price),
+        doorPrice: door,
         capacity: Number(capacity),
         tierColor: tierColor ?? '#000000',
         description: description?.trim(),

@@ -1,6 +1,7 @@
 // pages/platform-admin/index.tsx
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import GearRequests from '@/components/platform/GearRequests';
 
 interface TenantBalance {
   id: string;
@@ -14,6 +15,7 @@ interface TenantBalance {
   payoutBankAccountNumber: string | null;
   isOnboarded: boolean;
   totalRevenue: number;
+  platformFees: number;
   platformFeePercent: number;
   totalPaidOrPending: number;
   outstandingBalance: number;
@@ -33,7 +35,27 @@ interface PayoutRequest {
   failureReason: string | null;
   approvedAt: string | null;
   createdAt: string;
+  note: string | null;
+  promoterId: string | null;
+  refundRequestId: string | null;
   tenant: { id: string; businessName: string; slug: string };
+}
+
+// What a payout request pays for.
+const KIND_BADGE = (p: { refundRequestId: string | null; promoterId: string | null }) =>
+  p.refundRequestId
+    ? { label: 'Buyer refund', style: 'bg-amber-950/40 text-amber-400 border-amber-800/50' }
+    : p.promoterId
+      ? { label: 'Promoter commission', style: 'bg-violet-950/40 text-violet-400 border-violet-800/50' }
+      : { label: 'Organiser payout', style: 'bg-slate-800 text-slate-300 border-slate-700' };
+
+function KindBadge({ payout }: { payout: { refundRequestId: string | null; promoterId: string | null } }) {
+  const badge = KIND_BADGE(payout);
+  return (
+    <span className={`ml-2 align-middle text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${badge.style}`}>
+      {badge.label}
+    </span>
+  );
 }
 
 interface PayoutRecord {
@@ -51,7 +73,7 @@ const inputClass =
 
 export default function PlatformAdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<'requests' | 'tenants' | 'whatsapp'>('requests');
+  const [tab, setTab] = useState<'requests' | 'tenants' | 'gear' | 'whatsapp'>('requests');
 
   const [requests, setRequests] = useState<PayoutRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(true);
@@ -328,6 +350,14 @@ export default function PlatformAdminDashboard() {
             Tenants
           </button>
           <button
+            onClick={() => setTab('gear')}
+            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+              tab === 'gear' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
+            }`}
+          >
+            Gear
+          </button>
+          <button
             onClick={() => setTab('whatsapp')}
             className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
               tab === 'whatsapp' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
@@ -352,7 +382,10 @@ export default function PlatformAdminDashboard() {
               <div key={p.id} className="border border-sky-900/60 rounded-xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">{p.tenant.businessName}</div>
+                    <div className="text-sm font-semibold">
+                      {p.tenant.businessName}
+                      <KindBadge payout={p} />
+                    </div>
                     <div className="text-xs text-slate-500 mt-0.5">{p.destination}</div>
                     <div className="text-xs text-slate-600 mt-1">
                       Approved {p.approvedAt ? new Date(p.approvedAt).toLocaleString() : '—'}
@@ -434,8 +467,12 @@ export default function PlatformAdminDashboard() {
                 <div key={r.id} className="border border-slate-800/80 rounded-xl p-4 space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-sm font-semibold">{r.tenant.businessName}</div>
+                      <div className="text-sm font-semibold">
+                        {r.tenant.businessName}
+                        <KindBadge payout={r} />
+                      </div>
                       <div className="text-xs text-slate-500 mt-0.5">{r.destination}</div>
+                      {r.refundRequestId && r.note && <div className="text-xs text-slate-400 mt-0.5">{r.note}</div>}
                       <div className="text-xs text-slate-600 mt-1">
                         {new Date(r.createdAt).toLocaleString()}
                       </div>
@@ -521,7 +558,7 @@ export default function PlatformAdminDashboard() {
                           : 'No payout method configured'}
                       </div>
                       <div className="text-xs text-slate-600 mt-1">
-                        Revenue: KES {tenant.totalRevenue.toLocaleString()} &middot; Fee: {tenant.platformFeePercent}% per withdrawal &middot; Paid out: KES {tenant.totalPaidOut.toLocaleString()}
+                        Revenue: KES {tenant.totalRevenue.toLocaleString()} &middot; Ticket fees: KES {(tenant.platformFees ?? 0).toLocaleString()} &middot; Paid out: KES {tenant.totalPaidOut.toLocaleString()}
                         {tenant.pendingApprovalCount > 0 && (
                           <> &middot; <span className="text-amber-400">{tenant.pendingApprovalCount} pending</span></>
                         )}
@@ -620,6 +657,8 @@ export default function PlatformAdminDashboard() {
               ))}
             </div>
           ))}
+
+        {tab === 'gear' && <GearRequests />}
 
         {tab === 'whatsapp' && (
           <div className="space-y-4 max-w-md mx-auto">

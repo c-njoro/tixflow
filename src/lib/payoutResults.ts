@@ -6,6 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from './prisma';
 import { hasValidCallbackSecret } from './mpesaCallbacks';
+import { syncRefundFromPayout } from './refunds';
 
 const ACK = { ResultCode: 0, ResultDesc: 'Accepted' };
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,6 +73,10 @@ export async function handlePayoutResult(
           ? { status: 'completed', reference: parsed.transactionReceipt, failureReason: null }
           : { status: 'failed', failureReason: parsed.resultDesc },
     });
+    if (payout.refundRequestId) {
+      const updated = await prisma.payout.findUnique({ where: { id: payout.id } });
+      if (updated) await syncRefundFromPayout(updated);
+    }
     return res.status(200).json(ACK);
   } catch (error) {
     console.error(`CRITICAL_${label}_RESULT_HANDLER_ERROR:`, error);

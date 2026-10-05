@@ -44,5 +44,21 @@ export default async function handler(
     },
   });
 
-  return res.status(200).json({ success: true, data: tickets });
+  // The latest refund request covering each ticket, so the page can show it.
+  const refunds = await prisma.refundRequest.findMany({
+    where: { ticketIds: { hasSome: tickets.map((t) => t.id) } },
+    orderBy: { createdAt: "desc" },
+    select: { ticketIds: true, status: true, amount: true, organiserNote: true },
+  });
+
+  return res.status(200).json({
+    success: true,
+    data: tickets.map((t) => {
+      const refund = refunds.find((r) => r.ticketIds.includes(t.id));
+      return {
+        ...t,
+        refund: refund ? { status: refund.status, organiserNote: refund.organiserNote } : null,
+      };
+    }),
+  });
 }

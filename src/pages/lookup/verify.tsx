@@ -15,7 +15,17 @@ interface TicketResult {
     coverImageUrl: string | null;
   };
   ticketTier: { name: string };
+  refund: { status: string; organiserNote: string | null } | null;
 }
+
+const REFUND_LABELS: Record<string, string> = {
+  requested: "Refund requested — waiting for the organiser",
+  approved: "Refund approved — being sent to your M-Pesa",
+  processing: "Refund on its way to your M-Pesa",
+  completed: "Refunded",
+  rejected: "Refund declined",
+  failed: "Refund couldn't be sent — the organiser will follow up",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-slate-800 text-slate-300 border-slate-700",
@@ -32,6 +42,43 @@ export default function LookupVerifyPage() {
   const [tickets, setTickets] = useState<TicketResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refundFor, setRefundFor] = useState<string | null>(null); // event title being refunded
+  const [selected, setSelected] = useState<string[]>([]);
+  const [reason, setReason] = useState("");
+  const [refundPhone, setRefundPhone] = useState("");
+  const [refundMessage, setRefundMessage] = useState("");
+  const [refundError, setRefundError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitRefund = async () => {
+    setRefundError("");
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/tickets/lookup/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, ticketIds: selected, reason, refundPhone }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Could not send the request.");
+      setRefundMessage(`Request sent — KES ${result.data.amount.toLocaleString()} once the organiser approves.`);
+      setTickets((prev) =>
+        prev.map((t) => (selected.includes(t.id) ? { ...t, refund: { status: "requested", organiserNote: null } } : t)),
+      );
+      setRefundFor(null);
+      setSelected([]);
+    } catch (err: any) {
+      setRefundError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Tickets that can still be refunded, grouped by event.
+  const refundable = (t: TicketResult) =>
+    t.status === "active" &&
+    new Date(t.event.date) > new Date() &&
+    (!t.refund || ["rejected"].includes(t.refund.status));
 
   useEffect(() => {
     if (typeof token !== "string") return;
@@ -69,6 +116,11 @@ export default function LookupVerifyPage() {
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
         <h1 className="text-2xl font-bold">Your Tickets</h1>
+        {refundMessage && (
+          <div className="p-3 text-sm border rounded-md bg-emerald-950/30 text-emerald-400 border-emerald-800/50">
+            {refundMessage}
+          </div>
+        )}
 
         {loading ? (
           <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
@@ -114,6 +166,89 @@ export default function LookupVerifyPage() {
                   {ticket.status}
                 </span>
               </div>
+              {ticket.refund && (
+                <div className="text-xs text-amber-400">
+                  {REFUND_LABELS[ticket.refund.status] || ticket.refund.status}
+                  {ticket.refund.organiserNote && (
+                    <span className="text-slate-400"> — {ticket.refund.organiserNote}</span>
+                  )}
+                </div>
+              )}
+              {refundFor === null && refundable(ticket) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRefundFor(ticket.event.title);
+                    setSelected([ticket.id]);
+                    setRefundMessage("");
+                  }}
+                  className="text-xs text-slate-400 underline hover:text-white"
+                >
+                  Request a refund
+                </button>
+              )}
+              {refundFor === ticket.event.title && selected[0] === ticket.id && (
+                <div className="p-4 rounded-lg border border-slate-800 bg-[#0E131F] space-y-3">
+                  <div className="text-sm font-semibold">Refund request</div>
+                  {tickets.filter((t) => t.event.title === ticket.event.title && refundable(t)).length > 1 && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-slate-400">Tickets to refund</div>
+                      {tickets
+                        .filter((t) => t.event.title === ticket.event.title && refundable(t))
+                        .map((t) => (
+                          <label key={t.id} className="flex items-center gap-2 text-xs text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={selected.includes(t.id)}
+                              onChange={(e) =>
+                                setSelected((prev) =>
+                                  e.target.checked ? [...prev, t.id] : prev.filter((x) => x !== t.id),
+                                )
+                              }
+                            />
+                            {t.ticketTier.name} · <span className="font-mono">{t.ticketCode}</span>
+                          </label>
+                        ))}
+                    </div>
+                  )}
+                  <textarea
+                    rows={2}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Why do you need a refund?"
+                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600"
+                  />
+                  <input
+                    type="tel"
+                    value={refundPhone}
+                    onChange={(e) => setRefundPhone(e.target.value)}
+                    placeholder="M-Pesa number for the refund, e.g. 0712345678"
+                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    The organiser decides on refunds. If approved, these tickets are cancelled and the ticket price is
+                    sent to this number. Booking fees aren&apos;t refunded.
+                  </p>
+                  {refundError && <p className="text-xs text-rose-400">{refundError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={submitting || selected.length === 0}
+                      onClick={submitRefund}
+                      className="px-4 py-2 rounded-md text-xs font-medium bg-white text-black disabled:opacity-50"
+                    >
+                      {submitting ? "Sending..." : "Send request"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRefundFor(null)}
+                      className="px-4 py-2 rounded-md text-xs border border-slate-700 text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
             ))}
           </div>

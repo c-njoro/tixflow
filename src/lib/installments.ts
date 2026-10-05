@@ -47,6 +47,10 @@ export const remainingAmount = (plan: Pick<InstallmentPlan, 'totalAmount' | 'pai
 export const commissionForPayment = (plan: Pick<InstallmentPlan, 'planCommissionTotal' | 'totalAmount'>, amount: number) =>
   plan.planCommissionTotal ? round2((plan.planCommissionTotal * amount) / plan.totalAmount) : null;
 
+// …and carries its share of the whole plan's platform fee.
+export const feeForPayment = (plan: Pick<InstallmentPlan, 'planFeeTotal' | 'totalAmount'>, amount: number) =>
+  plan.planFeeTotal ? round2((plan.planFeeTotal * amount) / plan.totalAmount) : 0;
+
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // Gives back seats held by a plan that won't be completed.

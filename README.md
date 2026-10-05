@@ -84,6 +84,25 @@ Every event's dashboard page has a tools grid linking to the following.
 - **Certificates:** a printable A4 certificate of attendance for every scanned-in ticket (`/certificate/<code>?t=…`, "Save as PDF" from the browser). The attendee can set the name it shows. Sent from the Certificates page, or automatically with the feedback survey.
 - **Exhibitors:** sponsors get a private portal link (`/exhibitor/<token>`) to scan attendees' ticket QR codes at their stand, add notes and a hot/warm/cold rating, and export leads to CSV. Leads contain name and email only, never phone numbers.
 
+## Pricing, plans & billing
+
+All numbers live in `src/lib/plans.ts` (plus env overrides).
+
+- **Paid events:** `PLATFORM_FEE_PERCENT` (default 5) % per ticket, never less than `MIN_TICKET_FEE` (default KES 20), capped at the ticket's own price. It applies after any promo discount. The organiser chooses per event whether buyers pay it on top as a booking fee (`passFeeToBuyer`) or it comes out of their sales. The fee is stored on each order as `platformFee`. Cash box-office sales pay it too, deducted from the next payout. Paid events include 3 Event Space rooms, certificates and exhibitors. Withdrawals are free unless `PAYOUT_FEE_PERCENT` is set.
+- **Free events:** the Free plan is 300 registrations, 1 room and up to 100 people per room. Plus (KES 2,500) and Pro (KES 6,000) are bought per event from **Plan & Gear**, by M-Pesa or card (an `event_plan` order). Moving up from Plus to Pro costs the difference. Limits are enforced at registration, room creation, room join, and certificates/exhibitors.
+- **Organiser balance** (`getTenantBalance`) = M-Pesa and card takings − ticket fees − payouts (pending or done, including refunds) − commission owed to promoters. Event-plan purchases are platform revenue and never count towards it.
+
+## Selling features
+
+- **Promo codes** (event → Promo Codes): a fixed KES off per ticket or a % off. A code can cover this event or all events, specific ticket types, a cap on tickets, an end date, and can be tied to a promoter, who is then credited with the sale. Buyers apply codes at checkout. The server re-prices everything (`src/lib/pricing.ts`, `src/lib/checkoutQuote.ts`), so the shown total is the charged total.
+- **Card payments (IntaSend):** Visa, Mastercard, Apple Pay and Google Pay through IntaSend's hosted checkout, for tickets and event plans. Buyers return via `/pay/<order>/<key>`; IntaSend refuses redirect URLs with a query string. Set the IntaSend webhook to `{APP_URL}/api/intasend/webhook` with challenge `INTASEND_WEBHOOK_CHALLENGE`. Webhooks are never trusted on their own: the invoice is re-read from IntaSend with the secret key before fulfilling. The reconcile cron also asks IntaSend about pending card orders.
+- **Box office** (event → Box Office, admins and gate staff): sells at the tier's **door price** (blank = online price), for cash or M-Pesa STK, and can admit the buyer immediately. Tickets go by SMS, WhatsApp or email, and print as 58 mm receipts via the browser print dialog. A Sunmi V2s's built-in printer works this way. Takings are shown per seller, for counting cash.
+- **Re-entry:** set "re-entries per ticket" on the event. At the gate, Exit marks a ticket as outside, and the next Entry counts one re-entry. Scanning in a ticket that's already inside is rejected as a likely copy. Rules are in `src/lib/gate.ts`; every scan is logged in `ScanLog`.
+- **Gate scanning / offline:** the check-in page handles keyboard-wedge scanners (Sunmi V2s, USB/Bluetooth), the phone camera and typing, with a big colour result and a beep. "Download list" saves the event's tickets on the device. With no signal it decides locally, queues the scans and syncs them in time order (`/api/events/<id>/scan-sync`), flagging any the server disagrees with.
+- **Gate gear rental:** organisers request scanners and scanning staff from Plan & Gear, with an estimate from `RENTAL_DEVICE_PER_DAY` / `RENTAL_STAFF_PER_DAY`. Requests appear under **Platform admin → Gear** and are emailed to `PLATFORM_ALERT_EMAIL`.
+- **Refunds:** buyers request a refund from their ticket page (`/lookup`) before the event. The organiser approves (tickets cancelled, seats released, promo use returned) or rejects with a note. Approval queues a B2C payout to the buyer in the normal platform-admin payout queue, labelled "Buyer refund" and deducted from the organiser's balance. The booking fee isn't refunded. The refund's status follows its payout, and a failed one can be retried by the organiser.
+- **SMS fallback (Africa's Talking):** with `AT_USERNAME`, `AT_API_KEY` and optionally `AT_SENDER_ID` set, tickets go by SMS (links to `/t/<code>`) when there's no WhatsApp or WhatsApp failed, and always for box-office sales. `AT_USERNAME=sandbox` uses the AT sandbox.
+
 ## Promoters
 
 **Dashboard → Promoters.** Each promoter has a tracked link (`/<org>?ref=<code>` or `/<org>/<event>?ref=<code>`) and their own private stats page (`/promoter/<token>`). The `ref` is remembered on the buyer's device for 30 days, last click wins. Commission (a % of the sale, or KES per ticket) is fixed on each order when it's placed.

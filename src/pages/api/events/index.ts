@@ -3,6 +3,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 
+// Door price: blank = same as online.
+const parseDoorPrice = (v: unknown) => (v === '' || v === null || v === undefined ? null : Number(v));
+
 const slugify = (text: string) =>
   text.toString().toLowerCase().trim()
     .replace(/\s+/g, '-')
@@ -33,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const {
       title, description, category, date, endDate, location,
       coverImageUrl, coverImagePublicId, galleryImages, ticketTiers,
+      reentryLimit, passFeeToBuyer,
     } = req.body;
 
     if (!title || !date || !location) {
@@ -47,6 +51,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (tier.price < 0 || tier.capacity < 1) {
         return res.status(400).json({ error: 'Tier price cannot be negative and capacity must be at least 1.' });
+      }
+      const doorPrice = parseDoorPrice(tier.doorPrice);
+      if (doorPrice !== null && !(doorPrice >= 0)) {
+        return res.status(400).json({ error: 'Door price cannot be negative.' });
       }
     }
 
@@ -72,11 +80,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           coverImagePublicId: coverImagePublicId || undefined,
           galleryImages: Array.isArray(galleryImages) ? galleryImages : [],
           status: 'draft',
+          // How many times a ticket can re-enter after scanning out (0 = no re-entry).
+          reentryLimit: Math.min(Math.max(Math.floor(Number(reentryLimit) || 0), 0), 20),
+          passFeeToBuyer: passFeeToBuyer === true,
           tenantId: session.tenantId,
           ticketTiers: {
             create: ticketTiers.map((t: any) => ({
               name: t.name.trim(),
               price: Number(t.price),
+              doorPrice: parseDoorPrice(t.doorPrice),
               capacity: Number(t.capacity),
               tierColor: t.tierColor ?? '#000000',
               description: t.description?.trim(),

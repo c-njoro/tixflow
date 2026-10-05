@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getPlatformAdminSession } from '@/lib/platformAdminAuth';
 import { initiateB2CPayment } from '@/lib/mpesaB2C';
 import { initiateB2BPayment } from '@/lib/mpesaB2B';
+import { syncRefundFromPayout } from '@/lib/refunds';
 
 type Action = 'approve' | 'reject' | 'mark_completed' | 'mark_failed';
 const ACTIONS: Action[] = ['approve', 'reject', 'mark_completed', 'mark_failed'];
@@ -45,6 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ error: 'Only a payout that is still processing can be resolved manually.' });
     }
     const updated = await prisma.payout.findUnique({ where: { id } });
+    if (updated) await syncRefundFromPayout(updated);
     return res.status(200).json({ success: true, data: updated });
   }
 
@@ -62,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ error: `This request is already ${payout.status.replace('_', ' ')}.` });
     }
     const updated = await prisma.payout.findUnique({ where: { id } });
+    if (updated) await syncRefundFromPayout(updated);
     return res.status(200).json({ success: true, data: updated });
   }
 
@@ -86,10 +89,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(409).json({ error: `This request is already ${payout.status.replace('_', ' ')}.` });
   }
 
+  await syncRefundFromPayout({ ...payout, status: 'processing' });
   const narrative = (
-    payout.promoterId
-      ? `Tixflow promoter commission - ${payout.tenant.businessName}`
-      : `Tixflow payout - ${payout.tenant.businessName}`
+    payout.refundRequestId
+      ? `Refund from ${payout.tenant.businessName} via Tixflow`
+      : payout.promoterId
+        ? `Tixflow promoter commission - ${payout.tenant.businessName}`
+        : `Tixflow payout - ${payout.tenant.businessName}`
   ).slice(0, 100);
   const netAmount = payout.netAmount ?? payout.amount;
 
@@ -119,6 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? { failureReason: result.error }
           : { status: 'failed', failureReason: result.error },
       });
+      await syncRefundFromPayout(updated);
       return res.status(502).json({ error: result.error || 'Failed to send payout.', data: updated });
     }
 

@@ -388,3 +388,15 @@ export async function sendAfterEventEmail(d: AfterEventEmailDetails) {
     `
   );
 }
+
+// Heads-up to the Tixflow team (gear rentals, refunds to complete). Set
+// PLATFORM_ALERT_EMAIL; without it these are only visible in platform admin.
+export async function sendPlatformAlertEmail(subject: string, text: string) {
+  const to = process.env.PLATFORM_ALERT_EMAIL;
+  if (!to) return;
+  await send(
+    to,
+    `[Tixflow] ${subject}`,
+    `<div style="font-family: sans-serif; max-width: 560px;"><p>${escapeHtml(text)}</p></div>`
+  );
+}

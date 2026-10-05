@@ -20,7 +20,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!tier) return res.status(404).json({ error: 'Ticket tier not found.' });
 
   if (req.method === 'PATCH') {
-    const { name, price, capacity, tierColor, description, isActive } = req.body;
+    const { name, price, capacity, tierColor, description, isActive, doorPrice } = req.body;
+    const door = doorPrice === '' || doorPrice === null ? null : doorPrice === undefined ? undefined : Number(doorPrice);
+    if (door !== null && door !== undefined && !(door >= 0)) {
+      return res.status(400).json({ error: 'Door price cannot be negative.' });
+    }
 
     if (capacity != null && capacity < tier.sold) {
       return res.status(409).json({
@@ -37,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           ...(name && { name: name.trim() }),
           ...(price != null && { price: Number(price) }),
+          ...(door !== undefined && { doorPrice: door }),
           ...(capacity != null && { capacity: Number(capacity) }),
           ...(tierColor && { tierColor }),
           ...(description !== undefined && { description: description?.trim() }),

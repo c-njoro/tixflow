@@ -7,6 +7,7 @@ interface TicketTier {
   id: string;
   name: string;
   price: number;
+  doorPrice: number | null;
   capacity: number;
   sold: number;
   tierColor: string;
@@ -29,6 +30,8 @@ interface EventDetail {
   location: string;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
   remindersEnabled: boolean;
+  reentryLimit: number;
+  passFeeToBuyer: boolean;
   coverImageUrl: string | null;
   coverImagePublicId: string | null;
   galleryImages: EventImage[];
@@ -97,7 +100,7 @@ export default function EventDetailPage() {
 
   // ---- Tier management state ----
   const [newTier, setNewTier] = useState({
-    name: '', price: '', capacity: '', tierColor: '#000000', description: '',
+    name: '', price: '', doorPrice: '', capacity: '', tierColor: '#000000', description: '',
   });
   const [addingTier, setAddingTier] = useState(false);
 
@@ -301,6 +304,7 @@ export default function EventDetailPage() {
         body: JSON.stringify({
           name: newTier.name,
           price: Number(newTier.price),
+          doorPrice: newTier.doorPrice === '' ? null : Number(newTier.doorPrice),
           capacity: Number(newTier.capacity),
           tierColor: newTier.tierColor,
           description: newTier.description || undefined,
@@ -310,7 +314,7 @@ export default function EventDetailPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to add tier.');
 
       setEvent((prev) => (prev ? { ...prev, ticketTiers: [...prev.ticketTiers, result.data] } : prev));
-      setNewTier({ name: '', price: '', capacity: '', tierColor: '#000000', description: '' });
+      setNewTier({ name: '', price: '', doorPrice: '', capacity: '', tierColor: '#000000', description: '' });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -432,6 +436,10 @@ export default function EventDetailPage() {
             { href: 'attendees', label: 'Attendees', hint: 'Tickets & buyers', adminOnly: false },
             { href: 'gate', label: 'Gate', hint: 'Live arrivals', adminOnly: false },
             { href: 'spaces', label: 'Event Space', hint: 'Polls, Q&A, slides', adminOnly: false },
+            { href: 'box-office', label: 'Box Office', hint: 'Sell at the gate', adminOnly: false },
+            { href: 'promos', label: 'Promo Codes', hint: 'Discounts & promoters', adminOnly: true },
+            { href: 'refunds', label: 'Refunds', hint: 'Buyer requests', adminOnly: true },
+            { href: 'plan', label: 'Plan & Gear', hint: 'Rooms, scanners, staff', adminOnly: true },
             { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true },
             { href: 'feedback', label: 'Feedback', hint: 'Post-event survey', adminOnly: true },
             { href: 'certificates', label: 'Certificates', hint: 'Proof of attendance', adminOnly: true },
@@ -487,6 +495,44 @@ export default function EventDetailPage() {
                 {event.remindersEnabled ? 'On' : 'Off'}
               </button>
             </div>
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Re-entries per ticket</div>
+                <p className="text-xs text-slate-400 mt-1">
+                  0 = once in, stays in. Otherwise attendees scan out at the gate and can come back in this many times.
+                </p>
+              </div>
+              <input
+                type="number"
+                min="0"
+                max="20"
+                key={`reentry-${event.reentryLimit}`}
+                defaultValue={event.reentryLimit}
+                onBlur={(e) => Number(e.target.value) !== event.reentryLimit && patchEvent({ reentryLimit: Number(e.target.value) })}
+                className="w-20 bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-1.5 text-sm text-white text-center"
+              />
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Booking fee</div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {event.passFeeToBuyer
+                    ? 'Buyers pay Tixflow’s fee on top of the ticket price — you receive the full price.'
+                    : 'Tixflow’s fee comes out of your sales — buyers pay just the ticket price.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => patchEvent({ passFeeToBuyer: !event.passFeeToBuyer })}
+                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
+                  event.passFeeToBuyer
+                    ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
+                    : 'border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {event.passFeeToBuyer ? 'Buyer pays' : 'You pay'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -519,7 +565,10 @@ export default function EventDetailPage() {
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tier.tierColor }} />
                 <div>
                   <div className="text-sm text-white">{tier.name}</div>
-                  <div className="text-xs text-slate-500">KES {tier.price.toLocaleString()}</div>
+                  <div className="text-xs text-slate-500">
+                    {tier.price > 0 ? `KES ${tier.price.toLocaleString()}` : 'Free'}
+                    {tier.doorPrice !== null && tier.doorPrice !== tier.price && ` · KES ${tier.doorPrice.toLocaleString()} at the door`}
+                  </div>
                 </div>
               </div>
               <div className="text-right">
@@ -723,7 +772,7 @@ export default function EventDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Price</label>
                 <div className="mt-1">
@@ -733,6 +782,23 @@ export default function EventDetailPage() {
                     step="0.01"
                     defaultValue={tier.price}
                     onBlur={(e) => Number(e.target.value) !== tier.price && handleUpdateTier(tier.id, { price: Number(e.target.value) })}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Door Price</label>
+                <div className="mt-1">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Same"
+                    defaultValue={tier.doorPrice ?? ''}
+                    onBlur={(e) => {
+                      const next = e.target.value === '' ? null : Number(e.target.value);
+                      if (next !== tier.doorPrice) handleUpdateTier(tier.id, { doorPrice: next });
+                    }}
                     className={inputClass}
                   />
                 </div>
@@ -778,8 +844,9 @@ export default function EventDetailPage() {
             <input type="text" placeholder="Tier name" value={newTier.name} onChange={(e) => setNewTier({ ...newTier, name: e.target.value })} className={inputClass} />
             <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <input type="number" min="0" step="0.01" placeholder="Price" value={newTier.price} onChange={(e) => setNewTier({ ...newTier, price: e.target.value })} className={inputClass} />
+            <input type="number" min="0" step="0.01" placeholder="Door price (optional)" value={newTier.doorPrice} onChange={(e) => setNewTier({ ...newTier, doorPrice: e.target.value })} className={inputClass} />
             <input type="number" min="1" placeholder="Capacity" value={newTier.capacity} onChange={(e) => setNewTier({ ...newTier, capacity: e.target.value })} className={inputClass} />
           </div>
           <input type="text" placeholder="Description (optional)" value={newTier.description} onChange={(e) => setNewTier({ ...newTier, description: e.target.value })} className={inputClass} />

@@ -65,7 +65,10 @@ export default function PayoutSettingsPage() {
   // Self-payout request state
   const [balance, setBalance] = useState<number | null>(null);
   const [owedToPromoters, setOwedToPromoters] = useState(0);
-  const [feePercent, setFeePercent] = useState<number>(3);
+  // Withdrawal fee (usually 0 — Tixflow earns per ticket sold instead).
+  const [feePercent, setFeePercent] = useState<number>(0);
+  const [ticketFees, setTicketFees] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutStage, setPayoutStage] = useState<'idle' | 'otp' | 'submitted'>('idle');
   const [challengeId, setChallengeId] = useState('');
@@ -83,6 +86,8 @@ export default function PayoutSettingsPage() {
       setBalance(result.data.outstandingBalance);
       setOwedToPromoters(result.data.owedToPromoters || 0);
       setFeePercent(result.data.platformFeePercent);
+      setTicketFees(result.data.platformFees || 0);
+      setTotalRevenue(result.data.totalRevenue || 0);
     }
   };
 
@@ -284,7 +289,9 @@ export default function PayoutSettingsPage() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 -mt-2">
-                A {feePercent}% platform fee applies to the amount you withdraw, not your full balance.
+                KES {totalRevenue.toLocaleString()} collected online, less KES {ticketFees.toLocaleString()} in Tixflow
+                ticket fees (cash box-office sales included) and payouts so far.
+                {feePercent > 0 && ` A ${feePercent}% fee applies to each withdrawal.`}
               </p>
               {owedToPromoters > 0 && (
                 <p className="text-[11px] text-amber-400/80 -mt-2">
@@ -314,7 +321,7 @@ export default function PayoutSettingsPage() {
                         className={inputClass}
                       />
                     </div>
-                    {withdrawAmount && Number(withdrawAmount) > 0 && (
+                    {feePercent > 0 && withdrawAmount && Number(withdrawAmount) > 0 && (
                       <p className="text-[11px] text-slate-500 mt-1.5">
                         You&apos;ll receive approximately{' '}
                         <span className="text-slate-300">
@@ -344,7 +351,7 @@ export default function PayoutSettingsPage() {
                         <span className="text-white">KES {otpSplit.amount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-slate-400">
-                        <span>Platform fee ({feePercent}%)</span>
+                        <span>Withdrawal fee ({feePercent}%)</span>
                         <span className="text-white">- KES {otpSplit.feeAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-slate-300 font-semibold pt-1 border-t border-slate-800/80">

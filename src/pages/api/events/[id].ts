@@ -31,7 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // /api/events/[id]/images, which keeps Cloudinary and the event record
     // in sync (upload+attach or delete+detach as one atomic step). This
     // endpoint only ever touches the event's non-image fields.
-    const { title, description, category, date, endDate, location, status, remindersEnabled } = req.body;
+    const { title, description, category, date, endDate, location, status, remindersEnabled, reentryLimit, passFeeToBuyer } =
+      req.body;
 
     const allowedStatuses = ['draft', 'published', 'cancelled', 'completed'];
     if (status && !allowedStatuses.includes(status)) {
@@ -50,6 +51,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(location && { location: location.trim() }),
           ...(status && { status }),
           ...(typeof remindersEnabled === 'boolean' && { remindersEnabled }),
+          ...(reentryLimit !== undefined && {
+            reentryLimit: Math.min(Math.max(Math.floor(Number(reentryLimit) || 0), 0), 20),
+          }),
+          ...(typeof passFeeToBuyer === 'boolean' && { passFeeToBuyer }),
           // Moving the start time re-arms reminders for the new time.
           ...(date && new Date(date).getTime() !== event.date.getTime() && {
             reminderDaySentAt: null,

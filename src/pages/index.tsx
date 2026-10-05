@@ -1,420 +1,269 @@
-import Link from "next/link";
+// pages/index.tsx
+//
+// The front door for ticket buyers: what's on, search, categories, and
+// finding tickets you already have. Organisers get a section pointing to
+// /organisers (what Tixflow offers them) and sign-up.
 import { useState } from "react";
+import type { GetServerSideProps } from "next";
+import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import {
-  TicketIcon,
-  QrCodeIcon,
-  BanknotesIcon,
-  UserGroupIcon,
-  ChartBarIcon,
-  PhotoIcon,
-  CheckIcon,
-  MagnifyingGlassIcon,
   ArrowRightIcon,
+  CalendarIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  TicketIcon,
 } from "@heroicons/react/24/outline";
+import { listUpcomingCategories, listUpcomingEvents } from "@/lib/publicQueries";
 
-const FEATURES = [
-  {
-    icon: TicketIcon,
-    title: "Flexible Ticket Tiers",
-    description:
-      "Set up VIP, Early Bird, or General Admission tiers with their own price and capacity — for as many events as you run.",
-  },
-  {
-    icon: QrCodeIcon,
-    title: "Fast Door Check-In",
-    description:
-      "Scan tickets at the door and know instantly if a code is valid, already used, or fake — no spreadsheets, no guest-list chaos.",
-  },
-  {
-    icon: BanknotesIcon,
-    title: "Simple M-Pesa Payouts",
-    description:
-      "Buyers pay by M-Pesa STK Push. Request a payout to your own M-Pesa or bank whenever you're ready — you're in control of when you get paid.",
-  },
-  {
-    icon: UserGroupIcon,
-    title: "Staff Access",
-    description:
-      "Add door staff with scanner-only access, without handing out your admin login or your business dashboard.",
-  },
-  {
-    icon: ChartBarIcon,
-    title: "Real-Time Sales Data",
-    description:
-      "See tickets sold, revenue, and attendance for every event the moment it happens — not the morning after.",
-  },
-  {
-    icon: PhotoIcon,
-    title: "A Storefront That Looks Good",
-    description:
-      "A branded event page with your cover image and gallery — something you'd actually want to share.",
-  },
-];
+interface EventCard {
+  slug: string;
+  title: string;
+  date: string;
+  location: string;
+  category: string | null;
+  coverImageUrl: string | null;
+  tenant: { slug: string; businessName: string };
+  fromPrice: number | null;
+  soldOut: boolean;
+}
 
-const STEPS = [
-  {
-    step: "01",
-    title: "Register your business",
-    description:
-      "Create your workspace in a couple of minutes — no paperwork, no approval wait.",
-  },
-  {
-    step: "02",
-    title: "Build your event",
-    description:
-      "Add details, images, and ticket tiers with pricing and capacity you control.",
-  },
-  {
-    step: "03",
-    title: "Share your event link",
-    description:
-      "Every event gets its own page you can share anywhere — socials, posters, WhatsApp.",
-  },
-  {
-    step: "04",
-    title: "Sell tickets, scan at the door, get paid",
-    description:
-      "Attendees buy by M-Pesa. You check them in with a scan. Request a payout to your M-Pesa or bank whenever you're ready.",
-  },
-];
+interface Props {
+  events: EventCard[];
+  categories: string[];
+  category: string | null;
+}
 
-const FAQS = [
-  {
-    q: "How do I get paid?",
-    a: "You add your M-Pesa number or bank details once — buyer payments come to us via M-Pesa and we pay you out directly, no separate account to set up.",
-  },
-  {
-    q: "How much does Tixflow cost?",
-    a: "There's no monthly fee. We only take a small percentage per ticket sold — if you don't sell, you don't pay.",
-  },
-  {
-    q: "Can I run more than one event?",
-    a: "Yes — there's no limit on the number of events or ticket tiers under your account.",
-  },
-  {
-    q: "What happens if I need to refund someone?",
-    a: "You can cancel or refund individual tickets directly from your dashboard, and the tier's capacity is freed up automatically.",
-  },
-  {
-    q: "Can my staff check people in without full account access?",
-    a: "Yes — you can add staff accounts limited to check-in scanning only, separate from admin access to your events and payouts.",
-  },
-];
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-KE", {
+    timeZone: "Africa/Nairobi",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-export default function Home() {
+const priceLabel = (e: EventCard) =>
+  e.soldOut ? "Sold out" : e.fromPrice === null ? "" : e.fromPrice === 0 ? "Free" : `From KES ${e.fromPrice.toLocaleString()}`;
+
+export default function Home({ events, categories, category }: Props) {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [term, setTerm] = useState("");
 
-  const handleSearch = (e: React.FormEvent) => {
+  const search = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchTerm.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
+    if (term.trim()) router.push(`/search?q=${encodeURIComponent(term.trim())}`);
   };
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white antialiased selection:bg-white/20">
-      {/* Nav */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/40 bg-[#0B0F17]/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-sm font-mono font-bold uppercase tracking-widest">
-            Tixflow
-          </span>
-          <div className="flex items-center gap-6">
-            {/* Secondary actions: Lookup & Search */}
-            <div className="hidden sm:flex items-center gap-4 text-xs font-mono uppercase tracking-wider text-slate-400">
-              <Link
-                href="/lookup"
-                className="hover:text-white transition flex items-center gap-1.5"
-              >
-                <TicketIcon className="w-4 h-4" />
-                Lookup Tickets
-              </Link>
-              <span className="h-4 w-px bg-slate-700/50" />
-              <Link
-                href="/search"
-                className="hover:text-white transition flex items-center gap-1.5"
-              >
-                <MagnifyingGlassIcon className="w-4 h-4" />
-                Find Event
-              </Link>
-            </div>
+      <Head>
+        <title>Tixflow — events and tickets in Kenya</title>
+        <meta name="description" content="Find concerts, conferences, parties and more. Pay with M-Pesa or card and get your ticket instantly." />
+      </Head>
 
-            {/* Auth actions */}
-            <div className="flex items-center gap-3">
-              <Link
-                href="/auth"
-                className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/auth"
-                className="px-4 py-2 rounded-lg text-xs font-mono uppercase tracking-wider bg-white text-black hover:bg-slate-200 transition"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
+      <header className="sticky top-0 z-40 border-b border-slate-800/40 bg-[#0B0F17]/85 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+          <Link href="/" className="text-sm font-mono font-bold uppercase tracking-widest">
+            Tixflow
+          </Link>
+          <nav className="flex items-center gap-4 sm:gap-6 text-xs font-mono uppercase tracking-wider text-slate-400">
+            <Link href="/lookup" className="hover:text-white transition flex items-center gap-1.5">
+              <TicketIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">My tickets</span>
+            </Link>
+            <Link href="/organisers" className="hover:text-white transition">
+              For organisers
+            </Link>
+            <Link href="/auth" className="hidden sm:inline hover:text-white transition">
+              Log in
+            </Link>
+          </nav>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
-        {/* Ambient glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-white/[0.015] rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
-          {/* <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/30 border border-slate-700/20 text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
-            Now in public beta
-          </div> */}
-
-          <h1 className="text-5xl sm:text-7xl font-bold tracking-tight max-w-4xl mx-auto leading-[1.05]">
-            Sell tickets.
-            <br />
-            <span className="text-slate-500">Manage events.</span>
-            <br />
-            Get paid.
+      {/* Search */}
+      <section className="relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14 pb-10 sm:pt-20">
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight max-w-3xl leading-[1.05]">
+            What&apos;s on.
+            <span className="text-slate-500"> Get in.</span>
           </h1>
-
-          <p className="mt-8 text-slate-400 max-w-2xl mx-auto text-lg sm:text-xl leading-relaxed">
-            Tixflow is everything you need to run ticketed events — your own
-            storefront, flexible pricing tiers, door check-in, and direct
-            payouts — without spreadsheets, printed lists, or a payment
-            middleman.
+          <p className="mt-4 text-slate-400 max-w-xl">
+            Concerts, conferences, parties and more. Pay with M-Pesa or card — your ticket arrives instantly by email,
+            WhatsApp or SMS.
           </p>
-
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/auth"
-              className="group px-8 py-4 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-            >
-              Start Selling Tickets — Free to Set Up
-              <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-            <Link
-              href="/auth"
-              className="px-8 py-4 rounded-lg text-sm font-medium border border-slate-700 text-white hover:bg-slate-800/60 transition-all"
-            >
-              Log In
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-slate-600">
-            No monthly fee. We only make money when you do.
-          </p>
-
-          {/* Secondary path for someone here to find an event */}
-          <div className="mt-20 max-w-md mx-auto">
-            <p className="text-[11px] font-mono uppercase tracking-widest text-slate-600 mb-3">
-              Looking for an event instead?
-            </p>
-            <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={search} className="mt-8 flex gap-2 max-w-xl">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search events..."
-                className="flex-1 bg-[#0E131F] border border-slate-800/80 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                placeholder="Search events, venues, organisers…"
+                className="w-full bg-[#0E131F] border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
               />
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-lg text-sm font-medium border border-slate-700 hover:bg-slate-800/60 transition"
+            </div>
+            <button type="submit" className="px-5 rounded-xl text-sm font-medium bg-white text-black hover:bg-slate-200 transition">
+              Search
+            </button>
+          </form>
+
+          {categories.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link
+                href="/"
+                className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                  !category ? "bg-white text-black border-white" : "border-slate-700 text-slate-300 hover:border-slate-500"
+                }`}
               >
-                Search
-              </button>
-            </form>
-          </div>
-
-          <div className="mt-6 text-center text-xs text-slate-500">
-            <span>Already have tickets? </span>
-            <Link
-              href="/lookup"
-              className="text-slate-300 hover:text-white underline underline-offset-2 transition"
-            >
-              Look them up
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="relative border-t border-slate-800/40 bg-[#080A10]">
-        <div className="max-w-6xl mx-auto px-6 py-28">
-          <div className="max-w-2xl mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Everything ticketing needs,
-              <br />
-              <span className="text-slate-600">nothing it doesn&apos;t</span>
-            </h2>
-            <p className="mt-4 text-slate-400 text-base leading-relaxed max-w-lg">
-              Built for organizers who want to run events properly — not
-              duct-tape a payment link and a guest list together.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((feature) => (
-              <div
-                key={feature.title}
-                className="group relative p-8 bg-[#0E131F]/50 border border-slate-800/50 rounded-2xl hover:bg-[#0E131F] hover:border-slate-700/70 transition-all duration-300"
-              >
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/30 flex items-center justify-center mb-5">
-                    <feature.icon className="w-5 h-5 text-slate-300" />
-                  </div>
-                  <h3 className="text-base font-semibold">{feature.title}</h3>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="relative border-t border-slate-800/40">
-        <div className="max-w-5xl mx-auto px-6 py-28">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              From sign-up to sold out
-            </h2>
-            <p className="mt-4 text-slate-500">Four steps. No friction.</p>
-          </div>
-
-          <div className="relative">
-            {/* Connecting line */}
-            <div className="hidden lg:block absolute top-8 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
-              {STEPS.map((step) => (
-                <div
-                  key={step.step}
-                  className="relative text-center lg:text-left"
+                All
+              </Link>
+              {categories.map((c) => (
+                <Link
+                  key={c}
+                  href={`/?category=${encodeURIComponent(c)}`}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                    category?.toLowerCase() === c.toLowerCase()
+                      ? "bg-white text-black border-white"
+                      : "border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
                 >
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#0E131F] border border-slate-800/60 text-xl font-mono font-bold text-slate-600 mb-6">
-                    {step.step}
-                  </div>
-                  <h3 className="text-base font-semibold">{step.title}</h3>
-                  <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
+                  {c}
+                </Link>
               ))}
             </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Pricing */}
-      <section className="relative border-t border-slate-800/40 bg-[#080A10]">
-        <div className="max-w-5xl mx-auto px-6 py-28">
-          <div className="text-center max-w-lg mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              Simple, honest pricing
-            </h2>
-            <p className="mt-4 text-slate-500">
-              No setup fee. No monthly subscription. You only pay when you
-              actually sell a ticket.
-            </p>
+      {/* Events */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
+        <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-4">
+          {category ? `${category} · upcoming` : "Upcoming events"}
+        </h2>
+        {events.length === 0 ? (
+          <div className="p-10 border border-dashed border-slate-800 rounded-2xl text-center text-sm text-slate-500">
+            {category ? "Nothing in this category right now." : "No upcoming events yet — check back soon."}
           </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {events.map((e) => (
+              <Link
+                key={`${e.tenant.slug}/${e.slug}`}
+                href={`/${e.tenant.slug}/${e.slug}`}
+                className="group block rounded-2xl overflow-hidden bg-[#0E131F] border border-slate-800/60 hover:border-slate-600 transition"
+              >
+                <div className="relative aspect-[16/9] bg-slate-900">
+                  {e.coverImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={e.coverImageUrl}
+                      alt=""
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <TicketIcon className="w-10 h-10 text-slate-700" />
+                    </div>
+                  )}
+                  {priceLabel(e) && (
+                    <span
+                      className={`absolute top-3 right-3 px-2.5 py-1 rounded-md text-[11px] font-mono backdrop-blur ${
+                        e.soldOut ? "bg-rose-950/80 text-rose-300" : "bg-black/70 text-white"
+                      }`}
+                    >
+                      {priceLabel(e)}
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 space-y-1.5">
+                  {e.category && (
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{e.category}</div>
+                  )}
+                  <div className="text-base font-semibold leading-snug line-clamp-2">{e.title}</div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                    {when(e.date)}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <MapPinIcon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{e.location}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 pt-1">by {e.tenant.businessName}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
-          <div className="max-w-sm mx-auto relative">
-            {/* Subtle glow behind card */}
-            <div className="absolute -inset-1 bg-gradient-to-b from-slate-700/20 to-transparent rounded-3xl blur-xl opacity-40" />
-            <div className="relative p-10 bg-[#0E131F] border border-slate-800/60 rounded-2xl text-center">
-              <div className="text-5xl font-bold tracking-tight">A small %</div>
-              <div className="text-lg text-slate-500 font-medium mt-1">
-                per ticket sold
-              </div>
-              <p className="mt-3 text-xs text-slate-600">
-                Deducted automatically at checkout. Nothing to invoice, nothing
-                to chase.
-              </p>
-              <ul className="mt-8 space-y-4 text-left">
-                {[
-                  "Unlimited events and ticket tiers",
-                  "Door check-in for your whole team",
-                  "Direct payouts to your own account",
-                  "Real-time sales dashboard",
-                ].map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-start gap-3 text-sm text-slate-300"
-                  >
-                    <CheckIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+        <div className="mt-8 text-sm text-slate-500">
+          Already bought a ticket?{" "}
+          <Link href="/lookup" className="text-slate-300 underline underline-offset-2 hover:text-white">
+            Find it here
+          </Link>
+          .
+        </div>
+      </section>
+
+      {/* For organisers */}
+      <section className="border-t border-slate-800/40 bg-[#080A10]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid gap-8 lg:grid-cols-2 items-center">
+          <div>
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">For organisers</div>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">Running an event? Sell on Tixflow.</h2>
+            <p className="mt-4 text-slate-400 max-w-lg">
+              Your own event page, M-Pesa and card payments, promo codes and promoters, a box office and fast gate
+              scanning with re-entry — plus scanners and staff to hire for the day. No monthly fee.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/auth"
-                className="mt-10 block w-full px-6 py-3.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition"
               >
-                Get Started
+                Create your event
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/organisers"
+                className="px-6 py-3 rounded-lg text-sm font-medium border border-slate-700 hover:bg-slate-800/60 transition"
+              >
+                See features &amp; pricing
               </Link>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="relative border-t border-slate-800/40">
-        <div className="max-w-3xl mx-auto px-6 py-28">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-16">
-            Questions, answered
-          </h2>
-          <div className="space-y-4">
-            {FAQS.map((faq) => (
-              <div
-                key={faq.q}
-                className="p-6 bg-[#0E131F]/40 border border-slate-800/40 rounded-2xl hover:border-slate-700/50 transition-colors"
-              >
-                <h3 className="text-sm font-semibold">{faq.q}</h3>
-                <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                  {faq.a}
-                </p>
-              </div>
+          <ol className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["01", "Sign up", "Create your workspace in a couple of minutes."],
+              ["02", "Create the event", "Ticket types, door prices, re-entry rules."],
+              ["03", "Share the link", "Socials, posters, WhatsApp, promoters."],
+              ["04", "Scan & get paid", "Check people in, withdraw to M-Pesa or bank."],
+            ].map(([n, title, text]) => (
+              <li key={n} className="p-5 rounded-2xl bg-[#0E131F] border border-slate-800/60">
+                <div className="text-xs font-mono text-slate-600">{n}</div>
+                <div className="mt-2 text-sm font-semibold">{title}</div>
+                <div className="mt-1 text-xs text-slate-400">{text}</div>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="relative border-t border-slate-800/40 bg-[#080A10] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
-        <div className="relative max-w-5xl mx-auto px-6 py-28 text-center">
-          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight max-w-3xl mx-auto leading-tight">
-            Your next event deserves better than a group chat and a cash box
-          </h2>
-          <Link
-            href="/auth"
-            className="mt-10 inline-flex items-center gap-2 px-8 py-4 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition"
-          >
-            Start Selling Tickets
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
       <footer className="border-t border-slate-800/40">
-        <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-600">
-            &copy; {new Date().getFullYear()} Tixflow
-          </span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-xs font-mono uppercase tracking-widest text-slate-600">&copy; {new Date().getFullYear()} Tixflow</span>
           <div className="flex gap-6 text-xs font-mono uppercase tracking-wider text-slate-500">
             <Link href="/lookup" className="hover:text-white transition">
-              Lookup Tickets
+              My tickets
             </Link>
-            <Link href="/search" className="hover:text-white transition">
-              Find an Event
+            <Link href="/organisers" className="hover:text-white transition">
+              For organisers
             </Link>
             <Link href="/auth" className="hover:text-white transition">
-              Log In
+              Log in
             </Link>
           </div>
         </div>
@@ -422,3 +271,14 @@ export default function Home() {
     </div>
   );
 }
+
+export const getServerSideProps: GetServerSideProps<Props> = async ({ query, res }) => {
+  const category = typeof query.category === "string" && query.category.trim() ? query.category.trim().slice(0, 60) : null;
+  const [events, categories] = await Promise.all([
+    listUpcomingEvents({ category: category ?? undefined }),
+    listUpcomingCategories(),
+  ]);
+  // A short shared cache: the listing doesn't need to be to-the-second.
+  res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  return { props: JSON.parse(JSON.stringify({ events, categories, category })) };
+};

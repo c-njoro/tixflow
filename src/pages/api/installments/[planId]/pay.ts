@@ -7,7 +7,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { safeEqual } from '@/lib/secrets';
 import { createOrderAndPush } from '@/lib/checkout';
-import { commissionForPayment, MIN_INSTALLMENT_PAYMENT, remainingAmount } from '@/lib/installments';
+import { commissionForPayment, feeForPayment, MIN_INSTALLMENT_PAYMENT, remainingAmount } from '@/lib/installments';
 import { getClientIp, rateLimit } from '@/lib/rateLimit';
 import { normalizeKenyanPhone } from '@/lib/phone';
 
@@ -68,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         eventId: plan.eventId,
         promoterId: plan.promoterId,
         promoterCommission: commissionForPayment(plan, charge),
+        platformFee: feeForPayment(plan, charge),
       },
       event?.title || 'Tickets'
     );

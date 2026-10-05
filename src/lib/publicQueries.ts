@@ -122,3 +122,49 @@ export async function searchPublicEvents(query: string, limit = 20) {
 
   return events;
 }
+// The homepage listing: upcoming published events, soonest first, with the
+// cheapest ticket price ("from KES …" / free).
+export async function listUpcomingEvents({ category, limit = 24 }: { category?: string; limit?: number } = {}) {
+  const events = await prisma.event.findMany({
+    where: {
+      status: 'published',
+      // Still on (multi-day events stay listed until they end).
+      OR: [{ date: { gte: new Date() } }, { endDate: { gte: new Date() } }],
+      ...(category && { category: { equals: category, mode: 'insensitive' } }),
+    },
+    orderBy: { date: 'asc' },
+    take: limit,
+    select: {
+      slug: true,
+      title: true,
+      date: true,
+      location: true,
+      category: true,
+      coverImageUrl: true,
+      tenant: { select: { slug: true, businessName: true } },
+      ticketTiers: { where: { isActive: true }, select: { price: true, capacity: true, sold: true } },
+    },
+  });
+  return events.map(({ ticketTiers, ...e }) => {
+    const onSale = ticketTiers.filter((t) => t.sold < t.capacity);
+    return {
+      ...e,
+      fromPrice: onSale.length ? Math.min(...onSale.map((t) => t.price)) : null,
+      soldOut: ticketTiers.length > 0 && onSale.length === 0,
+    };
+  });
+}
+
+// Categories that have upcoming events, most events first.
+export async function listUpcomingCategories() {
+  const groups = await prisma.event.groupBy({
+    by: ['category'],
+    where: { status: 'published', date: { gte: new Date() }, category: { not: null } },
+    _count: { _all: true },
+  });
+  return groups
+    .filter((g) => g.category && g.category.trim())
+    .sort((a, b) => b._count._all - a._count._all)
+    .slice(0, 12)
+    .map((g) => g.category as string);
+}

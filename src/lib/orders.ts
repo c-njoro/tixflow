@@ -12,6 +12,8 @@ import { sendTicketsWhatsapp } from './whatsappSender';
 import { sendSpaceInviteForOrder } from './spaceInvites';
 import { renderTicketImages } from './ticketImage';
 import { getAppUrl } from './mpesaCallbacks';
+import { sendSms, smsConfigured, ticketSmsMessage } from './sms';
+import { reconcileCardOrder } from './intasend';
 import { installmentDueAt, notifyPlanPayment, remindersAlreadyPast } from './installments';
 
 const generateTicketCode = () => `TIX-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
@@ -90,7 +92,15 @@ const PAYMENT_TOLERANCE = 0.5; // STK amounts are whole shillings
 
 type Fulfilment =
   | { kind: 'tickets'; order: PendingOrder; tickets: CreatedTicket[]; shortfalls: string[] }
-  | { kind: 'plan_started' | 'plan_payment'; order: PendingOrder; planId: string; shortfalls: string[] };
+  | { kind: 'plan_started' | 'plan_payment'; order: PendingOrder; planId: string; shortfalls: string[] }
+  | { kind: 'event_plan'; order: PendingOrder; shortfalls: string[] };
+
+// A promo code's uses are the tickets bought with it.
+async function countPromoUse(tx: Tx, order: PendingOrder, seats: { quantity: number }[]) {
+  const used = seats.reduce((n, s) => n + s.quantity, 0);
+  if (!order.promoCodeId || used === 0) return;
+  await tx.promoCode.update({ where: { id: order.promoCodeId }, data: { usedCount: { increment: used } } });
+}
 
 // Resolves a paid order. Safe to call from several places at once: the
 // first step claims the order (pending → completed) inside the
@@ -98,6 +108,7 @@ type Fulfilment =
 //  - 'purchase': reserves seats and issues tickets.
 //  - 'installment_deposit': reserves seats and starts a Lipa Pole Pole plan.
 //  - 'installment_payment': adds to the plan; issues tickets once paid off.
+//  - 'event_plan': an organiser buying a plan (src/lib/plans.ts) for an event.
 export async function fulfillPaidOrder(
   orderId: string,
   mpesaReceiptNumber: string | null
@@ -117,6 +128,14 @@ export async function fulfillPaidOrder(
         }
       };
 
+      if (order.kind === 'event_plan') {
+        await tx.event.update({
+          where: { id: order.eventId },
+          data: { eventPlan: order.eventPlanTier, eventPlanPaidAt: new Date() },
+        });
+        return { kind: 'event_plan', order, shortfalls: [] };
+      }
+
       if (order.kind === 'installment_deposit') {
         const { reserved, shortfalls } = await reserveSeats(tx, order.items);
         if (reserved.length === 0) {
@@ -131,6 +150,10 @@ export async function fulfillPaidOrder(
               const item = order.items.find((i) => i.ticketTierId === r.ticketTierId)!;
               return sum + item.unitPrice * r.quantity;
             }, 0);
+        const fullTotal = order.planTotal ?? order.totalAmount;
+        const planFeeTotal =
+          order.planFeeTotal === null ? null : Math.round(((order.planFeeTotal * planTotal) / fullTotal) * 100) / 100;
+        await countPromoUse(tx, order, reserved);
         const event = await tx.event.findUniqueOrThrow({ where: { id: order.eventId } });
         const dueAt = installmentDueAt(event);
         const plan = await tx.installmentPlan.create({
@@ -148,6 +171,7 @@ export async function fulfillPaidOrder(
             accessKey: crypto.randomBytes(24).toString('base64url'),
             promoterId: order.promoterId,
             planCommissionTotal: order.planCommissionTotal,
+            planFeeTotal,
             remindersSent: remindersAlreadyPast(dueAt),
           },
         });
@@ -192,6 +216,7 @@ export async function fulfillPaidOrder(
 
       const { reserved, shortfalls } = await reserveSeats(tx, order.items);
       const tickets = await issueTickets(tx, order, reserved, mpesaReceiptNumber);
+      await countPromoUse(tx, order, reserved);
       await flag(shortfalls);
       return { kind: 'tickets', order, tickets, shortfalls };
     },
@@ -204,7 +229,8 @@ export async function fulfillPaidOrder(
     console.error('CRITICAL_MPESA_OVERSOLD_AFTER_PAYMENT:', orderId, result.shortfalls);
   }
   if (result.kind === 'tickets' && result.tickets.length > 0) {
-    await deliverTickets(result.order, result.tickets);
+    // Box-office buyers usually only give a phone number — always SMS them.
+    await deliverTickets(result.order, result.tickets, { sms: !!result.order.boxOfficeById });
   }
   if (result.kind === 'plan_started' || result.kind === 'plan_payment') {
     notifyPlanPayment(result.planId, result.order).catch((error) =>
@@ -225,16 +251,18 @@ export async function failPendingOrder(orderId: string, reason: string) {
 
 // Who tickets go to. A paid order, a manual (KES 0) order from an admin
 // issuing a ticket, or a resend — only these fields are needed.
-export type TicketRecipient = Pick<PendingOrder, 'id' | 'eventId' | 'buyerName' | 'buyerEmail' | 'buyerWhatsapp'>;
+export type TicketRecipient = Pick<PendingOrder, 'id' | 'eventId' | 'buyerName' | 'buyerEmail' | 'buyerWhatsapp' | 'buyerPhone'>;
 
 // Emails the designed tickets and, if there's a WhatsApp number, sends them
 // there too (queued if the connection is down). `spaceInvite`: also send the
 // Event Space links when the event's invites already went out — off for a
 // plain resend, so people don't get the links twice.
+// SMS (when set up): to the buyer's phone if there's no WhatsApp number or
+// WhatsApp failed, or always with `sms: true` (box office).
 export async function deliverTickets(
   order: TicketRecipient,
   tickets: CreatedTicket[],
-  { spaceInvite = true }: { spaceInvite?: boolean } = {}
+  { spaceInvite = true, sms = false }: { spaceInvite?: boolean; sms?: boolean } = {}
 ) {
   const event = await prisma.event.findUnique({
     where: { id: order.eventId },
@@ -249,26 +277,30 @@ export async function deliverTickets(
     return [];
   });
 
-  try {
-    await sendTicketConfirmationEmail({
-      buyerName: order.buyerName,
-      buyerEmail: order.buyerEmail,
-      eventTitle: event.title,
-      eventDate: event.date,
-      eventLocation: event.location,
-      tickets,
-      ticketImages,
-      appUrl: getAppUrl(),
-    });
-  } catch (emailError) {
-    // The purchase itself already succeeded — a failed confirmation email
-    // shouldn't undo that. The buyer can still retrieve tickets via /lookup.
-    console.error('CRITICAL_TICKET_CONFIRMATION_EMAIL_ERROR:', emailError);
+  // Box-office buyers may give only a phone number.
+  if (order.buyerEmail) {
+    try {
+      await sendTicketConfirmationEmail({
+        buyerName: order.buyerName,
+        buyerEmail: order.buyerEmail,
+        eventTitle: event.title,
+        eventDate: event.date,
+        eventLocation: event.location,
+        tickets,
+        ticketImages,
+        appUrl: getAppUrl(),
+      });
+    } catch (emailError) {
+      // The purchase itself already succeeded — a failed confirmation email
+      // shouldn't undo that. The buyer can still retrieve tickets via /lookup.
+      console.error('CRITICAL_TICKET_CONFIRMATION_EMAIL_ERROR:', emailError);
+    }
   }
 
   // WhatsApp is a convenience channel alongside email, never a replacement
   // for it — a failure here (including "not connected," which is expected
   // any time the unofficial session has dropped) never affects the order.
+  let whatsappDelivered = false;
   if (order.buyerWhatsapp) {
     let whatsappStatus = 'failed';
     let whatsappError: string | null = null;
@@ -289,9 +321,16 @@ export async function deliverTickets(
       console.error('CRITICAL_TICKET_WHATSAPP_SEND_ERROR:', error);
       whatsappError = error instanceof Error ? error.message : 'Unknown error';
     }
+    whatsappDelivered = whatsappStatus !== 'failed';
     await prisma.pendingOrder
       .update({ where: { id: order.id }, data: { whatsappStatus, whatsappError } })
       .catch(() => {});
+  }
+
+  const smsPhone = order.buyerPhone || order.buyerWhatsapp;
+  if (smsConfigured() && smsPhone && (sms || !whatsappDelivered)) {
+    const result = await sendSms(smsPhone, ticketSmsMessage(event.title, event.date, tickets.map((t) => t.ticketCode)));
+    if (!result.success) console.error('CRITICAL_TICKET_SMS_ERROR:', order.id, result.error);
   }
 
   // Bought after the event's live space invites already went out — send
@@ -310,6 +349,20 @@ export async function deliverTickets(
 export async function reconcilePendingOrder(order: PendingOrder): Promise<PendingOrder['status']> {
   if (order.status !== 'pending') return order.status;
   const age = Date.now() - order.createdAt.getTime();
+
+  // Card orders: ask IntaSend instead.
+  if (order.paymentMethod === 'card') {
+    if (age < RECONCILE_MIN_AGE_MS) return 'pending';
+    const status = await reconcileCardOrder(order, fulfillPaidOrder, failPendingOrder);
+    if (status === 'pending' && age > EXPIRE_AFTER_MS) {
+      console.error('CRITICAL_CARD_ORDER_EXPIRED_UNRESOLVED:', order.id);
+      await failPendingOrder(order.id, 'Expired — no confirmation from the card processor. If the buyer was charged, check IntaSend.');
+      return 'failed';
+    }
+    return status;
+  }
+  // Nothing to ask anyone about (box office cash is fulfilled on the spot).
+  if (order.paymentMethod !== 'mpesa') return order.status;
 
   if (!order.checkoutRequestId) {
     if (age > UNSTARTED_EXPIRE_MS) {

@@ -48,7 +48,38 @@ services:
         sync: false
       - key: PLATFORM_ADMIN_PASSWORD
         sync: false
+      # Ticket fee: PLATFORM_FEE_PERCENT % per ticket, never less than
+      # MIN_TICKET_FEE KES. PAYOUT_FEE_PERCENT: optional cut per withdrawal (default 0).
       - key: PLATFORM_FEE_PERCENT
+        value: "5"
+      - key: MIN_TICKET_FEE
+        value: "20"
+      - key: PAYOUT_FEE_PERCENT
+        value: "0"
+      # Gate gear rental rates (KES per day) shown to organisers.
+      - key: RENTAL_DEVICE_PER_DAY
+        value: "1500"
+      - key: RENTAL_STAFF_PER_DAY
+        value: "2000"
+      # Where gear requests and refunds-to-send alerts are emailed.
+      - key: PLATFORM_ALERT_EMAIL
+        sync: false
+      # IntaSend card payments. Set the IntaSend webhook to
+      # {APP_URL}/api/intasend/webhook with INTASEND_WEBHOOK_CHALLENGE.
+      - key: INTASEND_PUBLISHABLE_KEY
+        sync: false
+      - key: INTASEND_SECRET_KEY
+        sync: false
+      - key: INTASEND_ENVIRONMENT
+        value: sandbox
+      - key: INTASEND_WEBHOOK_CHALLENGE
+        generateValue: true
+      # Africa's Talking SMS (ticket links by SMS). Skipped until set.
+      - key: AT_USERNAME
+        sync: false
+      - key: AT_API_KEY
+        sync: false
+      - key: AT_SENDER_ID
         sync: false
       - key: MPESA_ENVIRONMENT
         sync: false

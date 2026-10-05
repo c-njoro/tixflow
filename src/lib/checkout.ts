@@ -8,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import mpesaService from './mpesaService';
 import { mpesaCallbackUrl } from './mpesaCallbacks';
+import { fulfillPaidOrder } from './orders';
 
 // Daraja hard-limits these — AccountReference max 12 chars, TransactionDesc max 13.
 const buildAccountReference = (orderId: string) => `TIX-${orderId.slice(-6)}`.slice(0, 12);
@@ -45,4 +46,21 @@ export async function createOrderAndPush(
     data: { checkoutRequestId: stkResult.checkoutRequestId, merchantRequestId: stkResult.merchantRequestId },
   });
   return { ok: true, orderId: order.id, accessKey: order.accessKey!, customerMessage: stkResult.customerMessage };
+}
+
+// A KES 0 order (free registration, or a 100% promo code): nothing to pay,
+// so it's fulfilled straight away through the same path as a paid order.
+export async function createFreeOrder(data: Omit<Prisma.PendingOrderUncheckedCreateInput, 'status' | 'accessKey'>) {
+  const order = await prisma.pendingOrder.create({
+    data: {
+      ...data,
+      totalAmount: 0,
+      platformFee: 0,
+      paymentMethod: 'free',
+      status: 'pending',
+      accessKey: crypto.randomBytes(24).toString('base64url'),
+    },
+  });
+  await fulfillPaidOrder(order.id, null);
+  return { orderId: order.id, accessKey: order.accessKey! };
 }

@@ -15,8 +15,11 @@ const DEFAULTS: Record<string, Record<string, Prisma.InputJsonValue>> = {
     installmentMinDepositPercent: 25,
     installmentDueDaysBefore: 3,
     certificatesEnabled: false,
+    reentryLimit: 0,
+    passFeeToBuyer: false,
   },
-  PendingOrder: { kind: 'purchase' },
+  PendingOrder: { kind: 'purchase', paymentMethod: 'mpesa' },
+  Ticket: { isInside: false, reentryCount: 0 },
 };
 
 const globalForBackfill = globalThis as unknown as { __tixflowDefaultsBackfilled?: boolean };

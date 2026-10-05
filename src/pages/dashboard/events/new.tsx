@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 interface TierDraft {
   name: string;
   price: string;
+  doorPrice: string;
   capacity: string;
   tierColor: string;
   description: string;
@@ -19,6 +20,7 @@ interface UploadedImage {
 const emptyTier = (): TierDraft => ({
   name: '',
   price: '',
+  doorPrice: '',
   capacity: '',
   tierColor: '#000000',
   description: '',
@@ -50,6 +52,8 @@ export default function NewEventPage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [tiers, setTiers] = useState<TierDraft[]>([emptyTier()]);
+  const [reentryLimit, setReentryLimit] = useState('0');
+  const [passFeeToBuyer, setPassFeeToBuyer] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -147,9 +151,12 @@ export default function NewEventPage() {
       coverImageUrl: coverImage?.url || undefined,
       coverImagePublicId: coverImage?.publicId || undefined,
       galleryImages,
+      reentryLimit: Number(reentryLimit) || 0,
+      passFeeToBuyer,
       ticketTiers: tiers.map((t) => ({
         name: t.name,
         price: Number(t.price),
+        doorPrice: t.doorPrice === '' ? null : Number(t.doorPrice),
         capacity: Number(t.capacity),
         tierColor: t.tierColor,
         description: t.description || undefined,
@@ -411,7 +418,7 @@ export default function NewEventPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Price</label>
                   <div className="mt-1">
@@ -423,6 +430,21 @@ export default function NewEventPage() {
                       value={tier.price}
                       onChange={(e) => updateTier(index, 'price', e.target.value)}
                       placeholder="1500"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Door Price</label>
+                  <div className="mt-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tier.doorPrice}
+                      onChange={(e) => updateTier(index, 'doorPrice', e.target.value)}
+                      placeholder="Same"
+                      title="Price at the gate (box office). Leave blank to use the online price."
                       className={inputClass}
                     />
                   </div>
@@ -465,6 +487,42 @@ export default function NewEventPage() {
           >
             + Add another tier
           </button>
+        </div>
+
+        {/* Entry & fees */}
+        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Entry &amp; Fees</h3>
+          <div>
+            <label className={labelClass}>Re-entries allowed per ticket</label>
+            <div className="mt-1 max-w-[10rem]">
+              <input
+                type="number"
+                min="0"
+                max="20"
+                value={reentryLimit}
+                onChange={(e) => setReentryLimit(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              0 = once in, stays in. Otherwise attendees scan out when leaving and can come back in this many times.
+            </p>
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={passFeeToBuyer}
+              onChange={(e) => setPassFeeToBuyer(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm text-white">Buyers pay the booking fee</span>
+              <span className="block text-[11px] text-slate-500 mt-0.5">
+                Tixflow&apos;s fee is added to the ticket price at checkout, so you receive the full ticket price. Off: the
+                fee comes out of your sales.
+              </span>
+            </span>
+          </label>
         </div>
 
         <button

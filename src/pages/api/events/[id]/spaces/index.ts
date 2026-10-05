@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { ACTIVE_WINDOW_MS, generateUniqueJoinCode } from '@/lib/eventSpace';
 import { loadEventForSpaces } from '@/lib/spaceAdmin';
 import { inviteDueAt, sendSpaceInvitesIfDue } from '@/lib/spaceInvites';
+import { loadEntitlements, upgradeHint } from '@/lib/plans';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_WELCOME_LENGTH = 1000;
@@ -43,8 +44,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (event.status === 'cancelled') {
     return res.status(400).json({ error: 'Cancelled events cannot have an Event Space.' });
   }
-  if ((await prisma.eventSpace.count({ where: { eventId: event.id } })) >= MAX_ROOMS_PER_EVENT) {
+  const rooms = await prisma.eventSpace.count({ where: { eventId: event.id } });
+  if (rooms >= MAX_ROOMS_PER_EVENT) {
     return res.status(400).json({ error: `An event can have up to ${MAX_ROOMS_PER_EVENT} rooms.` });
+  }
+  const limits = await loadEntitlements(event.id);
+  if (limits && rooms >= limits.rooms) {
+    return res.status(402).json({
+      error: upgradeHint(`This event's plan (${limits.planLabel}) includes ${limits.rooms} room${limits.rooms === 1 ? '' : 's'}.`),
+      upgrade: true,
+    });
   }
 
   const { title, welcomeMessage } = req.body || {};

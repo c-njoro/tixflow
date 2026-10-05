@@ -2,16 +2,19 @@
 import { prisma } from './prisma';
 import { getOwedCommissionTotal } from './promoters';
 
-// The platform's cut, taken out of each individual payout request — not
-// pre-deducted from the tenant's overall balance. Change this one value to
-// change the fee for every payout requested from now on; payouts already
-// made keep the fee percent that was snapshotted onto them at request time.
-export function getPlatformFeePercent(): number {
-  return Number(process.env.PLATFORM_FEE_PERCENT || 3);
+// The platform earns its fee per ticket sold (src/lib/plans.ts), recorded
+// on each order as `platformFee`. A withdrawal itself is free by default;
+// PAYOUT_FEE_PERCENT can add a cut per withdrawal (e.g. to cover M-Pesa B2C
+// charges). Payouts keep the percent snapshotted at request time.
+export function getPayoutFeePercent(): number {
+  return Number(process.env.PAYOUT_FEE_PERCENT || 0);
 }
 
+// Kept for older imports — this is the withdrawal fee, not the ticket fee.
+export const getPlatformFeePercent = getPayoutFeePercent;
+
 export function computePayoutSplit(amount: number) {
-  const feePercent = getPlatformFeePercent();
+  const feePercent = getPayoutFeePercent();
   const feeAmount = Math.round(amount * (feePercent / 100) * 100) / 100;
   const netAmount = Math.round((amount - feeAmount) * 100) / 100;
   return { feePercent, feeAmount, netAmount };
@@ -23,35 +26,41 @@ export function computePayoutSplit(amount: number) {
 // request is still being reviewed or sent.
 const HELD_STATUSES = ['pending_approval', 'processing', 'completed'] as const;
 
+// Orders whose money the PLATFORM collected (M-Pesa, card) — only those
+// count towards what the organiser can withdraw. Cash at the gate is
+// already in the organiser's hands; free/manual orders are KES 0.
+// Event-plan purchases are the platform's own revenue, not the organiser's.
+const COLLECTED_METHODS = ['mpesa', 'card'];
+const ORGANISER_ORDER = { status: 'completed' as const, kind: { not: 'event_plan' } };
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 export async function getTenantBalance(tenantId: string) {
-  // Revenue is the actual amount collected per completed order, not
-  // recomputed from current ticket prices.
-  const completedOrders = await prisma.pendingOrder.aggregate({
-    where: { tenantId, status: 'completed' },
-    _sum: { totalAmount: true },
-  });
-  const totalRevenue = completedOrders._sum.totalAmount || 0;
+  const [collected, fees, heldPayouts, owedToPromoters] = await Promise.all([
+    prisma.pendingOrder.aggregate({
+      where: { tenantId, ...ORGANISER_ORDER, paymentMethod: { in: COLLECTED_METHODS } },
+      _sum: { totalAmount: true },
+    }),
+    // Every sale pays the per-ticket fee, cash sales included — for those
+    // it comes out of the organiser's next payout.
+    prisma.pendingOrder.aggregate({ where: { tenantId, ...ORGANISER_ORDER }, _sum: { platformFee: true } }),
+    prisma.payout.aggregate({ where: { tenantId, status: { in: [...HELD_STATUSES] } }, _sum: { amount: true } }),
+    // Commission earned by promoters but not yet paid is theirs, not the
+    // tenant's. (Promoter payouts already made are part of heldPayouts.)
+    getOwedCommissionTotal(tenantId),
+  ]);
 
-  // The tenant's balance is gross revenue minus whatever they've already
-  // requested or been paid — the platform's fee is taken out of each
-  // withdrawal individually, not pre-deducted here.
-  const heldPayouts = await prisma.payout.aggregate({
-    where: { tenantId, status: { in: [...HELD_STATUSES] } },
-    _sum: { amount: true },
-  });
-  const totalRequestedOrPaid = heldPayouts._sum.amount || 0;
-
-  // Commission earned by promoters but not yet paid to them is theirs, not
-  // the tenant's — it can't be withdrawn by the tenant. (Promoter payouts
-  // already made are part of heldPayouts above.)
-  const owedToPromoters = await getOwedCommissionTotal(tenantId);
+  const totalRevenue = round2(collected._sum.totalAmount || 0);
+  const platformFees = round2(fees._sum.platformFee || 0);
+  const totalRequestedOrPaid = round2(heldPayouts._sum.amount || 0);
 
   return {
     totalRevenue,
-    platformFeePercent: getPlatformFeePercent(),
+    platformFees,
+    platformFeePercent: getPayoutFeePercent(),
     totalPaidOrPending: totalRequestedOrPaid,
     owedToPromoters,
-    outstandingBalance: Math.max(totalRevenue - totalRequestedOrPaid - owedToPromoters, 0),
+    outstandingBalance: Math.max(round2(totalRevenue - platformFees - totalRequestedOrPaid - owedToPromoters), 0),
   };
 }
 

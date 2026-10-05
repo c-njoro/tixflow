@@ -93,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: {
             kind: 'manual',
             status: 'completed',
+            paymentMethod: 'none',
             buyerName: String(buyerName).trim().slice(0, 120),
             buyerEmail: email,
             buyerPhone: whatsapp ?? '',

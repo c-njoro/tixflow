@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { getPublicEvent } from '@/lib/publicQueries';
+import { cardPaymentsEnabled } from '@/lib/intasend';
 import { captureRef, getRef } from '@/lib/referral';
 import TicketCard from '@/components/TicketCard';
 import {
@@ -26,7 +27,18 @@ interface Tier {
   available: number;
 }
 
+interface Quote {
+  promoCode: string | null;
+  subtotal: number;
+  discount: number;
+  bookingFee: number;
+  total: number;
+}
+
+const kes = (n: number) => `KES ${n.toLocaleString()}`;
+
 interface Props {
+  cardPayments: boolean;
   tenant: { businessName: string; slug: string; logoUrl: string | null };
   event: {
     id: string;
@@ -45,7 +57,7 @@ interface Props {
   };
 }
 
-export default function PublicEventPage({ tenant, event }: Props) {
+export default function PublicEventPage({ tenant, event, cardPayments }: Props) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   // Checkout flow state
@@ -57,8 +69,15 @@ export default function PublicEventPage({ tenant, event }: Props) {
   const [buyerPhone, setBuyerPhone] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutStage, setCheckoutStage] = useState<
-    'idle' | 'submitting' | 'awaiting_pin' | 'completed' | 'failed'
+    'idle' | 'submitting' | 'awaiting_pin' | 'confirming_card' | 'completed' | 'failed'
   >('idle');
+  const [payMethod, setPayMethod] = useState<'mpesa' | 'card'>('mpesa');
+  // Promo code + the server's price for the current selection.
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState('');
+  const [promoError, setPromoError] = useState('');
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [wasFree, setWasFree] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [purchasedTickets, setPurchasedTickets] = useState<{ ticketCode: string }[]>([]);
   const [failureReason, setFailureReason] = useState('');
@@ -80,10 +99,18 @@ export default function PublicEventPage({ tenant, event }: Props) {
     0
   );
 
-  const minDeposit = event.installments ? Math.max(Math.ceil((totalPrice * event.installments.minDepositPercent) / 100), 1) : 0;
+  // What the order really comes to (promo, booking fee) — from the server
+  // once it has answered for this selection.
+  const orderTotal = quote ? quote.total : totalPrice;
+  const isFree = totalTickets > 0 && orderTotal === 0;
+  const minDeposit = event.installments ? Math.max(Math.ceil((orderTotal * event.installments.minDepositPercent) / 100), 1) : 0;
   const depositAmount = Math.round(Number(deposit) || minDeposit);
-  const usingInstalments = !!event.installments && payInInstalments && depositAmount < totalPrice;
-  const chargeNow = usingInstalments ? depositAmount : totalPrice;
+  const usingInstalments = !!event.installments && payInInstalments && payMethod === 'mpesa' && depositAmount < orderTotal;
+  const chargeNow = usingInstalments ? depositAmount : orderTotal;
+  const selectedItems = event.ticketTiers
+    .filter((tier) => (quantities[tier.id] || 0) > 0)
+    .map((tier) => ({ ticketTierId: tier.id, quantity: quantities[tier.id] }));
+  const selectionKey = JSON.stringify(selectedItems);
   const dueDateLabel = event.installments
     ? new Date(event.installments.dueAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi', day: 'numeric', month: 'long' })
     : '';
@@ -97,6 +124,58 @@ export default function PublicEventPage({ tenant, event }: Props) {
 
   useEffect(() => stopPolling, []);
 
+  // Price the selection on the server whenever it (or the promo) changes.
+  useEffect(() => {
+    if (totalTickets === 0) {
+      setQuote(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/checkout/quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: event.id, items: selectedItems, promoCode: appliedPromo || undefined }),
+        });
+        const result = await res.json();
+        if (cancelled) return;
+        if (res.ok) {
+          setQuote(result.data);
+        } else if (result.promoInvalid) {
+          setPromoError(result.error);
+          setAppliedPromo('');
+        }
+      } catch {
+        // keep the last quote; checkout re-prices anyway
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionKey, appliedPromo, event.id]);
+
+  const applyPromo = (e?: React.SyntheticEvent) => {
+    e?.preventDefault();
+    setPromoError('');
+    setAppliedPromo(promoInput.trim().toUpperCase());
+  };
+
+  // Back from the card processor (?order=&key=): show the result.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const order = params.get('order');
+    const key = params.get('key');
+    if (!order || !key) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    setOrderId(order);
+    setCheckoutStage('confirming_card');
+    pollOrderStatus(order, key, 5 * 60_000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Promoter links (?ref=code) — remembered so the sale is credited to them.
   useEffect(() => captureRef(tenant.slug), [tenant.slug]);
 
@@ -109,7 +188,8 @@ export default function PublicEventPage({ tenant, event }: Props) {
     }
   }, [showCheckoutForm]);
 
-  const pollOrderStatus = (id: string, accessKey: string) => {
+  const pollOrderStatus = (id: string, accessKey: string, timeoutMs = 120000) => {
+    stopPolling();
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(
@@ -136,13 +216,17 @@ export default function PublicEventPage({ tenant, event }: Props) {
     setTimeout(() => {
       stopPolling();
       setCheckoutStage((stage) => {
-        if (stage === 'awaiting_pin') {
-          setFailureReason('This took too long — please check your M-Pesa messages, or try again.');
+        if (stage === 'awaiting_pin' || stage === 'confirming_card') {
+          setFailureReason(
+            stage === 'awaiting_pin'
+              ? 'This took too long — please check your M-Pesa messages, or try again.'
+              : 'We haven’t had confirmation from the card processor yet. If you were charged, your tickets will be emailed as soon as it arrives.'
+          );
           return 'failed';
         }
         return stage;
       });
-    }, 120000);
+    }, timeoutMs);
   };
 
   const handleInitiateCheckout = async (e: React.FormEvent) => {
@@ -153,7 +237,8 @@ export default function PublicEventPage({ tenant, event }: Props) {
     setCheckoutStage('submitting');
 
     try {
-      const res = await fetch('/api/checkout/mpesa/initiate', {
+      const method = isFree ? 'mpesa' : payMethod;
+      const res = await fetch(method === 'card' ? '/api/checkout/card/initiate' : '/api/checkout/mpesa/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,18 +246,31 @@ export default function PublicEventPage({ tenant, event }: Props) {
           buyerName: `${firstName} ${lastName}`.trim(),
           buyerEmail,
           buyerWhatsapp: buyerWhatsapp.trim() || undefined,
-          phoneNumber: buyerPhone,
+          phoneNumber: !isFree && method === 'mpesa' ? buyerPhone : undefined,
           ref: getRef(tenant.slug),
+          promoCode: appliedPromo || undefined,
           installment: usingInstalments ? { deposit: depositAmount } : undefined,
-          items: event.ticketTiers
-            .filter((tier) => (quantities[tier.id] || 0) > 0)
-            .map((tier) => ({ ticketTierId: tier.id, quantity: quantities[tier.id] })),
+          items: selectedItems,
         }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to start payment.');
 
       setOrderId(result.data.orderId);
+      if (result.data.free) {
+        // Already issued — fetch the tickets straight away.
+        setWasFree(true);
+        const status = await fetch(
+          `/api/checkout/mpesa/status?orderId=${result.data.orderId}&key=${encodeURIComponent(result.data.accessKey)}`
+        ).then((r) => r.json());
+        setPurchasedTickets(status.data?.tickets || []);
+        setCheckoutStage('completed');
+        return;
+      }
+      if (result.data.redirectUrl) {
+        window.location.href = result.data.redirectUrl;
+        return;
+      }
       setCheckoutStage('awaiting_pin');
       pollOrderStatus(result.data.orderId, result.data.accessKey);
     } catch (err: any) {
@@ -190,6 +288,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
     setOrderId(null);
     setPurchasedTickets([]);
     setPlan(null);
+    setWasFree(false);
   };
 
   const eventDate = new Date(event.date);
@@ -381,7 +480,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                               </p>
                             )}
                             <p className="text-xs text-slate-400 mt-2 font-mono">
-                              KES {tier.price.toLocaleString()}
+                              {tier.price > 0 ? kes(tier.price) : 'Free'}
                               {tier.available > 0 && !isSoldOut && (
                                 <span className="text-slate-600 ml-2">
                                   · {tier.available} left
@@ -457,7 +556,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-xl font-bold text-emerald-400">
-                    Payment Successful
+                    {wasFree ? 'You’re registered' : 'Payment Successful'}
                   </h2>
                   <p className="text-sm text-slate-400 max-w-md mx-auto">
                     Your {purchasedTickets.length === 1 ? 'ticket is' : 'tickets are'} confirmed and on {purchasedTickets.length === 1 ? 'its' : 'their'} way to your email. Download {purchasedTickets.length === 1 ? 'it' : 'them'} now too — you&apos;ll show the QR code at the door.
@@ -498,6 +597,14 @@ export default function PublicEventPage({ tenant, event }: Props) {
                   <ArrowLeftIcon className="w-4 h-4" />
                   Try Again
                 </button>
+              </div>
+            ) : checkoutStage === 'confirming_card' ? (
+              <div className="p-8 rounded-2xl bg-sky-950/20 border border-sky-800/30 text-center space-y-4">
+                <div className="w-10 h-10 mx-auto border-2 border-sky-800 border-t-sky-400 rounded-full animate-spin" />
+                <h2 className="text-xl font-bold text-sky-400">Confirming your payment</h2>
+                <p className="text-sm text-slate-400 max-w-sm mx-auto">
+                  This usually takes a few seconds. Your tickets will appear here and in your email.
+                </p>
               </div>
             ) : checkoutStage === 'awaiting_pin' ? (
               <div className="p-8 rounded-2xl bg-sky-950/20 border border-sky-800/30 text-center space-y-6">
@@ -612,6 +719,29 @@ export default function PublicEventPage({ tenant, event }: Props) {
                     </p>
                   </div>
 
+                  {!isFree && cardPayments && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['mpesa', 'card'] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setPayMethod(m)}
+                          className={`px-4 py-3 rounded-xl border text-sm text-left transition ${
+                            payMethod === m
+                              ? 'border-slate-500 bg-slate-800/60 text-white'
+                              : 'border-slate-800 bg-[#0B0F17] text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <span className="block font-medium">{m === 'mpesa' ? 'M-Pesa' : 'Card'}</span>
+                          <span className="block text-[11px] text-slate-500 mt-0.5">
+                            {m === 'mpesa' ? 'STK push to your phone' : 'Visa, Mastercard, Apple / Google Pay'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isFree && payMethod === 'mpesa' && (
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
                       M-Pesa Phone Number
@@ -625,11 +755,75 @@ export default function PublicEventPage({ tenant, event }: Props) {
                       className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
                     />
                     <p className="text-[11px] text-slate-600">
-                      You'll receive an STK push on this number
+                      You&apos;ll receive an STK push on this number
                     </p>
                   </div>
+                  )}
 
-                  {event.installments && totalPrice > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                      Promo Code <span className="text-slate-600 normal-case">(optional)</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && applyPromo(e)}
+                        placeholder="e.g. MUKURU"
+                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm font-mono uppercase text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
+                      />
+                      {appliedPromo && quote?.promoCode ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedPromo('');
+                            setPromoInput('');
+                          }}
+                          className="px-4 rounded-xl text-sm border border-slate-700 text-slate-300 hover:bg-slate-800/60 transition"
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={applyPromo}
+                          disabled={!promoInput.trim()}
+                          className="px-4 rounded-xl text-sm border border-slate-700 text-slate-300 hover:bg-slate-800/60 transition disabled:opacity-40"
+                        >
+                          Apply
+                        </button>
+                      )}
+                    </div>
+                    {promoError && <p className="text-[11px] text-rose-400">{promoError}</p>}
+                  </div>
+
+                  {quote && (quote.discount > 0 || quote.bookingFee > 0) && (
+                    <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-1.5 text-sm">
+                      <div className="flex justify-between text-slate-400">
+                        <span>Tickets</span>
+                        <span className="font-mono">{kes(quote.subtotal)}</span>
+                      </div>
+                      {quote.discount > 0 && (
+                        <div className="flex justify-between text-emerald-400">
+                          <span>Promo {quote.promoCode}</span>
+                          <span className="font-mono">− {kes(quote.discount)}</span>
+                        </div>
+                      )}
+                      {quote.bookingFee > 0 && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>Booking fee</span>
+                          <span className="font-mono">{kes(quote.bookingFee)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold pt-1.5 border-t border-slate-800">
+                        <span>Total</span>
+                        <span className="font-mono">{kes(quote.total)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {event.installments && orderTotal > 0 && payMethod === 'mpesa' && (
                     <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-3">
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input
@@ -653,7 +847,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                           <input
                             type="number"
                             min={minDeposit}
-                            max={totalPrice}
+                            max={orderTotal}
                             step="1"
                             value={deposit}
                             onChange={(e) => setDeposit(e.target.value)}
@@ -661,7 +855,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                             className="block w-full bg-[#0E131F] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
                           />
                           <p className="text-[11px] text-slate-600">
-                            KES {Math.max(totalPrice - chargeNow, 0).toLocaleString()}{' '}left to pay after today. If it
+                            KES {Math.max(orderTotal - chargeNow, 0).toLocaleString()}{' '}left to pay after today. If it
                             isn&apos;t paid by {dueDateLabel}, the seats are released.
                           </p>
                         </div>
@@ -682,7 +876,13 @@ export default function PublicEventPage({ tenant, event }: Props) {
                         </>
                       ) : (
                         <>
-                          {usingInstalments ? `Pay deposit KES ${chargeNow.toLocaleString()}` : `Pay KES ${totalPrice.toLocaleString()}`}
+                          {isFree
+                            ? 'Get my free ticket'
+                            : usingInstalments
+                              ? `Pay deposit ${kes(chargeNow)}`
+                              : payMethod === 'card'
+                                ? `Pay ${kes(orderTotal)} by card`
+                                : `Pay ${kes(orderTotal)}`}
                           <ChevronRightIcon className="w-4 h-4" />
                         </>
                       )}
@@ -704,7 +904,7 @@ export default function PublicEventPage({ tenant, event }: Props) {
                 {totalTickets} ticket{totalTickets === 1 ? '' : 's'} selected
               </div>
               <div className="text-lg font-bold font-mono">
-                KES {totalPrice.toLocaleString()}
+                {isFree ? 'Free' : kes(orderTotal)}
               </div>
             </div>
             <button
@@ -731,6 +931,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (context) => 
   }
 
   return {
-    props: JSON.parse(JSON.stringify(result)),
+    props: { ...JSON.parse(JSON.stringify(result)), cardPayments: cardPaymentsEnabled() },
   };
 };

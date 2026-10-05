@@ -33,6 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const now = Date.now();
   const windowStart = new Date(now - WINDOW_MS);
 
+  // Re-entry: who's inside right now, and today's exits/re-entries/rejections.
+  const [insideNow, scanResults] = await Promise.all([
+    prisma.ticket.count({ where: { eventId: event.id, status: 'scanned', isInside: true } }),
+    prisma.scanLog.groupBy({ by: ['result'], where: { eventId: event.id }, _count: { _all: true } }),
+  ]);
+  const logCount = (result: string) => scanResults.find((g) => g.result === result)?._count._all ?? 0;
+
   const [byTierStatus, recentScans, windowScans, byStaff] = await Promise.all([
     prisma.ticket.groupBy({
       by: ['ticketTierId', 'status'],
@@ -88,6 +95,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     data: {
       event: { id: event.id, title: event.title, date: event.date, location: event.location },
       totals: { scanned, expected, notArrived: expected - scanned, perMinute: Math.round((lastFive / 5) * 10) / 10 },
+      gate: {
+        insideNow,
+        reentryLimit: event.reentryLimit,
+        exits: logCount('exit'),
+        reentries: logCount('reentry'),
+        rejected: logCount('rejected'),
+      },
+      insideNow,
       tiers,
       arrivals: { bucketMinutes: BUCKET_MS / 60_000, buckets },
       staff: byStaff

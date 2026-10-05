@@ -9,7 +9,7 @@
 import crypto from 'crypto';
 import type { Promoter } from '@prisma/client';
 import { prisma } from './prisma';
-import { getPlatformFeePercent } from './payouts';
+import { getPayoutFeePercent } from './payouts';
 import { getAppUrl } from './mpesaCallbacks';
 
 export const PROMOTER_CODE_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
@@ -41,6 +41,15 @@ export async function resolvePromoter(tenantId: string, eventId: string, ref: un
   const promoter = await prisma.promoter.findUnique({ where: { tenantId_code: { tenantId, code } } });
   if (!promoter || !promoter.isActive) return null;
   if (promoter.eventId && promoter.eventId !== eventId) return null;
+  return promoter;
+}
+
+// A promo code tied to a promoter credits them (when the buyer didn't come
+// through a ref link of their own).
+export async function promoterById(tenantId: string, eventId: string, promoterId: string | null | undefined) {
+  if (!promoterId) return null;
+  const promoter = await prisma.promoter.findFirst({ where: { id: promoterId, tenantId, isActive: true } });
+  if (!promoter || (promoter.eventId && promoter.eventId !== eventId)) return null;
   return promoter;
 }
 
@@ -107,7 +116,7 @@ export async function getOwedCommissionTotal(tenantId: string): Promise<number> 
 // Paying a promoter X: the promoter receives exactly X, and the platform's
 // usual payout fee comes on top, out of the tenant's balance.
 export function computePromoterPayoutSplit(commission: number) {
-  const feePercent = getPlatformFeePercent();
+  const feePercent = getPayoutFeePercent();
   const amount = round2(commission / (1 - feePercent / 100));
   return { feePercent, amount, feeAmount: round2(amount - commission), netAmount: round2(commission) };
 }

@@ -49,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           kind: 'manual',
           status: 'completed',
+          paymentMethod: 'none',
           buyerName: ticket.buyerName,
           buyerEmail: ticket.buyerEmail.toLowerCase().trim(),
           buyerPhone: given ?? '',
