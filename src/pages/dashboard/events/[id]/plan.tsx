@@ -6,6 +6,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface Entitlements {
   freeEvent: boolean;
@@ -51,14 +52,6 @@ interface PlanData {
   equipment: EquipmentRow[];
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const limit = (n: number | null, unit: string) => (n === null ? `Unlimited ${unit}` : `${n.toLocaleString()} ${unit}`);
@@ -77,7 +70,7 @@ function Meter({ label, used, max }: { label: string; used: number; max: number 
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="text-slate-400">{label}</span>
-        <span className="font-mono text-slate-300">
+        <span className="tabular-nums text-slate-300">
           {used.toLocaleString()} / {max === null ? '∞' : max.toLocaleString()}
         </span>
       </div>
@@ -214,8 +207,8 @@ export default function PlanPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Plan &amp; Gear</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{data?.title || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Plan &amp; Gear</h1>
+          <p className="text-sm text-slate-400 mt-1">{data?.title || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -230,13 +223,13 @@ export default function PlanPage() {
       )}
 
       {!data || !ent ? (
-        <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading...</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading...</p>
       ) : (
         <>
           <div className={`${cardClass} space-y-4`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Current plan</div>
+                <div className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Current plan</div>
                 <div className="text-lg font-semibold text-white mt-1">{ent.planLabel}</div>
                 <p className="text-xs text-slate-400 mt-1">
                   {ent.freeEvent
@@ -257,13 +250,13 @@ export default function PlanPage() {
 
           {data.upgrades.length > 0 && (
             <div className={`${cardClass} space-y-4`}>
-              <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Upgrade</h2>
+              <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Upgrade</h2>
               <div className="grid sm:grid-cols-2 gap-3">
                 {data.upgrades.map((u) => (
                   <div key={u.id} className="p-4 border border-slate-800 rounded-lg space-y-2">
                     <div className="flex items-baseline justify-between">
                       <span className="text-sm font-semibold text-white">{u.label}</span>
-                      <span className="font-mono text-sm text-white">
+                      <span className="tabular-nums text-sm text-white">
                         {kes(u.charge)}
                         {u.charge !== u.price && <span className="text-[10px] text-slate-500 ml-1">(difference)</span>}
                       </span>
@@ -318,7 +311,7 @@ export default function PlanPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             <form onSubmit={requestGear} className={`${cardClass} space-y-4 lg:col-span-2`}>
               <div>
-                <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Rent gate scanners &amp; staff</h2>
+                <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Rent gate scanners &amp; staff</h2>
                 <p className="text-xs text-slate-400 mt-1">
                   Handheld scanners (Sunmi V2s) with a built-in barcode reader and receipt printer — they scan tickets
                   instantly, work offline, and print tickets at the box office. Add trained Tixflow staff to run the
@@ -357,7 +350,7 @@ export default function PlanPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-sm text-white">
-                  Estimate: <span className="font-mono">{kes(gearEstimate)}</span>
+                  Estimate: <span className="tabular-nums">{kes(gearEstimate)}</span>
                   <span className="text-[11px] text-slate-500 ml-2">final quote confirmed by phone</span>
                 </span>
                 <button type="submit" disabled={sendingGear} className={primaryButtonClass}>
@@ -367,7 +360,7 @@ export default function PlanPage() {
             </form>
 
             <div className={`${cardClass} space-y-3`}>
-              <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Your requests</h2>
+              <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Your requests</h2>
               {data.equipment.length === 0 ? (
                 <p className="text-xs text-slate-500">None yet.</p>
               ) : (

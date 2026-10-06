@@ -88,8 +88,8 @@ export default function FeedbackPage() {
         ) : (
           <form onSubmit={submit} className="space-y-6">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{survey.event?.organiser}</p>
-              <h1 className="text-2xl font-bold mt-1">How was {survey.event?.title}?</h1>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">{survey.event?.organiser}</p>
+              <h1 className="font-display text-2xl font-semibold mt-1">How was {survey.event?.title}?</h1>
               <p className="text-sm text-slate-400 mt-2">{survey.intro || 'It takes about a minute. Your answers are anonymous.'}</p>
             </div>
 
@@ -117,7 +117,7 @@ export default function FeedbackPage() {
                           {n}
                           <span className="text-sm"> ★</span>
                         </span>
-                        <span className="block text-[9px] font-mono uppercase mt-0.5">{RATING_LABELS[n - 1]}</span>
+                        <span className="block text-[11px] uppercase mt-0.5 font-medium">{RATING_LABELS[n - 1]}</span>
                       </button>
                     ))}
                   </div>

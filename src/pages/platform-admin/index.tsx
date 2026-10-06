@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import GearRequests from '@/components/platform/GearRequests';
+import { inputClass } from '@/lib/ui';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 interface TenantBalance {
   id: string;
@@ -52,7 +54,7 @@ const KIND_BADGE = (p: { refundRequestId: string | null; promoterId: string | nu
 function KindBadge({ payout }: { payout: { refundRequestId: string | null; promoterId: string | null } }) {
   const badge = KIND_BADGE(payout);
   return (
-    <span className={`ml-2 align-middle text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${badge.style}`}>
+    <span className={`ml-2 align-middle text-[11px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded border ${badge.style} font-medium`}>
       {badge.label}
     </span>
   );
@@ -68,8 +70,6 @@ interface PayoutRecord {
   createdAt: string;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
 
 export default function PlatformAdminDashboard() {
   const router = useRouter();
@@ -321,12 +321,12 @@ export default function PlatformAdminDashboard() {
     <div className="min-h-screen bg-[#0B0F17] text-white p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-mono font-bold tracking-wider uppercase">
+          <h1 className="font-display tracking-tight text-2xl font-semibold">
             Platform Admin
           </h1>
           <button
             onClick={handleLogout}
-            className="text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white transition"
+            className="text-[13px] text-slate-500 hover:text-white transition font-medium"
           >
             Log Out
           </button>
@@ -335,33 +335,33 @@ export default function PlatformAdminDashboard() {
         <div className="flex gap-2 border-b border-slate-800/80">
           <button
             onClick={() => setTab('requests')}
-            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+            className={`px-3 py-2 text-[13px] border-b-2 transition ${
               tab === 'requests' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
-            }`}
+            } font-medium`}
           >
             Requests{requests.length > 0 ? ` (${requests.length})` : ''}
           </button>
           <button
             onClick={() => setTab('tenants')}
-            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+            className={`px-3 py-2 text-[13px] border-b-2 transition ${
               tab === 'tenants' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
-            }`}
+            } font-medium`}
           >
             Tenants
           </button>
           <button
             onClick={() => setTab('gear')}
-            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+            className={`px-3 py-2 text-[13px] border-b-2 transition ${
               tab === 'gear' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
-            }`}
+            } font-medium`}
           >
             Gear
           </button>
           <button
             onClick={() => setTab('whatsapp')}
-            className={`px-3 py-2 text-xs font-mono uppercase tracking-wider border-b-2 transition ${
+            className={`px-3 py-2 text-[13px] border-b-2 transition ${
               tab === 'whatsapp' ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-white'
-            }`}
+            } font-medium`}
           >
             WhatsApp
           </button>
@@ -375,7 +375,7 @@ export default function PlatformAdminDashboard() {
 
         {tab === 'requests' && processing.length > 0 && (
           <div className="space-y-3">
-            <div className="text-xs font-mono uppercase tracking-widest text-sky-400">
+            <div className="text-xs uppercase tracking-[0.08em] text-sky-400 font-medium">
               In progress ({processing.length})
             </div>
             {processing.map((p) => (
@@ -388,13 +388,13 @@ export default function PlatformAdminDashboard() {
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">{p.destination}</div>
                     <div className="text-xs text-slate-600 mt-1">
-                      Approved {p.approvedAt ? new Date(p.approvedAt).toLocaleString() : '—'}
+                      Approved {p.approvedAt ? formatDateTime(p.approvedAt) : '—'}
                     </div>
                     {p.failureReason && (
                       <div className="text-xs text-amber-400 mt-1">{p.failureReason}</div>
                     )}
                   </div>
-                  <div className="text-right shrink-0 text-lg font-mono font-bold">
+                  <div className="text-right shrink-0 text-lg tabular-nums font-bold">
                     KES {(p.netAmount ?? p.amount).toLocaleString()}
                   </div>
                 </div>
@@ -414,13 +414,13 @@ export default function PlatformAdminDashboard() {
                       <button
                         onClick={() => handleResolve(p.id, 'mark_completed')}
                         disabled={actioningId === p.id}
-                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                        className="px-3 py-1.5 text-[13px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50 font-medium"
                       >
                         Confirm Sent
                       </button>
                       <button
                         onClick={() => setResolvingId(null)}
-                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                        className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition font-medium"
                       >
                         Cancel
                       </button>
@@ -434,14 +434,14 @@ export default function PlatformAdminDashboard() {
                         setResolveReference('');
                       }}
                       disabled={actioningId === p.id}
-                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50"
+                      className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50 font-medium"
                     >
                       Mark Completed
                     </button>
                     <button
                       onClick={() => handleResolve(p.id, 'mark_failed')}
                       disabled={actioningId === p.id}
-                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50"
+                      className="px-3 py-1.5 text-[13px] bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50 font-medium"
                     >
                       Mark Failed
                     </button>
@@ -455,7 +455,7 @@ export default function PlatformAdminDashboard() {
         {tab === 'requests' && (
           <div className="space-y-3">
             {requestsLoading ? (
-              <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+              <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
                 Loading...
               </div>
             ) : requests.length === 0 ? (
@@ -474,11 +474,11 @@ export default function PlatformAdminDashboard() {
                       <div className="text-xs text-slate-500 mt-0.5">{r.destination}</div>
                       {r.refundRequestId && r.note && <div className="text-xs text-slate-400 mt-0.5">{r.note}</div>}
                       <div className="text-xs text-slate-600 mt-1">
-                        {new Date(r.createdAt).toLocaleString()}
+                        {formatDateTime(r.createdAt)}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-lg font-mono font-bold">
+                      <div className="text-lg tabular-nums font-bold">
                         KES {r.amount.toLocaleString()}
                       </div>
                       {r.feeAmount != null && (
@@ -502,13 +502,13 @@ export default function PlatformAdminDashboard() {
                         <button
                           onClick={() => handleReject(r.id)}
                           disabled={actioningId === r.id}
-                          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50"
+                          className="px-3 py-1.5 text-[13px] bg-rose-950/40 border border-rose-800/50 text-rose-400 rounded-md hover:bg-rose-950/60 transition disabled:opacity-50 font-medium"
                         >
                           {actioningId === r.id ? 'Rejecting...' : 'Confirm Reject'}
                         </button>
                         <button
                           onClick={() => setRejectingId(null)}
-                          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                          className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition font-medium"
                         >
                           Cancel
                         </button>
@@ -519,14 +519,14 @@ export default function PlatformAdminDashboard() {
                       <button
                         onClick={() => handleApprove(r.id)}
                         disabled={actioningId === r.id}
-                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                        className="px-3 py-1.5 text-[13px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50 font-medium"
                       >
                         {actioningId === r.id ? 'Sending...' : `Approve & Send ${r.method === 'mpesa' ? 'M-Pesa' : 'Bank'}`}
                       </button>
                       <button
                         onClick={() => setRejectingId(r.id)}
                         disabled={actioningId === r.id}
-                        className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50"
+                        className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition disabled:opacity-50 font-medium"
                       >
                         Reject
                       </button>
@@ -540,7 +540,7 @@ export default function PlatformAdminDashboard() {
 
         {tab === 'tenants' &&
           (loading ? (
-            <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+            <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
               Loading...
             </div>
           ) : (
@@ -565,10 +565,10 @@ export default function PlatformAdminDashboard() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-lg font-mono font-bold">
+                      <div className="text-lg tabular-nums font-bold">
                         KES {tenant.outstandingBalance.toLocaleString()}
                       </div>
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+                      <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">
                         outstanding
                       </div>
                     </div>
@@ -578,13 +578,13 @@ export default function PlatformAdminDashboard() {
                     <button
                       onClick={() => openPayoutForm(tenant)}
                       disabled={tenant.outstandingBalance <= 0 || !tenant.payoutMethod}
-                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 text-[13px] bg-slate-800 border border-slate-700 rounded-md hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed font-medium"
                     >
                       Mark as Paid Manually
                     </button>
                     <button
                       onClick={() => toggleHistory(tenant.id)}
-                      className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                      className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition font-medium"
                     >
                       {historyTenantId === tenant.id ? 'Hide History' : 'View History'}
                     </button>
@@ -598,10 +598,10 @@ export default function PlatformAdminDashboard() {
                         history.map((p) => (
                           <div key={p.id} className="flex items-center justify-between text-xs">
                             <div className="text-slate-400">
-                              {new Date(p.createdAt).toLocaleDateString()} &middot; {p.method} &middot; {p.status}
+                              {formatDate(p.createdAt)} &middot; {p.method} &middot; {p.status}
                               {p.reference && ` \u00b7 ${p.reference}`}
                             </div>
-                            <div className="font-mono text-white">KES {p.amount.toLocaleString()}</div>
+                            <div className="tabular-nums text-white">KES {p.amount.toLocaleString()}</div>
                           </div>
                         ))
                       )}
@@ -640,13 +640,13 @@ export default function PlatformAdminDashboard() {
                         <button
                           onClick={handleRecordPayout}
                           disabled={recording}
-                          className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50"
+                          className="px-4 py-2 text-[13px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 rounded-md hover:bg-emerald-950/60 transition disabled:opacity-50 font-medium"
                         >
                           {recording ? 'Recording...' : 'Confirm Sent'}
                         </button>
                         <button
                           onClick={() => setPayingTenant(null)}
-                          className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                          className="px-4 py-2 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition font-medium"
                         >
                           Cancel
                         </button>
@@ -664,17 +664,17 @@ export default function PlatformAdminDashboard() {
           <div className="space-y-4 max-w-md mx-auto">
             <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
+                <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                   Ticket Delivery Number
                 </span>
                 <span
-                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${
+                  className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${
                     waStatus?.status === 'connected'
                       ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
                       : waStatus?.status === 'qr_pending' || waStatus?.status === 'connecting'
                       ? 'bg-amber-950/40 text-amber-400 border-amber-800/50'
                       : 'bg-slate-800 text-slate-300 border-slate-700'
-                  }`}
+                  } font-medium`}
                 >
                   {waStatus?.status === 'connected'
                     ? 'Connected'
@@ -709,13 +709,13 @@ export default function PlatformAdminDashboard() {
                 waStatus.phoneNumber && <div className="text-sm text-white font-mono">{waStatus.phoneNumber}</div>
               ) : waStatus?.status === 'connected' ? (
                 <div className="space-y-3">
-                  <div className="text-sm text-white font-mono">
+                  <div className="text-sm text-white tabular-nums">
                     +{waStatus.phoneNumber}
                   </div>
                   <button
                     onClick={handleWaLogout}
                     disabled={waActionLoading}
-                    className="w-full py-2 rounded-md text-xs font-mono uppercase tracking-wider bg-rose-950/40 border border-rose-800/50 text-rose-400 hover:bg-rose-950/60 transition disabled:opacity-50"
+                    className="w-full py-2 rounded-md text-[13px] bg-rose-950/40 border border-rose-800/50 text-rose-400 hover:bg-rose-950/60 transition disabled:opacity-50 font-medium"
                   >
                     {waActionLoading ? 'Disconnecting...' : 'Disconnect'}
                   </button>

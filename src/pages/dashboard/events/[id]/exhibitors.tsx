@@ -5,6 +5,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface ExhibitorRow {
   id: string;
@@ -15,14 +16,6 @@ interface ExhibitorRow {
   leadCount: number;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 export default function ExhibitorsPage() {
   const router = useRouter();
@@ -96,8 +89,8 @@ export default function ExhibitorsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Exhibitors</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Exhibitors</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {eventTitle || 'Loading event...'} · {totalLeads} leads collected
           </p>
         </div>
@@ -115,7 +108,7 @@ export default function ExhibitorsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="space-y-3 lg:col-span-2">
           {!rows ? (
-            <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading...</p>
+            <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading...</p>
           ) : rows.length === 0 ? (
             <div className={`${cardClass} space-y-2`}>
               <h2 className="text-sm font-semibold text-white">Lead scanning for sponsors</h2>
@@ -132,13 +125,13 @@ export default function ExhibitorsPage() {
                   <div>
                     <p className="text-sm font-semibold text-white">
                       {x.name}
-                      {!x.isActive && <span className="ml-2 text-[10px] font-mono uppercase text-slate-500">Off</span>}
+                      {!x.isActive && <span className="ml-2 text-[11px] uppercase text-slate-500 font-medium">Off</span>}
                     </p>
                     <p className="text-xs text-slate-500">{x.contactEmail || 'No contact email'}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-semibold text-white">{x.leadCount}</p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">leads</p>
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">leads</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 min-w-0">
@@ -171,7 +164,7 @@ export default function ExhibitorsPage() {
                         run(() => request(`/${x.id}`, 'DELETE'));
                       }
                     }}
-                    className="px-2 text-xs font-mono uppercase text-rose-400 hover:text-rose-300"
+                    className="px-2 text-[13px] text-rose-400 hover:text-rose-300 font-medium"
                   >
                     Remove
                   </button>
@@ -182,7 +175,7 @@ export default function ExhibitorsPage() {
         </div>
 
         <form onSubmit={create} className={`${cardClass} space-y-4`}>
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Add an exhibitor</h3>
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Add an exhibitor</h3>
           <div>
             <label className={labelClass}>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Safaricom Developer Hub" className={`${inputClass} mt-1`} />

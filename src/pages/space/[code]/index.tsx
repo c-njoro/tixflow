@@ -19,14 +19,12 @@ import { useSpaceState } from '@/components/space/useSpaceState';
 import PollResults from '@/components/space/PollResults';
 import DocumentPage from '@/components/space/DocumentPage';
 import type { ParticipantState, PublicSpaceState, SpaceDocument } from '@/components/space/types';
+import { cardClass, inputClass } from '@/lib/ui';
 
 type Tab = 'live' | 'documents' | 'questions';
 
 const NAME_STORAGE_KEY = 'tixflow_space_name';
 
-const inputClass =
-  'block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
 
 const timeAgo = (iso: string) => {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -80,7 +78,7 @@ export default function SpacePage() {
   if (!state || !me) {
     return (
       <Shell>
-        <div className="pt-32 text-center text-xs font-mono uppercase tracking-widest text-slate-500">Joining...</div>
+        <div className="pt-32 text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Joining...</div>
       </Shell>
     );
   }
@@ -157,12 +155,12 @@ export default function SpacePage() {
                       setFollowing(false);
                       setOwnView(null);
                     }}
-                    className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white"
+                    className="text-[13px] text-slate-400 hover:text-white font-medium"
                   >
                     All documents
                   </button>
                   {view.isLive ? (
-                    <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-emerald-400">
+                    <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-emerald-400 font-medium">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Following live
                     </span>
                   ) : (
@@ -170,7 +168,7 @@ export default function SpacePage() {
                       <button
                         type="button"
                         onClick={followLive}
-                        className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-md bg-emerald-500 text-black font-semibold"
+                        className="px-3 py-1.5 text-xs rounded-md bg-emerald-500 text-black font-semibold"
                       >
                         Back to live · p.{state.live!.page}
                       </button>
@@ -189,7 +187,7 @@ export default function SpacePage() {
                   >
                     <ChevronLeftIcon className="w-5 h-5" />
                   </button>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs tabular-nums text-slate-400">
                     Page {view.page} of {view.doc.pageCount}
                   </span>
                   <button
@@ -234,7 +232,7 @@ export default function SpacePage() {
                       </div>
                     </div>
                     {presenting?.id === doc.id && (
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 shrink-0">Live</span>
+                      <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-400 shrink-0 font-medium">Live</span>
                     )}
                   </button>
                 ))}
@@ -271,9 +269,9 @@ function Header({ state, offline }: { state: PublicSpaceState; offline?: boolean
   return (
     <header className="max-w-2xl mx-auto px-4 pt-6 pb-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 truncate">{state.event.organiser}</span>
+        <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500 truncate font-medium">{state.event.organiser}</span>
         {state.isOpen && (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 shrink-0">
+          <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500 shrink-0 font-medium">
             {state.activeCount} here now
           </span>
         )}
@@ -284,7 +282,7 @@ function Header({ state, offline }: { state: PublicSpaceState; offline?: boolean
         // Full page loads, not client-side navigation: each room's polling
         // state (version, cookie join) starts fresh.
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 self-center shrink-0">Other rooms</span>
+          <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500 self-center shrink-0 font-medium">Other rooms</span>
           {state.otherRooms.map((room) => (
             <a
               key={room.joinCode}
@@ -323,7 +321,7 @@ function TabButton({
       className={`flex-1 flex flex-col items-center justify-center gap-1 relative transition ${active ? 'text-white' : 'text-slate-500'}`}
     >
       <Icon className="w-5 h-5" />
-      <span className="text-[10px] font-mono uppercase tracking-wider">{label}</span>
+      <span className="text-[11px] uppercase tracking-[0.06em] font-medium">{label}</span>
       {dot && <span className="absolute top-2.5 right-[calc(50%-16px)] w-2 h-2 rounded-full bg-emerald-400" />}
     </button>
   );
@@ -331,7 +329,7 @@ function TabButton({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+    <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
       {text}
     </div>
   );
@@ -384,7 +382,7 @@ function LiveTab({
           <MegaphoneIcon className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="text-sm text-amber-100 whitespace-pre-wrap break-words">{latest.text}</p>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-amber-400/70 mt-1">{timeAgo(latest.createdAt)}</p>
+            <p className="text-[11px] uppercase tracking-[0.06em] text-amber-400/70 mt-1 font-medium">{timeAgo(latest.createdAt)}</p>
           </div>
         </div>
       )}
@@ -406,10 +404,10 @@ function LiveTab({
       {poll ? (
         <div className={cardClass}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">
               {poll.status === 'live' ? 'Live poll' : 'Poll closed'}
             </span>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{poll.responseCount} answered</span>
+            <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">{poll.responseCount} answered</span>
           </div>
           <h2 className="text-lg font-semibold mb-4 break-words">{poll.question}</h2>
 
@@ -476,11 +474,11 @@ function LiveTab({
 
       {state.announcements.length > 1 && (
         <div className="space-y-2">
-          <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Earlier announcements</h3>
+          <h3 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Earlier announcements</h3>
           {state.announcements.slice(1).map((a) => (
             <div key={a.createdAt} className="p-3 rounded-lg border border-slate-800/80 text-sm text-slate-300">
               <p className="whitespace-pre-wrap break-words">{a.text}</p>
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-600 mt-1">{timeAgo(a.createdAt)}</p>
+              <p className="text-[11px] uppercase tracking-[0.06em] text-slate-600 mt-1 font-medium">{timeAgo(a.createdAt)}</p>
             </div>
           ))}
         </div>
@@ -572,7 +570,7 @@ function QuestionsTab({ state, me, code, refresh }: TabProps) {
 
       {me.myPendingQuestions.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Waiting for approval</h3>
+          <h3 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Waiting for approval</h3>
           {me.myPendingQuestions.map((q) => (
             <div key={q.id} className="p-3 rounded-lg border border-dashed border-slate-700 text-sm text-slate-400 break-words">
               {q.text}
@@ -582,8 +580,8 @@ function QuestionsTab({ state, me, code, refresh }: TabProps) {
       )}
 
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{state.questions.length} questions</h3>
-        <div className="flex gap-1 text-[10px] font-mono uppercase tracking-wider">
+        <h3 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">{state.questions.length} questions</h3>
+        <div className="flex gap-1 text-[11px] uppercase tracking-[0.06em] font-medium">
           {(['top', 'new'] as const).map((s) => (
             <button
               key={s}
@@ -621,7 +619,7 @@ function QuestionsTab({ state, me, code, refresh }: TabProps) {
               </button>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-slate-100 break-words">{q.text}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mt-1.5">
+                <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1.5 font-medium">
                   {q.authorName || 'Anonymous'}
                   {q.status === 'answered' && <span className="text-emerald-400 ml-2">Answered</span>}
                   {state.spotlightQuestion?.id === q.id && <span className="text-sky-400 ml-2">On screen now</span>}

@@ -29,9 +29,9 @@ export default function PollResults({ options, results, size = 'md', myOptionInd
               <div className={`flex justify-between gap-3 ${large ? 'text-3xl mb-2' : 'text-sm mb-1'}`}>
                 <span className={`${leading ? 'text-white font-semibold' : 'text-slate-300'} min-w-0 break-words`}>
                   {option}
-                  {myOptionIndex === i && <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-sky-400">Your pick</span>}
+                  {myOptionIndex === i && <span className="ml-2 text-[11px] uppercase tracking-[0.06em] text-sky-400 font-medium">Your pick</span>}
                 </span>
-                <span className="font-mono text-slate-400 shrink-0">{pct}%</span>
+                <span className="tabular-nums text-slate-400 shrink-0">{pct}%</span>
               </div>
               <div className={`w-full bg-slate-800/80 rounded-full overflow-hidden ${large ? 'h-6' : 'h-2.5'}`}>
                 <div
@@ -42,7 +42,7 @@ export default function PollResults({ options, results, size = 'md', myOptionInd
             </div>
           );
         })}
-        <p className={`font-mono uppercase tracking-wider text-slate-500 ${large ? 'text-lg' : 'text-[10px]'}`}>
+        <p className={`uppercase tracking-[0.06em] text-slate-500 ${large ? 'text-lg' : 'text-[11px]'} font-medium`}>
           {results.total} {results.total === 1 ? 'response' : 'responses'}
         </p>
       </div>
@@ -83,14 +83,14 @@ export default function PollResults({ options, results, size = 'md', myOptionInd
       <ol className={large ? 'grid grid-cols-2 gap-x-12 gap-y-3' : 'space-y-1.5'}>
         {results.answers.slice(0, large ? 10 : 8).map((a, i) => (
           <li key={a.text} className={`flex items-center gap-3 ${large ? 'text-2xl' : 'text-sm'}`}>
-            <span className="font-mono text-slate-500 w-6 shrink-0">{i + 1}.</span>
+            <span className="tabular-nums text-slate-500 w-6 shrink-0">{i + 1}.</span>
             <span className="text-slate-200 flex-1 min-w-0 break-words">{a.text}</span>
-            <span className="font-mono text-slate-400 shrink-0">{a.count}</span>
+            <span className="tabular-nums text-slate-400 shrink-0">{a.count}</span>
             {onHideAnswer && (
               <button
                 type="button"
                 onClick={() => onHideAnswer(a.text)}
-                className="text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                className="text-xs text-rose-400 hover:text-rose-300 shrink-0 font-medium"
               >
                 Hide
               </button>
@@ -98,7 +98,7 @@ export default function PollResults({ options, results, size = 'md', myOptionInd
           </li>
         ))}
       </ol>
-      <p className={`font-mono uppercase tracking-wider text-slate-500 ${large ? 'text-lg' : 'text-[10px]'}`}>
+      <p className={`uppercase tracking-[0.06em] text-slate-500 ${large ? 'text-lg' : 'text-[11px]'} font-medium`}>
         {results.total} {results.total === 1 ? 'answer' : 'answers'}
       </p>
     </div>

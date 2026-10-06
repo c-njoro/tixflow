@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { cardClass, labelClass } from '@/lib/ui';
 
 interface PromoterPage {
   name: string;
@@ -23,8 +24,6 @@ const kes = (n: number) => `KES ${n.toLocaleString('en-KE', { maximumFractionDig
 const date = (iso: string) =>
   new Date(iso).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi', day: 'numeric', month: 'short' });
 
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const labelClass = 'text-[10px] font-mono uppercase tracking-widest text-slate-500';
 
 export default function PromoterStatsPage() {
   const router = useRouter();
@@ -65,12 +64,12 @@ export default function PromoterStatsPage() {
         {error ? (
           <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
         ) : !data ? (
-          <p className="text-center text-xs font-mono uppercase tracking-widest text-slate-500 pt-20">Loading...</p>
+          <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (
           <>
             <div>
               <p className={labelClass}>Promoter for {data.organiser}</p>
-              <h1 className="text-2xl font-bold mt-1">{data.name}</h1>
+              <h1 className="font-display text-2xl font-semibold mt-1">{data.name}</h1>
               <p className="text-sm text-slate-400 mt-1">
                 You earn {data.commission.type === 'percent' ? `${data.commission.value}% of every sale` : `${kes(data.commission.value)} per ticket`} made
                 through your links.
@@ -135,7 +134,7 @@ export default function PromoterStatsPage() {
                   <tbody>
                     {data.recent.map((r, i) => (
                       <tr key={i} className="border-t border-slate-800/80 first:border-0">
-                        <td className="py-2 text-slate-400 font-mono">{date(r.at)}</td>
+                        <td className="py-2 text-slate-400 tabular-nums">{date(r.at)}</td>
                         <td className="py-2 text-slate-200">{r.event}</td>
                         <td className="py-2 text-slate-400 text-right">
                           {r.tickets} {r.tickets === 1 ? 'ticket' : 'tickets'}
@@ -176,7 +175,7 @@ function LinkRow({
         <button
           type="button"
           onClick={() => onCopy(url)}
-          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white"
+          className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white font-medium"
         >
           {copied ? 'Copied' : 'Copy link'}
         </button>
@@ -184,7 +183,7 @@ function LinkRow({
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md bg-emerald-600 text-white hover:bg-emerald-500"
+          className="px-3 py-1.5 text-[13px] rounded-md bg-emerald-600 text-white hover:bg-emerald-500 font-medium"
         >
           Share on WhatsApp
         </a>

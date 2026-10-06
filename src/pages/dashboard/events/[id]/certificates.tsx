@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface Settings {
   certificatesEnabled: boolean;
@@ -17,14 +18,6 @@ interface Settings {
   previewUrl: string | null;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' });
@@ -91,8 +84,8 @@ export default function CertificatesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Certificates</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Certificates</h1>
+          <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -119,9 +112,9 @@ export default function CertificatesPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => run(async () => apply(await request('PATCH', { certificatesEnabled: !settings.certificatesEnabled })))}
-                className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-md border ${
+                className={`px-4 py-2 text-[13px] rounded-md border ${
                   settings.certificatesEnabled ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50' : 'border-slate-700 text-slate-300'
-                }`}
+                } font-medium`}
               >
                 {settings.certificatesEnabled ? 'On' : 'Off'}
               </button>

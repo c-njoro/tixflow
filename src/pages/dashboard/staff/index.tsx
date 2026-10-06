@@ -1,6 +1,7 @@
 // pages/dashboard/staff/index.tsx
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { inputClass, labelClass } from '@/lib/ui';
 
 interface StaffMember {
   id: string;
@@ -10,9 +11,6 @@ interface StaffMember {
   createdAt: string;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 export default function StaffPage() {
   const { user } = useAuth();
@@ -116,10 +114,10 @@ export default function StaffPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">
           Staff
         </h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+        <p className="text-sm text-slate-400 mt-1">
           Manage who can access this workspace
         </p>
       </div>
@@ -132,7 +130,7 @@ export default function StaffPage() {
 
       {/* Add staff */}
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
           Add Staff Member
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -190,7 +188,7 @@ export default function StaffPage() {
           type="button"
           onClick={handleCreate}
           disabled={creating}
-          className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition disabled:opacity-50"
+          className="px-4 py-2 text-[13px] bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition disabled:opacity-50 font-medium"
         >
           {creating ? 'Adding...' : '+ Add Staff Member'}
         </button>
@@ -198,7 +196,7 @@ export default function StaffPage() {
 
       {/* Staff list */}
       {loading ? (
-        <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+        <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
           Loading staff...
         </div>
       ) : (
@@ -206,10 +204,10 @@ export default function StaffPage() {
           <table className="w-full text-sm">
             <thead className="bg-[#0E131F] text-left">
               <tr>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Name</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Email</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Role</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Actions</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Name</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Email</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Role</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -236,7 +234,7 @@ export default function StaffPage() {
                       <button
                         onClick={() => handleRemove(member.id)}
                         disabled={isSelf}
-                        className="text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
                       >
                         Remove
                       </button>

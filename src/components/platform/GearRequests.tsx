@@ -2,6 +2,8 @@
 //
 // Platform admin: organisers' requests to rent gate scanners and staff.
 import { useCallback, useEffect, useState } from 'react';
+import { inputClass } from '@/lib/ui';
+import { formatDateTime } from '@/lib/format';
 
 interface GearRequest {
   id: string;
@@ -27,8 +29,6 @@ const NEXT: Record<string, string[]> = {
   done: [],
 };
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition';
 
 export default function GearRequests() {
   const [rows, setRows] = useState<GearRequest[] | null>(null);
@@ -63,7 +63,7 @@ export default function GearRequests() {
     }
   };
 
-  if (!rows) return <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">{error || 'Loading...'}</div>;
+  if (!rows) return <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">{error || 'Loading...'}</div>;
 
   return (
     <div className="space-y-3">
@@ -79,7 +79,7 @@ export default function GearRequests() {
                 {r.businessName} · {r.event?.title ?? 'Event'}
               </div>
               <div className="text-xs text-slate-500">
-                {r.event && `${new Date(r.event.date).toLocaleString()} · ${r.event.location}`}
+                {r.event && `${formatDateTime(r.event.date)} · ${r.event.location}`}
               </div>
               <div className="text-xs text-slate-300 mt-1">
                 {r.devices} scanner(s) · {r.staff} staff · {r.days} day(s) · contact {r.contactName}, {r.contactPhone}
@@ -87,8 +87,8 @@ export default function GearRequests() {
               {r.notes && <div className="text-xs text-slate-400 mt-1">{r.notes}</div>}
             </div>
             <div className="text-right shrink-0">
-              <div className="text-lg font-mono font-bold">KES {r.estimate.toLocaleString()}</div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{r.status}</div>
+              <div className="text-lg tabular-nums font-bold">KES {r.estimate.toLocaleString()}</div>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">{r.status}</div>
             </div>
           </div>
           {r.adminNote && <div className="text-xs text-slate-500">Note: {r.adminNote}</div>}
@@ -114,7 +114,7 @@ export default function GearRequests() {
                   <button
                     key={s}
                     onClick={() => update(r.id, s)}
-                    className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md hover:bg-slate-800 transition"
+                    className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md hover:bg-slate-800 transition font-medium"
                   >
                     Mark {s}
                   </button>

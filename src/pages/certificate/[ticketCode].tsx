@@ -77,7 +77,7 @@ export default function CertificatePage() {
   }
   if (!cert) {
     return (
-      <div className="min-h-screen bg-[#0B0F17] text-slate-500 flex items-center justify-center text-xs font-mono uppercase tracking-widest">
+      <div className="min-h-screen bg-[#0B0F17] text-slate-500 flex items-center justify-center text-sm">
         Loading...
       </div>
     );
@@ -143,7 +143,7 @@ export default function CertificatePage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={cert.logoUrl} alt="" className="h-[18mm] w-auto object-contain" />
               )}
-              <p style={{ fontFamily: 'Poppins, Arial, sans-serif' }} className="text-[11pt] tracking-[0.3em] uppercase text-[#0b3a5c]">
+              <p style={{ fontFamily: '"Geist Variable", Arial, sans-serif' }} className="text-[11pt] tracking-[0.3em] uppercase text-[#0b3a5c]">
                 {cert.organiser}
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function CertificatePage() {
               {cert.note && <p className="text-[12pt] text-[#0b3a5c] font-semibold">{cert.note}</p>}
             </div>
 
-            <div className="w-full flex items-end justify-between" style={{ fontFamily: 'Poppins, Arial, sans-serif' }}>
+            <div className="w-full flex items-end justify-between" style={{ fontFamily: '"Geist Variable", Arial, sans-serif' }}>
               <div className="text-left text-[8pt] text-slate-400 leading-relaxed">
                 Certificate ID: {cert.certificateId}
                 {cert.attendedAt && (

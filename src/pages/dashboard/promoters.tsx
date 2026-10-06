@@ -5,6 +5,7 @@
 // an emailed code, then platform-admin approval, then M-Pesa.
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface PromoterRow {
   id: string;
@@ -27,14 +28,6 @@ interface EventOption {
   title: string;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const kes = (n: number) => `KES ${n.toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Something went wrong.');
@@ -134,8 +127,8 @@ export default function PromotersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Promoters</h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Promoters</h1>
+        <p className="text-sm text-slate-400 mt-1">
           Tracked links · commission paid to M-Pesa
         </p>
       </div>
@@ -163,10 +156,10 @@ export default function PromotersPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
         <div className="space-y-3 xl:col-span-2">
           {!promoters ? (
-            <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading promoters...</p>
+            <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading promoters...</p>
           ) : promoters.length === 0 ? (
             <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center">
-              <p className="text-xs font-mono uppercase tracking-widest text-slate-500">No promoters yet</p>
+              <p className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">No promoters yet</p>
               <p className="text-sm text-slate-400 mt-2">
                 Add the people who sell your tickets. Each gets a link; every sale through it is credited to them.
               </p>
@@ -180,9 +173,9 @@ export default function PromotersPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white">
                         {p.name}
-                        {!p.isActive && <span className="ml-2 text-[10px] font-mono uppercase text-slate-500">Inactive</span>}
+                        {!p.isActive && <span className="ml-2 text-[11px] uppercase text-slate-500 font-medium">Inactive</span>}
                       </p>
-                      <p className="text-[11px] font-mono uppercase tracking-wider text-slate-500 mt-1">
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">
                         {p.commissionType === 'percent' ? `${p.commissionValue}% of sales` : `${kes(p.commissionValue)} per ticket`} ·{' '}
                         {p.eventTitle ?? 'All events'} · {p.phone}
                       </p>
@@ -203,7 +196,7 @@ export default function PromotersPage() {
                         <button
                           type="button"
                           onClick={() => remove(p)}
-                          className="px-2 text-xs font-mono uppercase text-rose-400 hover:text-rose-300"
+                          className="px-2 text-[13px] text-rose-400 hover:text-rose-300 font-medium"
                         >
                           Remove
                         </button>
@@ -234,7 +227,7 @@ export default function PromotersPage() {
         </div>
 
         <form onSubmit={create} className={`${cardClass} space-y-4`}>
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Add a promoter</h3>
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Add a promoter</h3>
           <div>
             <label className={labelClass}>Name</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${inputClass} mt-1`} placeholder="Wanjiku Kamau" />
@@ -316,7 +309,7 @@ export default function PromotersPage() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">{label}</p>
       <p className="text-white mt-0.5">{value}</p>
     </div>
   );
@@ -325,7 +318,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 function CopyRow({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
   return (
     <div className="flex items-center gap-2 min-w-0">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 w-28 shrink-0">{label}</span>
+      <span className="text-[11px] uppercase tracking-[0.06em] text-slate-500 w-28 shrink-0 font-medium">{label}</span>
       <code className="text-xs text-slate-400 truncate flex-1 min-w-0">{value || '…'}</code>
       <button type="button" onClick={onCopy} disabled={!value} className={buttonClass}>
         {copied ? 'Copied' : 'Copy'}

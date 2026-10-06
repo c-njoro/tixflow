@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { SiteHeader } from "@/components/site/SiteChrome";
 
 interface SearchResult {
   slug: string;
@@ -48,11 +49,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white">
-      <header className="p-6 border-b border-slate-800/80">
-        <Link href="/" className="text-sm font-mono font-bold uppercase tracking-widest">
-          Tixflow
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="max-w-2xl mx-auto p-6 space-y-6">
         <form onSubmit={handleSubmit} className="flex gap-2">
@@ -72,7 +69,7 @@ export default function SearchPage() {
         </form>
 
         {loading ? (
-          <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+          <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
             Searching...
           </div>
         ) : searched && results.length === 0 ? (
@@ -97,13 +94,13 @@ export default function SearchPage() {
                 )}
                 <div>
                   {event.category && (
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-1">
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 mb-1 font-medium">
                       {event.category}
                     </div>
                   )}
                   <div className="text-sm font-semibold">{event.title}</div>
                   <div className="text-xs text-slate-500 mt-0.5">
-                    {new Date(event.date).toLocaleString()} &middot; {event.location}
+                    {new Date(event.date).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' })} &middot; {event.location}
                   </div>
                   <div className="text-xs text-slate-600 mt-0.5">by {event.tenant.businessName}</div>
                 </div>

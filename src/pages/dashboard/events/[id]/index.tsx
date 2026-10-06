@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import { buttonClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface TicketTier {
   id: string;
@@ -37,7 +39,40 @@ interface EventDetail {
   galleryImages: EventImage[];
   ticketTiers: TicketTier[];
   _count: { tickets: number };
+  slug: string;
+  tenant?: { slug: string };
 }
+
+// The event's tools, grouped by the job they do.
+const TOOL_GROUPS: { title: string; tools: { href: string; label: string; hint: string; adminOnly: boolean }[] }[] = [
+  {
+    title: 'On the day',
+    tools: [
+      { href: 'checkin', label: 'Check-in', hint: 'Scan tickets in and out', adminOnly: false },
+      { href: 'gate', label: 'Gate dashboard', hint: 'Live arrivals and who is inside', adminOnly: false },
+      { href: 'box-office', label: 'Box office', hint: 'Sell at the door', adminOnly: false },
+      { href: 'attendees', label: 'Attendees', hint: 'Tickets and buyers', adminOnly: false },
+    ],
+  },
+  {
+    title: 'Selling',
+    tools: [
+      { href: 'promos', label: 'Promo codes', hint: 'Discounts and promoters', adminOnly: true },
+      { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true },
+      { href: 'refunds', label: 'Refunds', hint: 'Buyer requests', adminOnly: true },
+      { href: 'plan', label: 'Plan & gear', hint: 'Rooms, scanners, staff', adminOnly: true },
+    ],
+  },
+  {
+    title: 'Engagement',
+    tools: [
+      { href: 'spaces', label: 'Event Space', hint: 'Polls, Q&A, slides', adminOnly: false },
+      { href: 'feedback', label: 'Feedback', hint: 'Post-event survey', adminOnly: true },
+      { href: 'certificates', label: 'Certificates', hint: 'Proof of attendance', adminOnly: true },
+      { href: 'exhibitors', label: 'Exhibitors', hint: 'Sponsor lead scanning', adminOnly: true },
+    ],
+  },
+];
 
 const toLocalInputValue = (iso: string) => {
   const d = new Date(iso);
@@ -54,9 +89,6 @@ const fileToDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-800 text-slate-300 border-slate-700',
@@ -362,7 +394,7 @@ export default function EventDetailPage() {
   };
 
   if (loading) {
-    return <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading event...</div>;
+    return <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading event...</div>;
   }
   if (!event) {
     return (
@@ -379,204 +411,228 @@ export default function EventDetailPage() {
   // VIEW MODE
   // ===========================================================================
   if (mode === 'view') {
-    return (
-      <div className="space-y-6 max-w-3xl mx-auto">
-        {error && (
-          <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
-            {error}
-          </div>
-        )}
+    const pct = totalCapacity > 0 ? Math.min((totalSold / totalCapacity) * 100, 100) : 0;
+    const when = new Date(event.date).toLocaleString('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const publicUrl = event.tenant ? `/${event.tenant.slug}/${event.slug}` : null;
+    const settingRow = 'flex flex-wrap items-center justify-between gap-4 py-4';
 
-        {/* Hero */}
-        <div className="relative rounded-xl overflow-hidden border border-slate-800/80 bg-[#0E131F]">
-          {event.coverImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.coverImageUrl} alt={event.title} className="w-full h-56 object-cover" />
-          ) : (
-            <div className="w-full h-40 flex items-center justify-center text-xs font-mono text-slate-600 uppercase tracking-widest">
-              No cover image
-            </div>
-          )}
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h1 className="text-xl font-bold text-white">{event.title}</h1>
-                <p className="text-xs text-slate-500 mt-1">
-                  {new Date(event.date).toLocaleString()} &middot; {event.location}
-                  {event.category && <> &middot; {event.category}</>}
-                </p>
-              </div>
-              <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[event.status]}`}>
+    return (
+      <div className="space-y-8">
+        {error && <div className="p-3 text-sm border rounded-lg bg-rose-950/30 text-rose-300 border-rose-800/50">{error}</div>}
+
+        <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+          <div className="w-full sm:w-44 aspect-[16/10] rounded-xl overflow-hidden border border-slate-800/70 bg-[#131924] shrink-0">
+            {event.coverImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={event.coverImageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full grid place-items-center text-xs text-slate-600">No cover</div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-0.5 rounded border font-medium ${STATUS_STYLES[event.status]}`}>
                 {event.status}
               </span>
+              {event.category && <span className="text-sm text-slate-500">{event.category}</span>}
             </div>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-white leading-tight">{event.title}</h1>
+            <p className="mt-1 text-sm text-slate-400">
+              {when} · {event.location}
+            </p>
           </div>
-        </div>
-
-        {/* Event tools */}
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href={`/dashboard/events/${event.id}/checkin`}
-            className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-md text-white hover:bg-slate-700 transition"
-          >
-            Check-In
-          </a>
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setMode('edit')}
-              className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition ml-auto"
-            >
-              Edit Event
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            { href: 'attendees', label: 'Attendees', hint: 'Tickets & buyers', adminOnly: false },
-            { href: 'gate', label: 'Gate', hint: 'Live arrivals', adminOnly: false },
-            { href: 'spaces', label: 'Event Space', hint: 'Polls, Q&A, slides', adminOnly: false },
-            { href: 'box-office', label: 'Box Office', hint: 'Sell at the gate', adminOnly: false },
-            { href: 'promos', label: 'Promo Codes', hint: 'Discounts & promoters', adminOnly: true },
-            { href: 'refunds', label: 'Refunds', hint: 'Buyer requests', adminOnly: true },
-            { href: 'plan', label: 'Plan & Gear', hint: 'Rooms, scanners, staff', adminOnly: true },
-            { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true },
-            { href: 'feedback', label: 'Feedback', hint: 'Post-event survey', adminOnly: true },
-            { href: 'certificates', label: 'Certificates', hint: 'Proof of attendance', adminOnly: true },
-            { href: 'exhibitors', label: 'Exhibitors', hint: 'Sponsor lead scanning', adminOnly: true },
-          ]
-            .filter((tool) => isAdmin || !tool.adminOnly)
-            .map((tool) => (
-              <a
-                key={tool.href}
-                href={`/dashboard/events/${event.id}/${tool.href}`}
-                className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-lg hover:border-slate-600 transition"
-              >
-                <span className="block text-xs font-mono uppercase tracking-wider text-white">{tool.label}</span>
-                <span className="block text-[11px] text-slate-500 mt-0.5">{tool.hint}</span>
+          <div className="flex flex-wrap gap-2 sm:self-start">
+            <a href={`/dashboard/events/${event.id}/checkin`} className={primaryButtonClass}>
+              Open check-in
+            </a>
+            {publicUrl && event.status === 'published' && (
+              <a href={publicUrl} target="_blank" rel="noreferrer" className={buttonClass}>
+                View page
               </a>
-            ))}
+            )}
+            {isAdmin && (
+              <button type="button" onClick={() => setMode('edit')} className={buttonClass}>
+                Edit
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Status controls — admin only */}
-        {isAdmin && (
-          <div className="p-4 bg-[#0E131F] border border-slate-800/80 rounded-xl">
-            <div className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-2">Status</div>
-            <div className="flex flex-wrap gap-2">
-              {['draft', 'published', 'cancelled', 'completed'].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => changeStatus(s)}
-                  disabled={event.status === s}
-                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                    event.status === s ? STATUS_STYLES[s] : 'border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Reminders</div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Email + WhatsApp to ticket holders the day before and ~2 hours before, with directions.
-                </p>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+          <div className="space-y-8 min-w-0">
+            <section>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-base font-semibold text-white">Tickets</h2>
+                <span className="text-sm text-slate-400 tabular-nums">
+                  {totalSold.toLocaleString()} / {totalCapacity.toLocaleString()} sold
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => patchEvent({ remindersEnabled: !event.remindersEnabled })}
-                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
-                  event.remindersEnabled
-                    ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-                    : 'border-slate-700 text-slate-400 hover:text-white'
-                }`}
-              >
-                {event.remindersEnabled ? 'On' : 'Off'}
-              </button>
-            </div>
-            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Re-entries per ticket</div>
-                <p className="text-xs text-slate-400 mt-1">
-                  0 = once in, stays in. Otherwise attendees scan out at the gate and can come back in this many times.
-                </p>
+              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mb-4">
+                <div className="h-full bg-emerald-500/80" style={{ width: `${pct}%` }} />
               </div>
-              <input
-                type="number"
-                min="0"
-                max="20"
-                key={`reentry-${event.reentryLimit}`}
-                defaultValue={event.reentryLimit}
-                onBlur={(e) => Number(e.target.value) !== event.reentryLimit && patchEvent({ reentryLimit: Number(e.target.value) })}
-                className="w-20 bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-1.5 text-sm text-white text-center"
-              />
-            </div>
-            <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Booking fee</div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {event.passFeeToBuyer
-                    ? 'Buyers pay Tixflow’s fee on top of the ticket price — you receive the full price.'
-                    : 'Tixflow’s fee comes out of your sales — buyers pay just the ticket price.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => patchEvent({ passFeeToBuyer: !event.passFeeToBuyer })}
-                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
-                  event.passFeeToBuyer
-                    ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
-                    : 'border-slate-700 text-slate-400 hover:text-white'
-                }`}
-              >
-                {event.passFeeToBuyer ? 'Buyer pays' : 'You pay'}
-              </button>
-            </div>
-          </div>
-        )}
+              <ul className="rounded-2xl border border-slate-800/70 divide-y divide-slate-800/70 overflow-hidden">
+                {event.ticketTiers.map((tier) => (
+                  <li key={tier.id} className="flex items-center justify-between gap-4 px-5 py-4 bg-[#0E131F]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tier.tierColor }} />
+                      <div className="min-w-0">
+                        <div className="font-medium text-white truncate">
+                          {tier.name}
+                          {!tier.isActive && <span className="ml-2 text-xs font-normal text-slate-500">Hidden</span>}
+                        </div>
+                        <div className="text-sm text-slate-500 tabular-nums">
+                          {tier.price > 0 ? `KES ${tier.price.toLocaleString()}` : 'Free'}
+                          {tier.doorPrice !== null && tier.doorPrice !== tier.price && ` · KES ${tier.doorPrice.toLocaleString()} at the door`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-slate-300 tabular-nums shrink-0">
+                      {tier.sold} <span className="text-slate-500">/ {tier.capacity}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-        {/* Description */}
-        {event.description && (
-          <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl">
-            <p className="text-sm text-slate-300 whitespace-pre-line">{event.description}</p>
-          </div>
-        )}
-
-        {/* Gallery */}
-        {event.galleryImages.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {event.galleryImages.map((img) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={img.publicId} src={img.url} alt="" className="w-full h-28 object-cover rounded-lg" />
-            ))}
-          </div>
-        )}
-
-        {/* Ticket tiers — read-only */}
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Ticket Tiers</h3>
-            <span className="text-xs font-mono text-slate-500">{totalSold} / {totalCapacity} sold</span>
-          </div>
-          {event.ticketTiers.map((tier) => (
-            <div key={tier.id} className="flex items-center justify-between p-3 border border-slate-800 rounded-lg">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tier.tierColor }} />
-                <div>
-                  <div className="text-sm text-white">{tier.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {tier.price > 0 ? `KES ${tier.price.toLocaleString()}` : 'Free'}
-                    {tier.doorPrice !== null && tier.doorPrice !== tier.price && ` · KES ${tier.doorPrice.toLocaleString()} at the door`}
+            {isAdmin && (
+              <section>
+                <h2 className="text-base font-semibold text-white mb-3">Settings</h2>
+                <div className="rounded-2xl border border-slate-800/70 bg-[#0E131F] px-5 divide-y divide-slate-800/70">
+                  <div className={settingRow}>
+                    <div>
+                      <div className="text-sm font-medium text-white">Status</div>
+                      <p className="text-sm text-slate-500">Only published events can sell tickets.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-[#0B0F17] border border-slate-800">
+                      {['draft', 'published', 'cancelled', 'completed'].map((st) => (
+                        <button
+                          key={st}
+                          onClick={() => changeStatus(st)}
+                          disabled={event.status === st}
+                          className={`h-8 px-3 rounded-md text-[13px] font-medium capitalize transition-colors ${
+                            event.status === st ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={settingRow}>
+                    <div className="max-w-md">
+                      <div className="text-sm font-medium text-white">Reminders</div>
+                      <p className="text-sm text-slate-500">Email and WhatsApp the day before and about 2 hours before, with directions.</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={event.remindersEnabled}
+                      onClick={() => patchEvent({ remindersEnabled: !event.remindersEnabled })}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${event.remindersEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${event.remindersEnabled ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </div>
+                  <div className={settingRow}>
+                    <div className="max-w-md">
+                      <div className="text-sm font-medium text-white">Re-entries per ticket</div>
+                      <p className="text-sm text-slate-500">0 means once in, stays in. Otherwise attendees scan out and can come back this many times.</p>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      key={`reentry-${event.reentryLimit}`}
+                      defaultValue={event.reentryLimit}
+                      onBlur={(e) => Number(e.target.value) !== event.reentryLimit && patchEvent({ reentryLimit: Number(e.target.value) })}
+                      aria-label="Re-entries per ticket"
+                      className="w-20 h-9 bg-[#0B0F17] border border-slate-800 rounded-lg px-3 text-sm text-white text-center tabular-nums focus:outline-none focus:border-slate-500"
+                    />
+                  </div>
+                  <div className={settingRow}>
+                    <div className="max-w-md">
+                      <div className="text-sm font-medium text-white">Booking fee</div>
+                      <p className="text-sm text-slate-500">
+                        {event.passFeeToBuyer
+                          ? 'Buyers pay Tixflow’s fee on top of the ticket price — you receive the full price.'
+                          : 'Tixflow’s fee comes out of your sales — buyers pay just the ticket price.'}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 p-1 rounded-lg bg-[#0B0F17] border border-slate-800">
+                      {[
+                        { value: true, label: 'Buyer pays' },
+                        { value: false, label: 'I pay' },
+                      ].map((o) => (
+                        <button
+                          key={o.label}
+                          type="button"
+                          disabled={event.passFeeToBuyer === o.value}
+                          onClick={() => patchEvent({ passFeeToBuyer: o.value })}
+                          className={`h-8 px-3 rounded-md text-[13px] font-medium transition-colors ${
+                            event.passFeeToBuyer === o.value ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </section>
+            )}
+
+            {event.description && (
+              <section>
+                <h2 className="text-base font-semibold text-white mb-3">Description</h2>
+                <p className="text-[15px] leading-relaxed text-slate-300 whitespace-pre-line max-w-[65ch]">{event.description}</p>
+              </section>
+            )}
+
+            {event.galleryImages.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {event.galleryImages.map((img) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={img.publicId} src={img.url} alt="" className="w-full aspect-[4/3] object-cover rounded-lg border border-slate-800/70" />
+                ))}
               </div>
-              <div className="text-right">
-                <div className="text-xs font-mono text-slate-400">{tier.sold} / {tier.capacity}</div>
-                {!tier.isActive && <div className="text-[10px] text-slate-600 uppercase">inactive</div>}
-              </div>
-            </div>
-          ))}
+            )}
+          </div>
+
+          <nav className="space-y-6 lg:sticky lg:top-6" aria-label="Event tools">
+            {TOOL_GROUPS.map((group) => {
+              const tools = group.tools.filter((tool) => isAdmin || !tool.adminOnly);
+              if (tools.length === 0) return null;
+              return (
+                <div key={group.title}>
+                  <h2 className="text-sm font-medium text-slate-500 mb-2">{group.title}</h2>
+                  <ul className="rounded-2xl border border-slate-800/70 divide-y divide-slate-800/70 overflow-hidden">
+                    {tools.map((tool) => (
+                      <li key={tool.href}>
+                        <a
+                          href={`/dashboard/events/${event.id}/${tool.href}`}
+                          className="group flex items-center justify-between gap-3 px-4 py-3 bg-[#0E131F] hover:bg-[#121827] transition-colors"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-white">{tool.label}</span>
+                            <span className="block text-[13px] text-slate-500 truncate">{tool.hint}</span>
+                          </span>
+                          <ChevronRightIcon className="w-4 h-4 text-slate-600 group-hover:text-slate-300 shrink-0 transition-colors" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </nav>
         </div>
       </div>
     );
@@ -591,11 +647,11 @@ export default function EventDetailPage() {
         <button
           type="button"
           onClick={() => setMode('view')}
-          className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition"
+          className="text-[13px] text-slate-400 hover:text-white transition font-medium"
         >
           ← Back to Event
         </button>
-        <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${STATUS_STYLES[event.status]}`}>
+        <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${STATUS_STYLES[event.status]} font-medium`}>
           {event.status}
         </span>
       </div>
@@ -613,7 +669,7 @@ export default function EventDetailPage() {
 
       {/* Images */}
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Images</h3>
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Images</h3>
 
         <div>
           <label className={labelClass}>Cover Image</label>
@@ -636,7 +692,7 @@ export default function EventDetailPage() {
                 type="button"
                 onClick={() => coverInputRef.current?.click()}
                 disabled={uploadingCover}
-                className="w-40 h-28 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
+                className="w-40 h-28 rounded-lg border border-dashed border-slate-700 text-[13px] text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50 font-medium"
               >
                 {uploadingCover ? 'Uploading...' : '+ Upload'}
               </button>
@@ -672,7 +728,7 @@ export default function EventDetailPage() {
               type="button"
               onClick={() => galleryInputRef.current?.click()}
               disabled={uploadingGallery}
-              className="w-24 h-24 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
+              className="w-24 h-24 rounded-lg border border-dashed border-slate-700 text-[13px] text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50 font-medium"
             >
               {uploadingGallery ? '...' : '+ Add'}
             </button>
@@ -744,7 +800,7 @@ export default function EventDetailPage() {
 
       {/* Ticket tiers management */}
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Ticket Tiers</h3>
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Ticket Tiers</h3>
 
         {event.ticketTiers.map((tier) => (
           <div key={tier.id} className="p-4 border border-slate-800 rounded-lg space-y-3">
@@ -767,7 +823,7 @@ export default function EventDetailPage() {
                     type="color"
                     defaultValue={tier.tierColor}
                     onBlur={(e) => e.target.value !== tier.tierColor && handleUpdateTier(tier.id, { tierColor: e.target.value })}
-                    className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md"
+                    className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer"
                   />
                 </div>
               </div>
@@ -817,7 +873,7 @@ export default function EventDetailPage() {
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 pt-1">
-              <label className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400">
+              <label className="flex items-center gap-2 text-xs uppercase tracking-[0.06em] text-slate-400 font-medium">
                 <input
                   type="checkbox"
                   defaultChecked={tier.isActive}
@@ -830,7 +886,7 @@ export default function EventDetailPage() {
                 onClick={() => handleDeleteTier(tier.id)}
                 disabled={tier.sold > 0}
                 title={tier.sold > 0 ? 'Cannot delete a tier with sold tickets.' : undefined}
-                className="text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
               >
                 Delete Tier
               </button>
@@ -839,10 +895,10 @@ export default function EventDetailPage() {
         ))}
 
         <div className="p-4 border border-dashed border-slate-800 rounded-lg space-y-3">
-          <h4 className="text-[11px] font-mono uppercase tracking-widest text-slate-500">Add New Tier</h4>
+          <h4 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Add New Tier</h4>
           <div className="grid grid-cols-2 gap-3">
             <input type="text" placeholder="Tier name" value={newTier.name} onChange={(e) => setNewTier({ ...newTier, name: e.target.value })} className={inputClass} />
-            <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md" />
+            <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <input type="number" min="0" step="0.01" placeholder="Price" value={newTier.price} onChange={(e) => setNewTier({ ...newTier, price: e.target.value })} className={inputClass} />
@@ -854,7 +910,7 @@ export default function EventDetailPage() {
             type="button"
             onClick={handleAddTier}
             disabled={addingTier}
-            className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50"
+            className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50 font-medium"
           >
             {addingTier ? 'Adding...' : '+ Add Tier'}
           </button>
@@ -863,8 +919,8 @@ export default function EventDetailPage() {
 
       {/* Danger zone */}
       <div className="p-5 bg-[#0E131F] border border-rose-900/40 rounded-xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">Danger Zone</h3>
-        <p className="text-[11px] font-mono text-slate-500">
+        <h3 className="text-xs uppercase tracking-[0.08em] text-rose-400 font-medium">Danger Zone</h3>
+        <p className="text-[11px] tabular-nums text-slate-500">
           {event._count.tickets > 0
             ? 'This event has issued tickets and cannot be deleted. Set its status to "cancelled" instead.'
             : 'Deleting an event is permanent and removes all its ticket tiers.'}
@@ -873,7 +929,7 @@ export default function EventDetailPage() {
           type="button"
           onClick={handleDeleteEvent}
           disabled={event._count.tickets > 0}
-          className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-rose-900/50 rounded-md text-rose-400 hover:bg-rose-950/30 transition disabled:opacity-30 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 text-[13px] border border-rose-900/50 rounded-md text-rose-400 hover:bg-rose-950/30 transition disabled:opacity-30 disabled:cursor-not-allowed font-medium"
         >
           Delete Event
         </button>

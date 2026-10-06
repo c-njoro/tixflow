@@ -1,6 +1,8 @@
 // pages/dashboard/settings/payouts.tsx
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { inputClass, labelClass } from '@/lib/ui';
+import { formatDate } from '@/lib/format';
 
 interface PayoutSettings {
   isOnboarded: boolean;
@@ -24,9 +26,6 @@ interface PayoutRecord {
   createdAt: string;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 const STATUS_STYLES: Record<string, string> = {
   pending_approval: 'bg-amber-950/40 text-amber-400 border-amber-800/50',
@@ -253,10 +252,10 @@ export default function PayoutSettingsPage() {
   return (
     <div className="space-y-6 max-w-xl mx-auto">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">
           Payouts
         </h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+        <p className="text-sm text-slate-400 mt-1">
           Tell us where to send your ticket revenue
         </p>
       </div>
@@ -273,7 +272,7 @@ export default function PayoutSettingsPage() {
       )}
 
       {loading ? (
-        <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+        <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
           Loading...
         </div>
       ) : (
@@ -281,10 +280,10 @@ export default function PayoutSettingsPage() {
           {isOnboarded && (
             <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
+                <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                   Outstanding Balance
                 </span>
-                <span className="text-lg font-mono font-bold text-white">
+                <span className="text-lg tabular-nums font-bold text-white">
                   {balance !== null ? `KES ${balance.toLocaleString()}` : '...'}
                 </span>
               </div>
@@ -335,9 +334,9 @@ export default function PayoutSettingsPage() {
                     type="button"
                     onClick={handleRequestPayout}
                     disabled={!balance || balance <= 0}
-                    className="w-full py-2.5 rounded-md text-sm font-medium bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Request Payout
+                    Request payout
                   </button>
                 </div>
               )}
@@ -374,14 +373,14 @@ export default function PayoutSettingsPage() {
                     <button
                       type="button"
                       onClick={handleConfirmOtp}
-                      className="flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition"
+                      className="flex-1 py-2 rounded-md text-[13px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition font-medium"
                     >
                       Confirm Request
                     </button>
                     <button
                       type="button"
                       onClick={resetPayoutFlow}
-                      className="px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider border border-slate-700 hover:bg-slate-800 transition"
+                      className="px-4 py-2 rounded-md text-[13px] border border-slate-700 hover:bg-slate-800 transition font-medium"
                     >
                       Cancel
                     </button>
@@ -391,7 +390,7 @@ export default function PayoutSettingsPage() {
 
               {payoutStage === 'submitted' && (
                 <div className="p-4 border rounded-md bg-amber-950/30 border-amber-800/50 text-center space-y-2">
-                  <div className="text-sm font-mono uppercase tracking-widest text-amber-400">
+                  <div className="text-sm uppercase tracking-[0.08em] text-amber-400 font-medium">
                     Request Submitted
                   </div>
                   <p className="text-xs text-slate-400">
@@ -400,7 +399,7 @@ export default function PayoutSettingsPage() {
                   <button
                     type="button"
                     onClick={resetPayoutFlow}
-                    className="text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white transition"
+                    className="text-[13px] text-slate-500 hover:text-white transition font-medium"
                   >
                     Done
                   </button>
@@ -411,7 +410,7 @@ export default function PayoutSettingsPage() {
 
           {isOnboarded && history.length > 0 && (
             <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
-              <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
+              <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                 Recent Requests
               </span>
               <div className="space-y-2">
@@ -421,22 +420,22 @@ export default function PayoutSettingsPage() {
                     className="flex items-center justify-between gap-3 p-3 rounded-md bg-[#0B0F17] border border-slate-800/60"
                   >
                     <div className="min-w-0">
-                      <div className="text-sm text-white font-mono">
+                      <div className="text-sm text-white tabular-nums">
                         KES {p.amount.toLocaleString()}
                         {p.netAmount != null && p.netAmount !== p.amount && (
                           <span className="text-slate-500 text-xs"> (net KES {p.netAmount.toLocaleString()})</span>
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 mt-0.5">
-                        {new Date(p.createdAt).toLocaleDateString()} &middot; {p.method}
+                        {formatDate(p.createdAt)} &middot; {p.method}
                         {p.reference && ` \u00b7 ${p.reference}`}
                         {p.failureReason && ` \u00b7 ${p.failureReason}`}
                       </div>
                     </div>
                     <span
-                      className={`shrink-0 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${
+                      className={`shrink-0 text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${
                         STATUS_STYLES[p.status] || 'bg-slate-800 text-slate-300 border-slate-700'
-                      }`}
+                      } font-medium`}
                     >
                       {STATUS_LABELS[p.status] || p.status}
                     </span>
@@ -448,15 +447,15 @@ export default function PayoutSettingsPage() {
 
           <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
+            <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
               Status
             </span>
             <span
-              className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${
+              className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${
                 isOnboarded
                   ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
                   : 'bg-slate-800 text-slate-300 border-slate-700'
-              }`}
+              } font-medium`}
             >
               {isOnboarded ? 'Configured' : 'Not Configured'}
             </span>
@@ -468,22 +467,22 @@ export default function PayoutSettingsPage() {
               <button
                 type="button"
                 onClick={() => setMethod('mpesa')}
-                className={`flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider border transition ${
+                className={`flex-1 py-2 rounded-md text-[13px] border transition ${
                   method === 'mpesa'
                     ? 'bg-slate-800 border-slate-600 text-white'
                     : 'border-slate-800 text-slate-500 hover:text-white'
-                }`}
+                } font-medium`}
               >
                 M-Pesa
               </button>
               <button
                 type="button"
                 onClick={() => setMethod('bank')}
-                className={`flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider border transition ${
+                className={`flex-1 py-2 rounded-md text-[13px] border transition ${
                   method === 'bank'
                     ? 'bg-slate-800 border-slate-600 text-white'
                     : 'border-slate-800 text-slate-500 hover:text-white'
-                }`}
+                } font-medium`}
               >
                 Bank
               </button>
@@ -578,14 +577,14 @@ export default function PayoutSettingsPage() {
                   type="button"
                   onClick={handleConfirmSettingsOtp}
                   disabled={saving}
-                  className="flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition disabled:opacity-50"
+                  className="flex-1 py-2 rounded-md text-[13px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 hover:bg-emerald-950/60 transition disabled:opacity-50 font-medium"
                 >
                   {saving ? 'Confirming...' : 'Confirm Change'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSettingsChallenge(null)}
-                  className="px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider border border-slate-700 hover:bg-slate-800 transition"
+                  className="px-4 py-2 rounded-md text-[13px] border border-slate-700 hover:bg-slate-800 transition font-medium"
                 >
                   Cancel
                 </button>
@@ -596,9 +595,9 @@ export default function PayoutSettingsPage() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="w-full py-2.5 px-4 rounded-md text-sm font-medium bg-slate-800 border border-slate-700 hover:bg-slate-700 transition disabled:opacity-50"
+              className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Payout Details'}
+              {saving ? 'Saving...' : 'Save payout details'}
             </button>
           )}
         </div>

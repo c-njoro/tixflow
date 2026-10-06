@@ -2,6 +2,7 @@
 import { useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
+import { inputClass, labelClass } from '@/lib/ui';
 
 interface TierDraft {
   name: string;
@@ -180,9 +181,6 @@ export default function NewEventPage() {
     }
   };
 
-  const inputClass =
-    'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-  const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
   if (!isAdmin) {
     return (
@@ -195,10 +193,10 @@ export default function NewEventPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">
           Create Event
         </h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+        <p className="text-sm text-slate-400 mt-1">
           New events are created as drafts — publish when ready
         </p>
       </div>
@@ -295,7 +293,7 @@ export default function NewEventPage() {
 
         {/* Images */}
         <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
             Images
           </h3>
 
@@ -319,7 +317,7 @@ export default function NewEventPage() {
                   type="button"
                   onClick={() => coverInputRef.current?.click()}
                   disabled={uploadingCover}
-                  className="w-40 h-28 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
+                  className="w-40 h-28 rounded-lg border border-dashed border-slate-700 text-[13px] text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50 font-medium"
                 >
                   {uploadingCover ? 'Uploading...' : '+ Upload'}
                 </button>
@@ -354,7 +352,7 @@ export default function NewEventPage() {
                 type="button"
                 onClick={() => galleryInputRef.current?.click()}
                 disabled={uploadingGallery}
-                className="w-24 h-24 rounded-lg border border-dashed border-slate-700 text-xs font-mono uppercase tracking-wider text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50"
+                className="w-24 h-24 rounded-lg border border-dashed border-slate-700 text-[13px] text-slate-500 hover:text-white hover:border-slate-500 transition disabled:opacity-50 font-medium"
               >
                 {uploadingGallery ? '...' : '+ Add'}
               </button>
@@ -372,7 +370,7 @@ export default function NewEventPage() {
 
         {/* Ticket Tiers */}
         <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
             Ticket Tiers
           </h3>
 
@@ -385,7 +383,7 @@ export default function NewEventPage() {
                 <button
                   type="button"
                   onClick={() => removeTier(index)}
-                  className="absolute top-3 right-3 text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300"
+                  className="absolute top-3 right-3 text-xs text-rose-400 hover:text-rose-300 font-medium"
                 >
                   Remove Tier
                 </button>
@@ -412,7 +410,7 @@ export default function NewEventPage() {
                       type="color"
                       value={tier.tierColor}
                       onChange={(e) => updateTier(index, 'tierColor', e.target.value)}
-                      className="h-9 w-full bg-[#0B0F17] border border-slate-800 rounded-md"
+                      className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -483,7 +481,7 @@ export default function NewEventPage() {
           <button
             type="button"
             onClick={addTier}
-            className="text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-white transition"
+            className="text-[13px] text-slate-400 hover:text-white transition font-medium"
           >
             + Add another tier
           </button>
@@ -491,7 +489,7 @@ export default function NewEventPage() {
 
         {/* Entry & fees */}
         <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Entry &amp; Fees</h3>
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Entry &amp; Fees</h3>
           <div>
             <label className={labelClass}>Re-entries allowed per ticket</label>
             <div className="mt-1 max-w-[10rem]">

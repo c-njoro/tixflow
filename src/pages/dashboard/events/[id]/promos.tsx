@@ -7,6 +7,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
+import { formatDateTime } from '@/lib/format';
 
 interface PromoRow {
   id: string;
@@ -33,14 +35,6 @@ interface Tier {
   price: number;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const describe = (p: Pick<PromoRow, 'discountType' | 'discountValue'>) =>
@@ -146,8 +140,8 @@ export default function PromoCodesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Promo Codes</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Promo Codes</h1>
+          <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -163,7 +157,7 @@ export default function PromoCodesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="space-y-3 lg:col-span-2">
           {!rows ? (
-            <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading...</p>
+            <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading...</p>
           ) : rows.length === 0 ? (
             <div className={`${cardClass} space-y-2`}>
               <h2 className="text-sm font-semibold text-white">Discounts buyers type at checkout</h2>
@@ -178,22 +172,22 @@ export default function PromoCodesPage() {
               <div key={p.id} className={`${cardClass} space-y-3 ${p.isActive ? '' : 'opacity-60'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-lg font-mono font-bold text-white tracking-wider">
+                    <p className="text-lg font-bold text-white tracking-[0.06em]">
                       {p.code}
-                      {!p.isActive && <span className="ml-2 text-[10px] font-mono uppercase text-slate-500">Paused</span>}
+                      {!p.isActive && <span className="ml-2 text-[11px] uppercase text-slate-500 font-medium">Paused</span>}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {describe(p)} · {p.eventId ? tierNames(p.tierIds) : 'All your events'}
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {p.maxUses ? `${p.usedCount} / ${p.maxUses} used` : `${p.usedCount} used`}
-                      {p.endsAt && ` · ends ${new Date(p.endsAt).toLocaleString()}`}
+                      {p.endsAt && ` · ends ${formatDateTime(p.endsAt)}`}
                       {p.promoterName && ` · promoter: ${p.promoterName}`}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-white">{kes(p.revenue)}</p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                       {p.orders} order{p.orders === 1 ? '' : 's'} · {kes(p.discountGiven)} off
                     </p>
                   </div>
@@ -214,7 +208,7 @@ export default function PromoCodesPage() {
         </div>
 
         <form onSubmit={create} className={`${cardClass} space-y-4`}>
-          <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">New Code</h2>
+          <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">New Code</h2>
           <div>
             <label className={labelClass}>Code</label>
             <input
@@ -222,7 +216,7 @@ export default function PromoCodesPage() {
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
               placeholder="MUKURU"
-              className={`${inputClass} mt-1 font-mono uppercase`}
+              className={`${inputClass} mt-1 uppercase font-medium`}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">

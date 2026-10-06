@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface Room {
   id: string;
@@ -18,14 +19,6 @@ interface Room {
   questionCount: number;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const REFRESH_MS = 8000;
 
@@ -110,8 +103,8 @@ export default function EventRoomsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Event Space</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Event Space</h1>
+          <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -125,7 +118,7 @@ export default function EventRoomsPage() {
       )}
 
       {!rooms ? (
-        <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading rooms...</div>
+        <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading rooms...</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
           <div className="space-y-3 lg:col-span-3">
@@ -140,22 +133,22 @@ export default function EventRoomsPage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-white truncate">{room.title}</p>
                       <span
-                        className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border shrink-0 ${
+                        className={`text-[11px] uppercase tracking-[0.08em] px-2 py-0.5 rounded border shrink-0 ${
                           room.isOpen
                             ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
                             : 'bg-slate-800/60 text-slate-400 border-slate-700'
-                        }`}
+                        } font-medium`}
                       >
                         {room.isOpen ? 'Open' : 'Closed'}
                       </span>
                     </div>
-                    <p className="text-[11px] font-mono uppercase tracking-wider text-slate-500 mt-1">
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">
                       Code {room.joinCode} · {room.pollCount} polls · {room.questionCount} questions · invites {room.inviteStatus}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-xl font-bold text-white">{room.activeCount}</p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">here now</p>
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">here now</p>
                   </div>
                 </Link>
               ))
@@ -182,7 +175,7 @@ export default function EventRoomsPage() {
 
           {isAdmin && (
             <div className={`${cardClass} space-y-4 lg:col-span-2`}>
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
+              <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                 {hasRooms ? 'Add another room' : 'Create the first room'}
               </h3>
               <div>

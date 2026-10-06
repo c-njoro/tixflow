@@ -8,6 +8,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import TicketCard from '@/components/TicketCard';
+import { cardClass, inputClass } from '@/lib/ui';
 
 interface Plan {
   status: 'active' | 'completed' | 'expired' | 'cancelled';
@@ -28,9 +29,6 @@ const kes = (n: number) => `KES ${n.toLocaleString('en-KE', { maximumFractionDig
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' });
 
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition';
 
 export default function PlanPage() {
   const router = useRouter();
@@ -120,14 +118,14 @@ export default function PlanPage() {
         {error ? (
           <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
         ) : !plan ? (
-          <p className="text-center text-xs font-mono uppercase tracking-widest text-slate-500 pt-20">Loading...</p>
+          <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (
           <>
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+              <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">
                 Lipa Pole Pole · {plan.event?.organiser}
               </p>
-              <h1 className="text-2xl font-bold mt-1">{plan.event?.title}</h1>
+              <h1 className="font-display text-2xl font-semibold mt-1">{plan.event?.title}</h1>
               {plan.event && (
                 <p className="text-sm text-slate-400 mt-1">
                   {when(plan.event.date)} · {plan.event.location}
@@ -183,7 +181,7 @@ export default function PlanPage() {
                 <form onSubmit={pay} className={`${cardClass} space-y-3`}>
                   <h2 className="text-sm font-semibold">Pay the next instalment</h2>
                   <div>
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">Amount (KES)</label>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">Amount (KES)</label>
                     <input
                       type="number"
                       min={plan.minPayment}
@@ -211,7 +209,7 @@ export default function PlanPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">M-Pesa number</label>
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">M-Pesa number</label>
                     <input
                       type="tel"
                       value={phone}
@@ -233,7 +231,7 @@ export default function PlanPage() {
 
             {plan.payments.length > 0 && (
               <div className={`${cardClass} space-y-2`}>
-                <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Payments</h2>
+                <h2 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Payments</h2>
                 <table className="w-full text-sm">
                   <tbody>
                     {plan.payments.map((p, i) => (

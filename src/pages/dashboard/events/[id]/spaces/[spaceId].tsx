@@ -10,6 +10,7 @@ import JoinQr from '@/components/space/JoinQr';
 import PollResults from '@/components/space/PollResults';
 import DocumentPage from '@/components/space/DocumentPage';
 import type { PollResults as Results, ScreenMode, SpaceDocument } from '@/components/space/types';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface AdminPoll {
   id: string;
@@ -63,14 +64,6 @@ type Tab = 'polls' | 'questions' | 'documents' | 'announcements' | 'settings';
 const REFRESH_MS = 4000;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-800 text-slate-300 border-slate-700',
@@ -104,7 +97,7 @@ const fileToDataUrl = (file: File): Promise<string> =>
 
 function Badge({ status }: { status: string }) {
   return (
-    <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[status]}`}>
+    <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[status]} font-medium`}>
       {status}
     </span>
   );
@@ -195,15 +188,15 @@ export default function EventSpacePage() {
   const pendingCount = space?.questions.filter((q) => q.status === 'pending').length ?? 0;
 
   if (loading) {
-    return <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading Event Space...</div>;
+    return <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading Event Space...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">{space?.title || 'Event Space'}</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">{space?.title || 'Event Space'}</h1>
+          <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}/spaces`} className={buttonClass}>
@@ -228,12 +221,12 @@ export default function EventSpacePage() {
             <>
               <div className={`${cardClass} space-y-3`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Projector shows</h3>
+                  <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Projector shows</h3>
                   <a
                     href={`/space/${space.joinCode}/screen`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-mono uppercase tracking-wider text-sky-400 hover:text-sky-300"
+                    className="text-[13px] text-sky-400 hover:text-sky-300 font-medium"
                   >
                     Open projector screen ↗
                   </a>
@@ -245,11 +238,11 @@ export default function EventSpacePage() {
                       type="button"
                       disabled={busy}
                       onClick={() => patch({ screenMode: m.value })}
-                      className={`py-2.5 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
+                      className={`py-2.5 text-[13px] rounded-md border transition ${
                         space.screenMode === m.value
                           ? 'bg-white text-black border-white'
                           : 'border-slate-700 text-slate-300 hover:bg-slate-800'
-                      }`}
+                      } font-medium`}
                     >
                       {m.label}
                     </button>
@@ -271,9 +264,9 @@ export default function EventSpacePage() {
                     key={value}
                     type="button"
                     onClick={() => setTab(value)}
-                    className={`px-4 py-2.5 text-xs font-mono uppercase tracking-wider whitespace-nowrap border-b-2 -mb-px transition ${
+                    className={`px-4 py-2.5 text-[13px] whitespace-nowrap border-b-2 -mb-px transition ${
                       tab === value ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-slate-300'
-                    }`}
+                    } font-medium`}
                   >
                     {label}
                   </button>
@@ -333,7 +326,7 @@ function Overview({
       <div className={`${cardClass} flex flex-col sm:flex-row lg:col-span-2 gap-5`}>
         <div className="shrink-0 flex flex-col items-center gap-2">
           <JoinQr joinCode={space.joinCode} size={168} className="p-2" downloadName={`event-space-${space.joinCode}.png`} />
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Click to download</span>
+          <span className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">Click to download</span>
         </div>
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-center gap-2">
@@ -342,7 +335,7 @@ function Overview({
           </div>
           <div>
             <p className={labelClass}>Join code</p>
-            <p className="text-2xl font-mono font-bold tracking-[0.3em] text-white mt-1">{space.joinCode}</p>
+            <p className="text-2xl tabular-nums font-bold tracking-[0.3em] text-white mt-1">{space.joinCode}</p>
           </div>
           <div className="flex items-center gap-2">
             <code className="text-xs text-slate-400 truncate">{attendeeUrl}</code>
@@ -446,7 +439,7 @@ function PollsTab({ space, busy, call, patch }: TabProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
       <form onSubmit={create} className={`${cardClass} space-y-4 lg:col-span-2`}>
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">New poll</h3>
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">New poll</h3>
         <div>
           <label className={labelClass}>Question</label>
           <input value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={200} className={`${inputClass} mt-1`} placeholder="What topic should we cover next?" />
@@ -462,9 +455,9 @@ function PollsTab({ space, busy, call, patch }: TabProps) {
               key={value}
               type="button"
               onClick={() => setKind(value)}
-              className={`py-2 px-2 text-[11px] font-mono uppercase tracking-wider rounded-md border transition ${
+              className={`py-2 px-2 text-xs rounded-md border transition ${
                 kind === value ? 'bg-white text-black border-white' : 'border-slate-700 text-slate-300 hover:bg-slate-800'
-              }`}
+              } font-medium`}
             >
               {label}
             </button>
@@ -511,7 +504,7 @@ function PollsTab({ space, busy, call, patch }: TabProps) {
 
       <div className="space-y-3 lg:col-span-3">
         {space.polls.length === 0 ? (
-          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
             No polls yet — prepare them before the session
           </div>
         ) : (
@@ -522,7 +515,7 @@ function PollsTab({ space, busy, call, patch }: TabProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white break-words">{poll.question}</p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mt-1">
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">
                       {poll.kind === 'choice' ? 'Multiple choice' : 'Word cloud'} · {poll.responseCount} responses
                       {isCurrent && <span className="text-emerald-400"> · on attendees&apos; phones</span>}
                     </p>
@@ -570,7 +563,7 @@ function PollsTab({ space, busy, call, patch }: TabProps) {
                     onClick={() => {
                       if (confirm('Delete this poll and all its responses?')) call(`/polls/${poll.id}`, 'DELETE');
                     }}
-                    className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-rose-400 hover:text-rose-300 disabled:opacity-40"
+                    className="px-3 py-1.5 text-[13px] text-rose-400 hover:text-rose-300 disabled:opacity-40 font-medium"
                   >
                     Delete
                   </button>
@@ -643,9 +636,9 @@ function QuestionsTab({ space, busy, call, patch }: TabProps) {
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider rounded-md transition ${
+              className={`px-3 py-1.5 text-xs rounded-md transition ${
                 filter === f ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'
-              }`}
+              } font-medium`}
             >
               {f} ({f === 'all' ? space.questions.length : counts[f] || 0})
             </button>
@@ -663,7 +656,7 @@ function QuestionsTab({ space, busy, call, patch }: TabProps) {
       </div>
 
       {shown.length === 0 ? (
-        <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+        <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
           No questions here
         </div>
       ) : (
@@ -673,10 +666,10 @@ function QuestionsTab({ space, busy, call, patch }: TabProps) {
             return (
               <div key={q.id} className={`${cardClass} flex flex-col md:flex-row md:items-center gap-3 ${spotlit ? 'border-sky-700/60' : ''}`}>
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="w-10 text-center text-lg font-mono text-sky-300 shrink-0">▲{q.upvotes}</span>
+                  <span className="w-10 text-center text-lg tabular-nums text-sky-300 shrink-0">▲{q.upvotes}</span>
                   <div className="min-w-0">
                     <p className="text-sm text-white break-words">{q.text}</p>
-                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mt-1">
+                    <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">
                       {q.authorName || 'Anonymous'} · {formatDate(q.createdAt)}
                       {spotlit && <span className="text-sky-400"> · on projector</span>}
                     </p>
@@ -721,7 +714,7 @@ function QuestionsTab({ space, busy, call, patch }: TabProps) {
                     onClick={() => {
                       if (confirm('Delete this question?')) call(`/questions/${q.id}`, 'DELETE');
                     }}
-                    className="px-2 text-xs font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-40"
+                    className="px-2 text-[13px] text-rose-400 hover:text-rose-300 disabled:opacity-40 font-medium"
                   >
                     Delete
                   </button>
@@ -788,7 +781,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
       <div className="space-y-4 lg:col-span-2">
         <form onSubmit={upload} className={`${cardClass} space-y-4`}>
-          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Share a document</h3>
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Share a document</h3>
           <div>
             <label className={labelClass}>Title</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="Programme" className={`${inputClass} mt-1`} />
@@ -800,7 +793,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
               type="file"
               accept="application/pdf,image/png,image/jpeg,image/webp"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="mt-1 block w-full text-sm text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-mono file:uppercase file:bg-slate-800 file:text-slate-200"
+              className="mt-1 block w-full text-sm text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[13px] file: file: file:bg-slate-800 file:text-slate-200 font-medium"
             />
           </div>
           {fileError && <p className="text-xs text-rose-400">{fileError}</p>}
@@ -810,7 +803,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
         </form>
 
         {space.documents.length === 0 ? (
-          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
             No documents yet
           </div>
         ) : (
@@ -819,7 +812,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
               <div key={doc.id} className={`${cardClass} flex items-center gap-3 ${presenting?.id === doc.id ? 'border-emerald-800/60' : ''}`}>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-white truncate">{doc.title}</p>
-                  <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mt-0.5">
+                  <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-0.5 font-medium">
                     {doc.format} · {doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'}
                   </p>
                 </div>
@@ -838,7 +831,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
                   onClick={() => {
                     if (confirm(`Delete "${doc.title}"?`)) call(`/documents/${doc.id}`, 'DELETE');
                   }}
-                  className="text-xs font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-40"
+                  className="text-[13px] text-rose-400 hover:text-rose-300 disabled:opacity-40 font-medium"
                 >
                   Delete
                 </button>
@@ -853,7 +846,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-emerald-400">
+                <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-emerald-400 font-medium">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Presenting
                 </p>
                 <p className="text-sm font-semibold text-white mt-1">{presenting.title}</p>
@@ -872,7 +865,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
               <button type="button" disabled={busy || page <= 1} onClick={() => goTo(page - 1)} className={primaryButtonClass}>
                 ← Prev
               </button>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs tabular-nums text-slate-400">
                 Page {page} / {presenting.pageCount}
               </span>
               <button type="button" disabled={busy || page >= presenting.pageCount} onClick={() => goTo(page + 1)} className={primaryButtonClass}>
@@ -885,7 +878,7 @@ function DocumentsTab({ space, busy, call, patch }: TabProps) {
           </>
         ) : (
           <div className="py-16 text-center">
-            <p className="text-xs font-mono uppercase tracking-widest text-slate-500">Not presenting</p>
+            <p className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Not presenting</p>
             <p className="text-sm text-slate-400 mt-2">
               Press &ldquo;Present&rdquo; on a document and attendees&apos; phones will follow the page you&apos;re on.
             </p>
@@ -907,7 +900,7 @@ function AnnouncementsTab({ space, busy, patch }: Omit<TabProps, 'call'>) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <form onSubmit={send} className={`${cardClass} space-y-3`}>
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">Post an announcement</h3>
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Post an announcement</h3>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -922,7 +915,7 @@ function AnnouncementsTab({ space, busy, patch }: Omit<TabProps, 'call'>) {
       </form>
       <div className="space-y-2">
         {space.announcements.length === 0 ? (
-          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
             No announcements yet
           </div>
         ) : (
@@ -930,7 +923,7 @@ function AnnouncementsTab({ space, busy, patch }: Omit<TabProps, 'call'>) {
             {space.announcements.map((a) => (
               <div key={a.createdAt} className={cardClass}>
                 <p className="text-sm text-white whitespace-pre-wrap break-words">{a.text}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mt-1">{formatDate(a.createdAt)}</p>
+                <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">{formatDate(a.createdAt)}</p>
               </div>
             ))}
             <button
@@ -981,7 +974,7 @@ function SettingsTab({
         </button>
       </div>
       <div className="p-5 border border-rose-900/50 rounded-xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-rose-400">Delete this room</h3>
+        <h3 className="text-xs uppercase tracking-[0.08em] text-rose-400 font-medium">Delete this room</h3>
         <p className="text-sm text-slate-400">
           Removes every poll, response, question and document. The join link stops working. This can&apos;t be undone.
         </p>
@@ -991,7 +984,7 @@ function SettingsTab({
           onClick={() => {
             if (confirm("Delete this room and everything in it?")) onDelete();
           }}
-          className="px-4 py-2 text-xs font-mono uppercase tracking-wider border border-rose-800 text-rose-400 rounded-md hover:bg-rose-950/40 transition disabled:opacity-40"
+          className="px-4 py-2 text-[13px] border border-rose-800 text-rose-400 rounded-md hover:bg-rose-950/40 transition disabled:opacity-40 font-medium"
         >
           Delete room
         </button>

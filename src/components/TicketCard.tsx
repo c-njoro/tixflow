@@ -17,7 +17,7 @@ export default function TicketCard({ ticketCode, label }: { ticketCode: string; 
       ) : (
         <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-slate-900" style={{ aspectRatio: '2 / 3' }}>
           {!loaded && (
-            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-mono uppercase tracking-widest text-slate-500 animate-pulse">
+            <div className="absolute inset-0 flex items-center justify-center text-[11px] uppercase tracking-[0.08em] text-slate-500 animate-pulse font-medium">
               Preparing ticket…
             </div>
           )}

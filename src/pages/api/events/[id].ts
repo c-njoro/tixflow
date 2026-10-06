@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const event = await prisma.event.findFirst({
     where: { id, tenantId: session.tenantId },
-    include: { ticketTiers: true, _count: { select: { tickets: true } } },
+    include: { ticketTiers: true, _count: { select: { tickets: true } }, tenant: { select: { slug: true } } },
   });
   if (!event) return res.status(404).json({ error: 'Event not found.' });
 

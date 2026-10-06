@@ -1,139 +1,109 @@
 // components/dashboard/DashboardLayout.tsx
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
-import {
-  Squares2X2Icon,
-  CalendarDaysIcon,
-  Bars2Icon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, ArrowLeftStartOnRectangleIcon } from "@heroicons/react/24/outline";
+import Sidebar, { DASHBOARD_NAV, isNavActive, Wordmark } from "./Sidebar";
+import { useAuth } from "@/context/AuthContext";
+
+const COLLAPSE_KEY = "tixflow:sidebar-collapsed";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
+  const nav = DASHBOARD_NAV.filter((item) => !item.adminOnly || isAdmin);
 
-  const mobileNavigation = [
-    { name: "Home", href: "/dashboard", icon: Squares2X2Icon },
-    { name: "Events", href: "/dashboard/events", icon: CalendarDaysIcon },
-  ];
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+    } catch {}
+  }, []);
+
+  // Close the mobile menu on navigation.
+  useEffect(() => {
+    const close = () => setMenuOpen(false);
+    router.events.on("routeChangeStart", close);
+    return () => router.events.off("routeChangeStart", close);
+  }, [router.events]);
+
+  const toggle = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, c ? "0" : "1");
+      } catch {}
+      return !c;
+    });
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex relative w-full">
-      {/* SIDEBAR (DESKTOP ONLY) */}
+    <div className="h-dvh overflow-hidden bg-[#0B0F17] text-slate-100 flex w-full">
       <div className="hidden md:block h-full shrink-0">
-        <Sidebar collapsed={sidebarCollapsed} />
+        <Sidebar collapsed={collapsed} onToggle={toggle} />
       </div>
 
-      {/* MAIN WORKSPACE CONTENT CONTAINER */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
-        {/* Floating Centered Desktop Header */}
-        <Header
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
+      <div className="flex-1 flex flex-col h-full min-w-0">
+        {/* Mobile top bar */}
+        <header className="md:hidden h-14 shrink-0 flex items-center justify-between px-4 border-b border-slate-800/70 bg-[#0B0F17]">
+          <Link href="/dashboard" aria-label="Tixflow dashboard">
+            <Wordmark />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="w-10 h-10 -mr-2 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800/50"
+          >
+            {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
+          </button>
+        </header>
 
-        {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto p-5 md:p-8 pt-6 md:pt-24 pb-28 md:pb-8">
-          <div className="max-w-7xl mx-auto w-full px-2 sm:px-4">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10">{children}</div>
         </main>
       </div>
 
-      {/* FLOATING MOBILE BOTTOM BAR */}
-      <div className="fixed bottom-5 left-4 right-4 h-14 bg-[#131924]/75 backdrop-blur-xl border border-slate-800/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-xl z-50 flex md:hidden items-center justify-between px-6">
-        {/* Mobile Quick Links */}
-        <div className="flex items-center space-x-6">
-          {mobileNavigation.map((item) => {
-            const isActive = router.pathname === item.href;
+      {/* Mobile menu sheet */}
+      <div
+        className={`md:hidden fixed inset-x-0 top-14 bottom-0 z-40 bg-[#0B0F17] border-t border-slate-800/70 flex flex-col transition-[opacity,transform] duration-200 ease-out ${
+          menuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+        }`}
+      >
+        <nav className="flex-1 px-4 py-4 space-y-1">
+          {nav.map((item) => {
+            const active = isNavActive(router.pathname, item.href);
             const Icon = item.icon;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center space-y-0.5 transition ${isActive ? "text-white" : "text-slate-500"}`}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 px-3 h-12 rounded-lg text-base font-medium ${
+                  active ? "bg-slate-800/70 text-white" : "text-slate-300"
+                }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-[9px] font-mono uppercase tracking-wider">
-                  {item.name}
-                </span>
+                <Icon className="w-5 h-5 text-slate-500" />
+                {item.name}
               </Link>
             );
           })}
-        </div>
-
-        {/* Center Logo */}
-        <div className="text-[10px] font-mono font-bold tracking-widest text-slate-500 uppercase select-none">
-          TIXFLOW
-        </div>
-
-        {/* Menu Toggle */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex flex-col items-center justify-center text-slate-400 hover:text-white transition"
-        >
-          {mobileMenuOpen ? (
-            <XMarkIcon className="w-5 h-5 text-slate-200" />
-          ) : (
-            <Bars2Icon className="w-5 h-5" />
+        </nav>
+        <div className="border-t border-slate-800/70 p-4 space-y-3">
+          {user && (
+            <div className="px-3">
+              <div className="text-sm font-medium text-slate-200">{user.name}</div>
+              <div className="text-xs text-slate-500">{user.email}</div>
+            </div>
           )}
-          <span className="text-[9px] font-mono uppercase tracking-wider mt-0.5">
-            Menu
-          </span>
-        </button>
-      </div>
-
-      {/* MOBILE FULL SCREEN MENU DRAWER */}
-      <div
-        className={`fixed inset-x-0 bottom-0 top-0 bg-[#0B0F17]/98 backdrop-blur-2xl z-40 transition-all duration-300 ease-in-out md:hidden flex flex-col justify-between p-8 pt-20 ${
-          mobileMenuOpen
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-full pointer-events-none"
-        }`}
-      >
-        <div className="space-y-8">
-          <div>
-            <div className="font-mono text-base font-bold tracking-widest text-white">
-              TIXFLOW
-            </div>
-            <div className="text-[10px] font-mono text-slate-500 mt-1 uppercase tracking-wider">
-              Account Menu
-            </div>
-          </div>
-
-          <nav className="flex flex-col space-y-3">
-            {[
-              { name: "Dashboard Overview", href: "/dashboard" },
-              { name: "Events Manager", href: "/dashboard/events" },
-              { name: "Promoters", href: "/dashboard/promoters" },
-              { name: "Ticket Ledgers", href: "/dashboard/tickets" },
-              { name: "Settings", href: "/dashboard/settings" },
-            ].map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-mono uppercase tracking-wider py-3 border-b border-slate-900 transition ${
-                  router.pathname === item.href
-                    ? "text-white border-slate-700/50"
-                    : "text-slate-400"
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="border-t border-slate-900 pt-6">
           <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="w-full text-center py-3 border border-slate-800 bg-[#131924]/60 text-xs font-mono uppercase tracking-widest text-slate-400 hover:text-white rounded-lg transition"
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 h-11 rounded-lg border border-slate-800 text-sm font-medium text-slate-300 hover:text-rose-300"
           >
-            Close Menu
+            <ArrowLeftStartOnRectangleIcon className="w-4 h-4" />
+            Sign out
           </button>
         </div>
       </div>

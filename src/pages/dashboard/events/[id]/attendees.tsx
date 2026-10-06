@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { inputClass, labelClass } from '@/lib/ui';
 
 interface Tier {
   id: string;
@@ -40,9 +41,6 @@ const STATUS_STYLES: Record<string, string> = {
   refunded: 'bg-amber-950/40 text-amber-400 border-amber-800/50',
 };
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
 
 export default function AttendeesPage() {
   const router = useRouter();
@@ -183,17 +181,17 @@ export default function AttendeesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">
             Attendees
           </h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <p className="text-sm text-slate-400 mt-1">
             {event ? event.title : 'Loading event...'}
           </p>
         </div>
         {typeof id === 'string' && (
           <Link
             href={`/dashboard/events/${id}`}
-            className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
+            className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition font-medium"
           >
             Back to Event
           </Link>
@@ -214,7 +212,7 @@ export default function AttendeesPage() {
       {/* Issue a comp/manual ticket — admin only */}
       {isAdmin && (
       <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
-        <h3 className="text-xs font-mono uppercase tracking-widest text-slate-400">
+        <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
           Issue Ticket Manually
         </h3>
         <p className="text-xs text-slate-500 -mt-2">
@@ -279,7 +277,7 @@ export default function AttendeesPage() {
               type="button"
               onClick={handleIssueTicket}
               disabled={issuing}
-              className="w-full px-3 py-2 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50"
+              className="w-full px-3 py-2 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-50 font-medium"
             >
               {issuing ? 'Issuing...' : 'Issue & Send'}
             </button>
@@ -318,12 +316,12 @@ export default function AttendeesPage() {
 
       {/* Attendee table */}
       {loading ? (
-        <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+        <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
           Loading attendees...
         </div>
       ) : tickets.length === 0 ? (
         <div className="p-8 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 flex flex-col items-center justify-center text-center min-h-[160px]">
-          <p className="text-xs font-mono text-slate-400 uppercase tracking-widest">
+          <p className="text-xs text-slate-400 uppercase tracking-[0.08em] font-medium">
             No attendees yet
           </p>
         </div>
@@ -332,11 +330,11 @@ export default function AttendeesPage() {
           <table className="w-full text-sm">
             <thead className="bg-[#0E131F] text-left">
               <tr>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Buyer</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Tier</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Code</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Status</th>
-                <th className="p-3 text-xs font-mono uppercase tracking-wider text-slate-500">Actions</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Buyer</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Tier</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Code</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Status</th>
+                <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -348,7 +346,7 @@ export default function AttendeesPage() {
                     {ticket.whatsapp && <div className="text-xs text-slate-600">WhatsApp {ticket.whatsapp}</div>}
                   </td>
                   <td className="p-3 text-slate-300">{ticket.ticketTier.name}</td>
-                  <td className="p-3 font-mono text-xs text-slate-400">
+                  <td className="p-3 tabular-nums text-xs text-slate-400">
                     {ticket.ticketCode}{' '}
                     <a
                       href={`/api/tickets/qr/${ticket.ticketCode}`}
@@ -361,7 +359,7 @@ export default function AttendeesPage() {
                   </td>
                   <td className="p-3">
                     <span
-                      className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${STATUS_STYLES[ticket.status]}`}
+                      className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${STATUS_STYLES[ticket.status]} font-medium`}
                     >
                       {ticket.status}
                     </span>
@@ -373,7 +371,7 @@ export default function AttendeesPage() {
                           <button
                             onClick={() => handleResend(ticket)}
                             disabled={resendingId === ticket.id}
-                            className="text-[10px] font-mono uppercase text-sky-400 hover:text-sky-300 disabled:opacity-30"
+                            className="text-xs text-sky-400 hover:text-sky-300 disabled:opacity-30 font-medium"
                           >
                             {resendingId === ticket.id ? 'Sending…' : 'Resend'}
                           </button>
@@ -381,14 +379,14 @@ export default function AttendeesPage() {
                         <button
                           onClick={() => handleUpdateStatus(ticket.id, 'cancelled')}
                           disabled={updatingId === ticket.id}
-                          className="text-[10px] font-mono uppercase text-rose-400 hover:text-rose-300 disabled:opacity-30"
+                          className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-30 font-medium"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={() => handleUpdateStatus(ticket.id, 'refunded')}
                           disabled={updatingId === ticket.id}
-                          className="text-[10px] font-mono uppercase text-amber-400 hover:text-amber-300 disabled:opacity-30"
+                          className="text-xs text-amber-400 hover:text-amber-300 disabled:opacity-30 font-medium"
                         >
                           Refund
                         </button>

@@ -32,7 +32,7 @@ export default function PlatformAdminLoginPage() {
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white flex items-center justify-center px-6">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-sm font-mono uppercase tracking-widest text-slate-400 text-center">
+        <h1 className="text-sm uppercase tracking-[0.08em] text-slate-400 text-center font-medium">
           Platform Admin
         </h1>
 

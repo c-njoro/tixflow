@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface Question {
   id: string;
@@ -32,14 +33,6 @@ interface Survey {
   results: { responseCount: number; questions: Result[] };
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 // Validated on the dashboard surface (see gate.tsx).
 const BAR_COLOR = '#0284c7';
 const TRACK_COLOR = '#0c2a40';
@@ -120,8 +113,8 @@ export default function FeedbackDashboard() {
   const header = (
     <div className="flex items-start justify-between gap-3">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Feedback</h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Feedback</h1>
+        <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
       </div>
       {id && (
         <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -135,7 +128,7 @@ export default function FeedbackDashboard() {
     return (
       <div className="space-y-6">
         {header}
-        <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">{error || 'Loading...'}</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">{error || 'Loading...'}</p>
       </div>
     );
   }
@@ -227,9 +220,9 @@ export default function FeedbackDashboard() {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-xs font-mono uppercase tracking-wider border-b-2 -mb-px ${
+            className={`px-4 py-2.5 text-[13px] border-b-2 -mb-px ${
               tab === t ? 'border-white text-white' : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
+            } font-medium`}
           >
             {t === 'results' ? `Results (${survey.results.responseCount})` : 'Questions & settings'}
           </button>
@@ -238,7 +231,7 @@ export default function FeedbackDashboard() {
 
       {tab === 'results' ? (
         survey.results.responseCount === 0 ? (
-          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+          <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
             No responses yet
           </div>
         ) : (
@@ -247,7 +240,7 @@ export default function FeedbackDashboard() {
               <div key={r.id} className={`${cardClass} space-y-3`}>
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-sm font-semibold text-white">{r.prompt}</p>
-                  <p className="text-xs font-mono text-slate-500 shrink-0">{r.count} answers</p>
+                  <p className="text-xs tabular-nums text-slate-500 shrink-0">{r.count} answers</p>
                 </div>
                 {r.kind === 'rating' && (
                   <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-6 items-center">
@@ -261,11 +254,11 @@ export default function FeedbackDashboard() {
                         const pct = r.count ? Math.round((count / r.count) * 100) : 0;
                         return (
                           <div key={star} className="flex items-center gap-3 text-xs">
-                            <span className="w-10 text-slate-400 font-mono">{star} ★</span>
+                            <span className="w-10 text-slate-400 tabular-nums">{star} ★</span>
                             <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: TRACK_COLOR }}>
                               <div className="h-full rounded-full" style={{ width: `${pct}%`, background: BAR_COLOR }} />
                             </div>
-                            <span className="w-16 text-right text-slate-400 font-mono">
+                            <span className="w-16 text-right text-slate-400 tabular-nums">
                               {count} · {pct}%
                             </span>
                           </div>
@@ -282,7 +275,7 @@ export default function FeedbackDashboard() {
                         <div key={o} className="text-xs space-y-1">
                           <div className="flex justify-between text-slate-300">
                             <span>{o}</span>
-                            <span className="font-mono text-slate-400">
+                            <span className="tabular-nums text-slate-400">
                               {r.counts[i]} · {pct}%
                             </span>
                           </div>
@@ -400,7 +393,7 @@ export default function FeedbackDashboard() {
                   >
                     ↑
                   </button>
-                  <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, k) => k !== i))} className="px-2 text-xs font-mono uppercase text-rose-400">
+                  <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, k) => k !== i))} className="px-2 text-[13px] text-rose-400 font-medium">
                     Remove
                   </button>
                 </div>

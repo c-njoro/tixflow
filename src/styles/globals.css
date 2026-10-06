@@ -1,38 +1,156 @@
 @import "tailwindcss";
 
+/*
+ * Tixflow — dark, minimal.
+ * Colour: the existing ink/panel palette (slate on near-black blue), with
+ * emerald/rose/amber/sky reserved for state. Type: Bricolage Grotesque for
+ * headlines (font-display), Geist for everything else, Geist Mono only for
+ * ticket codes and figures.
+ */
+
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-ink: #0b0f17; /* page */
+  --color-deep: #080a10; /* recessed bands */
+  --color-panel: #0e131f; /* cards, sidebar */
+  --color-raised: #131924; /* floating bars, popovers */
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: "Poppins", Arial, Helvetica, sans-serif;
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Poppins", Arial, Helvetica, sans-serif;
+  color-scheme: dark;
+  --focus: #e2e8f0;
 }
 
 html {
-  font-size: clamp(14px, 1.2vw, 18px);
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  scrollbar-color: #283142 transparent;
+}
+
+body {
+  background: var(--color-ink);
+  color: #e2e8f0;
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: #f8fafc;
+}
+
+/* Headlines: the display face, tight but never cramped. */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.025em;
+  font-variation-settings: "wdth" 96;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Figures line up in tables, totals and counters. */
+.font-mono,
+.tabular-nums,
+table {
+  font-variant-numeric: tabular-nums;
+}
+.font-mono {
+  letter-spacing: 0;
+}
+
+::selection {
+  background: rgba(226, 232, 240, 0.22);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* Scrollbars in the palette, not the OS default. */
+* {
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #232b3a;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33405a;
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+
+/* Browser autofill keeps the dark field instead of turning yellow. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0 1000px #0b0f17 inset;
+  transition: background-color 9999s ease-out;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+/* Native controls in the palette. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #e2e8f0;
+}
+input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+select option {
+  background: #0e131f;
+  color: #e2e8f0;
+}
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.75);
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -41,5 +159,16 @@ html {
 }
 
 .animate-fade-up {
-  animation: fade-up 0.6s ease-out forwards;
+  animation: fade-up 0.5s var(--ease-out-expo) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

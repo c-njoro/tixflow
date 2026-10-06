@@ -300,135 +300,113 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
     event.galleryImages?.map((img) => img.url) ||
     [];
 
+  const nairobi = { timeZone: 'Africa/Nairobi' } as const;
+  const dateLine = eventDate.toLocaleDateString('en-KE', { ...nairobi, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeLine = eventDate.toLocaleTimeString('en-KE', { ...nairobi, hour: '2-digit', minute: '2-digit', hour12: false });
+  const endLine = event.endDate
+    ? new Date(event.endDate).toLocaleDateString('en-KE', { ...nairobi, weekday: 'short', day: 'numeric', month: 'short' })
+    : null;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
+
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white antialiased selection:bg-white/20">
-      {/* Nav */}
-      <header className="fixed top-0 left-0 right-0 z-40 border-b border-slate-800/40 bg-[#0B0F17]/80 backdrop-blur-xl">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
-          {tenant.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={tenant.logoUrl}
-              alt={tenant.businessName}
-              className="h-8 w-8 rounded-lg object-cover ring-1 ring-slate-700/50"
-            />
-          )}
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
-            {tenant.businessName}
-          </span>
+    <div className="min-h-screen bg-[#0B0F17] text-white">
+      <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-[#0B0F17]/90 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <a href={`/${tenant.slug}`} className="flex items-center gap-3 min-w-0">
+            {tenant.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={tenant.logoUrl} alt="" className="h-8 w-8 rounded-lg object-cover ring-1 ring-slate-700/50" />
+            ) : (
+              <span className="grid place-items-center h-8 w-8 rounded-lg bg-slate-800 text-sm font-semibold text-slate-200">
+                {tenant.businessName.slice(0, 1)}
+              </span>
+            )}
+            <span className="text-sm font-medium text-slate-200 truncate">{tenant.businessName}</span>
+          </a>
+          <a href="/lookup" className="px-3 h-9 inline-flex items-center rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors">
+            My tickets
+          </a>
         </div>
       </header>
 
-      <main className="pt-16">
-        {/* Hero */}
-        <div className="relative">
-          {event.coverImageUrl ? (
-            <div className="relative h-72 sm:h-96 w-full overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.coverImageUrl}
-                alt={event.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F17] via-[#0B0F17]/60 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#0B0F17]/40 to-transparent" />
-            </div>
-          ) : (
-            <div className="h-32 bg-[#0E131F]" />
-          )}
-
-          <div className="relative max-w-3xl mx-auto px-6 -mt-24 sm:-mt-32 pb-8">
-            <div className="space-y-4">
-              {event.category && (
-                <div className="inline-flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md bg-slate-800/60 border border-slate-700/40 text-[10px] font-mono uppercase tracking-widest text-slate-400">
-                    {event.category}
-                  </span>
-                  {isUpcoming && (
-                    <span className="px-2.5 py-1 rounded-md bg-emerald-950/30 border border-emerald-800/30 text-[10px] font-mono uppercase tracking-widest text-emerald-400">
-                      On Sale
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight">
-                {event.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-400">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-slate-500" />
-                  <span>
-                    {eventDate.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                    {event.endDate && (
-                      <>
-                        {' '}
-                        —{' '}
-                        {new Date(event.endDate).toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </>
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPinIcon className="w-4 h-4 text-slate-500" />
-                  <span>{event.location}</span>
-                </div>
-              </div>
-            </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-40 lg:pb-24">
+        {event.coverImageUrl && (
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-[#131924] aspect-[16/9] sm:aspect-[21/9]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={event.coverImageUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
           </div>
-        </div>
+        )}
 
-        <div className="max-w-3xl mx-auto px-6 space-y-10 pb-32">
-          {/* Description */}
-          {event.description && (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <p className="text-slate-300 leading-relaxed whitespace-pre-line text-[15px]">
-                {event.description}
-              </p>
+        <div className="mt-8 sm:mt-10 grid gap-10 lg:gap-14 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {event.category && <span className="text-slate-400">{event.category}</span>}
+              {event.category && isUpcoming && <span className="text-slate-700">·</span>}
+              {isUpcoming && (
+                <span className="inline-flex items-center gap-1.5 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  On sale
+                </span>
+              )}
             </div>
-          )}
 
-          {/* Gallery */}
-          {galleryUrls.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">
-                Gallery
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {galleryUrls.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <div
-                    key={i}
-                    className="aspect-[4/3] overflow-hidden rounded-xl ring-1 ring-slate-800/50"
-                  >
-                    <img
-                      src={url}
-                      alt=""
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                ))}
+            <h1 className="mt-3 font-display text-[2.5rem] sm:text-6xl leading-[1] font-semibold">{event.title}</h1>
+
+            <dl className="mt-8 grid gap-4 sm:grid-cols-2 border-y border-slate-800/70 py-6">
+              <div className="flex gap-3">
+                <CalendarIcon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+                <div>
+                  <dt className="sr-only">Date</dt>
+                  <dd className="text-slate-100">{dateLine}</dd>
+                  <dd className="text-sm text-slate-400 tabular-nums">
+                    {timeLine}
+                    {endLine && ` — until ${endLine}`}
+                  </dd>
+                </div>
               </div>
-            </div>
-          )}
+              <div className="flex gap-3">
+                <MapPinIcon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <dt className="sr-only">Venue</dt>
+                  <dd className="text-slate-100">{event.location}</dd>
+                  <dd>
+                    <a href={mapUrl} target="_blank" rel="noreferrer" className="text-sm text-slate-400 underline hover:text-white">
+                      Open in Maps
+                    </a>
+                  </dd>
+                </div>
+              </div>
+            </dl>
 
+            {event.description && (
+              <div className="mt-8">
+                <h2 className="text-sm font-medium text-slate-400">About this event</h2>
+                <p className="mt-3 text-[17px] leading-[1.7] text-slate-300 whitespace-pre-line max-w-[65ch]">{event.description}</p>
+              </div>
+            )}
+
+            {galleryUrls.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-sm font-medium text-slate-400">Gallery</h2>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {galleryUrls.map((url, i) => (
+                    <div key={i} className="aspect-[4/3] overflow-hidden rounded-xl border border-slate-800/70 bg-[#131924]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <aside className="lg:sticky lg:top-24 space-y-4">
           {/* Ticket tiers */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">
-                Select Tickets
-              </h3>
+          <div className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display text-2xl font-semibold">Tickets</h2>
               {totalTickets > 0 && (
-                <span className="text-xs text-slate-500">
+                <span className="text-sm text-slate-400 tabular-nums">
                   {totalTickets} selected
                 </span>
               )}
@@ -451,25 +429,23 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   return (
                     <div
                       key={tier.id}
-                      className={`group relative p-5 rounded-2xl border transition-all duration-200 ${
-                        isSelected
-                          ? 'bg-[#0E131F] border-slate-600/60 ring-1 ring-slate-600/20'
-                          : 'bg-[#0E131F]/40 border-slate-800/50 hover:border-slate-700/50'
+                      className={`relative p-4 rounded-xl border transition-colors ${
+                        isSelected ? 'bg-[#0E131F] border-slate-500/70' : 'bg-[#0E131F]/50 border-slate-800/70 hover:border-slate-700'
                       } ${isSoldOut ? 'opacity-60' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 min-w-0">
                           <div
-                            className="w-3 h-3 rounded-full shrink-0 mt-1.5"
+                            className="w-2.5 h-2.5 rounded-full shrink-0 mt-[7px]"
                             style={{ backgroundColor: tier.tierColor }}
                           />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold">
+                              <span className="font-medium text-white">
                                 {tier.name}
                               </span>
                               {isSoldOut && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-rose-950/30 text-rose-400 border border-rose-800/30">
+                                <span className="px-2 py-0.5 rounded text-[11px] uppercase tracking-[0.06em] bg-rose-950/30 text-rose-400 border border-rose-800/30 font-medium">
                                   Sold Out
                                 </span>
                               )}
@@ -479,12 +455,10 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                                 {tier.description}
                               </p>
                             )}
-                            <p className="text-xs text-slate-400 mt-2 font-mono">
-                              {tier.price > 0 ? kes(tier.price) : 'Free'}
-                              {tier.available > 0 && !isSoldOut && (
-                                <span className="text-slate-600 ml-2">
-                                  · {tier.available} left
-                                </span>
+                            <p className="mt-1 text-sm tabular-nums">
+                              <span className="text-slate-100">{tier.price > 0 ? kes(tier.price) : 'Free'}</span>
+                              {tier.available > 0 && !isSoldOut && tier.available <= 20 && (
+                                <span className="text-amber-400/90 ml-2">{tier.available} left</span>
                               )}
                             </p>
                           </div>
@@ -496,7 +470,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                               type="button"
                               onClick={() => setQuantity(tier.id, qty - 1)}
                               disabled={qty === 0}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <MinusIcon className="w-3.5 h-3.5" />
                             </button>
@@ -512,7 +486,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                                 )
                               }
                               disabled={qty >= tier.available}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <PlusIcon className="w-3.5 h-3.5" />
                             </button>
@@ -525,6 +499,25 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
               </div>
             )}
           </div>
+
+          {totalTickets > 0 && checkoutStage === 'idle' && !showCheckoutForm && (
+            <div className="hidden lg:flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-800/70 bg-[#080A10]">
+              <div>
+                <div className="text-sm text-slate-400 tabular-nums">
+                  {totalTickets} ticket{totalTickets === 1 ? '' : 's'}
+                </div>
+                <div className="text-xl font-semibold tabular-nums">{isFree ? 'Free' : kes(orderTotal)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCheckoutForm(true)}
+                className="h-11 px-6 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors inline-flex items-center gap-2"
+              >
+                Checkout
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Checkout Flow */}
           <div ref={checkoutRef} className="space-y-4">
@@ -620,9 +613,9 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   </h2>
                   <p className="text-sm text-slate-400 max-w-sm mx-auto">
                     Enter your M-Pesa PIN on the prompt sent to{' '}
-                    <span className="text-slate-300 font-mono">{buyerPhone}</span>{' '}
+                    <span className="text-slate-300 tabular-nums">{buyerPhone}</span>{' '}
                     to complete payment of{' '}
-                    <span className="text-slate-200 font-mono">
+                    <span className="text-slate-200 tabular-nums">
                       KES {chargeNow.toLocaleString()}
                     </span>
                     .
@@ -659,7 +652,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                 <form onSubmit={handleInitiateCheckout} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                      <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                         First Name
                       </label>
                       <input
@@ -668,11 +661,11 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="John"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                      <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                         Last Name
                       </label>
                       <input
@@ -681,13 +674,13 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Doe"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                       Email Address
                     </label>
                     <input
@@ -696,7 +689,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerEmail}
                       onChange={(e) => setBuyerEmail(e.target.value)}
                       placeholder="john@example.com"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       Your tickets always go here — keep this safe
@@ -704,7 +697,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                       WhatsApp Number <span className="text-slate-600 normal-case">(optional)</span>
                     </label>
                     <input
@@ -712,7 +705,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerWhatsapp}
                       onChange={(e) => setBuyerWhatsapp(e.target.value)}
                       placeholder="0712345678"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       We&apos;ll also send your tickets here — email is still what matters if this doesn&apos;t go through
@@ -743,7 +736,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
 
                   {!isFree && payMethod === 'mpesa' && (
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                       M-Pesa Phone Number
                     </label>
                     <input
@@ -752,7 +745,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerPhone}
                       onChange={(e) => setBuyerPhone(e.target.value)}
                       placeholder="0712345678"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 focus:border-slate-600 transition"
+                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       You&apos;ll receive an STK push on this number
@@ -761,7 +754,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   )}
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                       Promo Code <span className="text-slate-600 normal-case">(optional)</span>
                     </label>
                     <div className="flex gap-2">
@@ -771,7 +764,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                         onKeyDown={(e) => e.key === 'Enter' && applyPromo(e)}
                         placeholder="e.g. MUKURU"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm font-mono uppercase text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
+                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition font-medium"
                       />
                       {appliedPromo && quote?.promoCode ? (
                         <button
@@ -802,23 +795,23 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                     <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-1.5 text-sm">
                       <div className="flex justify-between text-slate-400">
                         <span>Tickets</span>
-                        <span className="font-mono">{kes(quote.subtotal)}</span>
+                        <span className="tabular-nums">{kes(quote.subtotal)}</span>
                       </div>
                       {quote.discount > 0 && (
                         <div className="flex justify-between text-emerald-400">
                           <span>Promo {quote.promoCode}</span>
-                          <span className="font-mono">− {kes(quote.discount)}</span>
+                          <span className="tabular-nums">− {kes(quote.discount)}</span>
                         </div>
                       )}
                       {quote.bookingFee > 0 && (
                         <div className="flex justify-between text-slate-400">
                           <span>Booking fee</span>
-                          <span className="font-mono">{kes(quote.bookingFee)}</span>
+                          <span className="tabular-nums">{kes(quote.bookingFee)}</span>
                         </div>
                       )}
                       <div className="flex justify-between font-semibold pt-1.5 border-t border-slate-800">
                         <span>Total</span>
-                        <span className="font-mono">{kes(quote.total)}</span>
+                        <span className="tabular-nums">{kes(quote.total)}</span>
                       </div>
                     </div>
                   )}
@@ -841,7 +834,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       </label>
                       {payInInstalments && (
                         <div className="space-y-1.5 pl-7">
-                          <label className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                          <label className="text-[11px] uppercase tracking-[0.06em] text-slate-500 font-medium">
                             Deposit today (min KES {minDeposit.toLocaleString()})
                           </label>
                           <input
@@ -892,25 +885,26 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
               </div>
             ) : null}
           </div>
+          </aside>
         </div>
       </main>
 
       {/* Sticky Checkout Bar */}
       {totalTickets > 0 && checkoutStage === 'idle' && !showCheckoutForm && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/60 bg-[#0B0F17]/90 backdrop-blur-xl">
-          <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/60 bg-[#0B0F17]/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div>
-              <div className="text-xs text-slate-500 font-mono uppercase tracking-wider">
-                {totalTickets} ticket{totalTickets === 1 ? '' : 's'} selected
+              <div className="text-sm text-slate-400 tabular-nums">
+                {totalTickets} ticket{totalTickets === 1 ? '' : 's'}
               </div>
-              <div className="text-lg font-bold font-mono">
+              <div className="text-lg font-semibold tabular-nums">
                 {isFree ? 'Free' : kes(orderTotal)}
               </div>
             </div>
             <button
               type="button"
               onClick={() => setShowCheckoutForm(true)}
-              className="px-8 py-3 rounded-xl text-sm font-medium bg-white text-black hover:bg-slate-200 transition flex items-center gap-2 shrink-0"
+              className="h-12 px-7 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors flex items-center gap-2 shrink-0"
             >
               Checkout
               <ChevronRightIcon className="w-4 h-4" />

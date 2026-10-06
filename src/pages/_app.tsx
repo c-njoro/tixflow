@@ -1,10 +1,8 @@
 // pages/_app.tsx
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
+import "@fontsource-variable/bricolage-grotesque/standard.css";
 import "@/styles/globals.css";
-import "@fontsource/poppins/300.css";
-import "@fontsource/poppins/400.css";
-import "@fontsource/poppins/500.css";
-import "@fontsource/poppins/600.css";
-import "@fontsource/poppins/700.css";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
@@ -24,8 +22,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#0B0F17] flex items-center justify-center font-mono text-xs text-slate-500 uppercase tracking-widest">
-        Checking Account...
+      <div className="min-h-screen bg-[#0B0F17] flex items-center justify-center text-sm text-slate-500">
+        <span className="w-4 h-4 mr-3 rounded-full border-2 border-slate-700 border-t-slate-300 animate-spin" />
+        Loading your workspace…
       </div>
     );
   }

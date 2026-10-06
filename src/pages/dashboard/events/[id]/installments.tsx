@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface PlanRow {
   id: string;
@@ -27,14 +28,6 @@ interface Data {
   plans: PlanRow[];
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const primaryButtonClass =
-  'px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40';
 
 const STATUS_STYLES: Record<string, string> = {
   active: 'bg-sky-950/40 text-sky-400 border-sky-800/50',
@@ -127,8 +120,8 @@ export default function InstallmentsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Lipa Pole Pole</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">{eventTitle || 'Loading event...'}</p>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Lipa Pole Pole</h1>
+          <p className="text-sm text-slate-400 mt-1">{eventTitle || 'Loading event...'}</p>
         </div>
         {id && (
           <Link href={`/dashboard/events/${id}`} className={buttonClass}>
@@ -157,11 +150,11 @@ export default function InstallmentsPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => saveSettings({ installmentsEnabled: !data.settings.installmentsEnabled })}
-                className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-md border transition ${
+                className={`px-4 py-2 text-[13px] rounded-md border transition ${
                   data.settings.installmentsEnabled
                     ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
                     : 'border-slate-700 text-slate-300 hover:text-white'
-                }`}
+                } font-medium`}
               >
                 {data.settings.installmentsEnabled ? 'On' : 'Off'}
               </button>
@@ -199,7 +192,7 @@ export default function InstallmentsPage() {
           </div>
 
           {data.plans.length === 0 ? (
-            <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs font-mono uppercase tracking-widest text-slate-500">
+            <div className="p-8 border border-dashed border-slate-800 rounded-xl text-center text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
               No plans yet
             </div>
           ) : (
@@ -213,7 +206,7 @@ export default function InstallmentsPage() {
                         {p.buyerEmail} · {p.buyerPhone} · {p.items}
                       </p>
                     </div>
-                    <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${STATUS_STYLES[p.status]}`}>
+                    <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${STATUS_STYLES[p.status]} font-medium`}>
                       {p.status}
                     </span>
                   </div>
@@ -263,7 +256,7 @@ export default function InstallmentsPage() {
                                   planAction(p.id, { action: 'cancel' });
                                 }
                               }}
-                              className="px-2 text-xs font-mono uppercase text-rose-400 hover:text-rose-300"
+                              className="px-2 text-xs uppercase text-rose-400 hover:text-rose-300 font-medium"
                             >
                               Cancel plan
                             </button>

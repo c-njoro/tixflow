@@ -433,8 +433,8 @@ export default function CheckInPage() {
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Gate</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Gate</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {event ? event.title : "Loading event..."}
             {event && (reentry ? ` · ${event.reentryLimit} re-entr${event.reentryLimit === 1 ? "y" : "ies"} per ticket` : " · no re-entry")}
           </p>
@@ -442,7 +442,7 @@ export default function CheckInPage() {
         {id && (
           <Link
             href={`/dashboard/events/${id}`}
-            className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition"
+            className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition font-medium"
           >
             Back
           </Link>
@@ -451,20 +451,20 @@ export default function CheckInPage() {
 
       <div className="grid grid-cols-3 gap-2">
         <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Inside now</div>
-          <div className="text-2xl font-mono font-bold text-white">{insideNow ?? "—"}</div>
+          <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Inside now</div>
+          <div className="text-2xl tabular-nums font-bold text-white">{insideNow ?? "—"}</div>
         </div>
         <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">This device</div>
-          <div className="text-sm font-mono text-white mt-1">
+          <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">This device</div>
+          <div className="text-sm tabular-nums text-white mt-1">
             {counts.in} in{reentry && ` · ${counts.out} out`}
           </div>
-          <div className="text-[11px] font-mono text-rose-400">{counts.rejected} rejected</div>
+          <div className="text-[11px] tabular-nums text-rose-400">{counts.rejected} rejected</div>
         </div>
         <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Connection</div>
-          <div className={`text-sm font-mono mt-1 ${online ? "text-emerald-400" : "text-amber-400"}`}>{online ? "Online" : "Offline"}</div>
-          <div className="text-[11px] font-mono text-slate-500">{queue.length > 0 ? `${queue.length} to sync` : "all synced"}</div>
+          <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Connection</div>
+          <div className={`text-sm tabular-nums mt-1 ${online ? "text-emerald-400" : "text-amber-400"}`}>{online ? "Online" : "Offline"}</div>
+          <div className="text-[11px] tabular-nums text-slate-500">{queue.length > 0 ? `${queue.length} to sync` : "all synced"}</div>
         </div>
       </div>
 
@@ -478,7 +478,7 @@ export default function CheckInPage() {
                 setDirection(d);
                 inputRef.current?.focus();
               }}
-              className={`py-4 rounded-xl text-lg font-mono font-bold uppercase tracking-widest border-2 transition ${
+              className={`py-4 rounded-xl text-lg font-bold border-2 transition ${
                 direction === d
                   ? d === "in"
                     ? "bg-emerald-600 border-emerald-400 text-white"
@@ -495,7 +495,7 @@ export default function CheckInPage() {
       {/* Result flash — big enough to read at arm's length */}
       {lastResult ? (
         <div className={`p-6 rounded-2xl text-center ${flashClass(lastResult)}`}>
-          <div className="text-3xl font-mono font-black uppercase tracking-widest">{TITLES[lastResult.result] || lastResult.result}</div>
+          <div className="text-3xl font-black uppercase tracking-[0.08em] font-medium">{TITLES[lastResult.result] || lastResult.result}</div>
           <div className="text-base mt-2 font-medium">{lastResult.message}</div>
           {lastResult.data?.buyerName && (
             <div className="text-lg mt-3 font-semibold">
@@ -503,7 +503,7 @@ export default function CheckInPage() {
               {lastResult.data.tierName && <span className="font-normal opacity-80"> · {lastResult.data.tierName}</span>}
             </div>
           )}
-          {lastResult.offline && <div className="text-[11px] mt-2 font-mono uppercase opacity-80">Decided offline · will sync</div>}
+          {lastResult.offline && <div className="text-[11px] mt-2 uppercase opacity-80 font-medium">Decided offline · will sync</div>}
         </div>
       ) : (
         <div className="p-6 rounded-2xl text-center border-2 border-dashed border-slate-800 text-slate-500 text-sm">
@@ -517,9 +517,9 @@ export default function CheckInPage() {
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`flex-1 py-2 rounded-md text-xs font-mono uppercase tracking-wider border transition ${
+            className={`flex-1 py-2 rounded-md text-[13px] border transition ${
               mode === m ? "bg-slate-800 border-slate-600 text-white" : "border-slate-800 text-slate-500 hover:text-white"
-            }`}
+            } font-medium`}
           >
             {m === "scanner" ? "Scanner device / type" : "Phone camera"}
           </button>
@@ -540,7 +540,7 @@ export default function CheckInPage() {
             onBlur={() => setTimeout(() => mode === "scanner" && inputRef.current?.focus(), 300)}
             placeholder="Scan, or type a ticket code and press Enter"
             autoFocus
-            className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition font-mono"
+            className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition tabular-nums"
           />
         </form>
       ) : (
@@ -555,7 +555,7 @@ export default function CheckInPage() {
       <div className="p-4 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Offline mode</div>
+            <div className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Offline mode</div>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {manifest
                 ? `Ticket list saved ${new Date(manifest.generatedAt).toLocaleTimeString()} (${manifest.tickets.length} tickets). Keeps scanning without signal.`
@@ -566,7 +566,7 @@ export default function CheckInPage() {
             type="button"
             onClick={downloadManifest}
             disabled={downloading || !online}
-            className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40"
+            className="px-3 py-1.5 text-[13px] border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40 font-medium"
           >
             {downloading ? "Downloading..." : manifest ? "Refresh list" : "Download list"}
           </button>
@@ -576,21 +576,21 @@ export default function CheckInPage() {
 
       {history.length > 0 && (
         <div className="border border-slate-800/80 rounded-xl overflow-hidden">
-          <div className="p-3 bg-[#0E131F] text-xs font-mono uppercase tracking-wider text-slate-500">Recent scans</div>
+          <div className="p-3 bg-[#0E131F] text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Recent scans</div>
           <div className="divide-y divide-slate-800/80">
             {history.map((entry, i) => (
               <div key={i} className="p-3 flex items-center justify-between text-sm">
                 <div>
-                  <div className="font-mono text-xs text-slate-400">
+                  <div className="tabular-nums text-xs text-slate-400">
                     {entry.code} · {entry.direction.toUpperCase()}
                     {entry.offline && " · offline"}
                   </div>
                   {entry.data?.buyerName && <div className="text-white text-xs">{entry.data.buyerName}</div>}
                 </div>
                 <span
-                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded ${
+                  className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded ${
                     entry.success ? "bg-emerald-950/40 text-emerald-400" : "bg-rose-950/40 text-rose-400"
-                  }`}
+                  } font-medium`}
                 >
                   {TITLES[entry.result] || entry.result}
                 </span>

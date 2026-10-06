@@ -1,6 +1,6 @@
 // pages/lookup.tsx
 import { useState, FormEvent } from "react";
-import Link from "next/link";
+import { SiteHeader } from "@/components/site/SiteChrome";
 
 export default function LookupRequestPage() {
   const [email, setEmail] = useState("");
@@ -34,18 +34,11 @@ export default function LookupRequestPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white">
-      <header className="p-6 border-b border-slate-800/80">
-        <Link
-          href="/"
-          className="text-sm font-mono font-bold uppercase tracking-widest"
-        >
-          Tixflow
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="max-w-2xl mx-auto p-6 pt-16 space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Find Your Tickets</h1>
+          <h1 className="font-display text-2xl font-semibold">Find your tickets</h1>
           <p className="text-sm text-slate-400 mt-2">
             Enter the email you used to buy tickets and we&apos;ll send you a
             link to view them.
@@ -90,7 +83,7 @@ export default function LookupRequestPage() {
               disabled={loading}
               className="w-full py-2.5 rounded-md text-sm font-medium bg-white text-black hover:bg-slate-200 transition disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send Me the Link"}
+              {loading ? "Sending..." : "Send me the link"}
             </button>
           </form>
         )}

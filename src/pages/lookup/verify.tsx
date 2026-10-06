@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import TicketCard from "@/components/TicketCard";
+import { SiteHeader } from "@/components/site/SiteChrome";
 
 interface TicketResult {
   id: string;
@@ -105,17 +106,10 @@ export default function LookupVerifyPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white">
-      <header className="p-6 border-b border-slate-800/80">
-        <Link
-          href="/"
-          className="text-sm font-mono font-bold uppercase tracking-widest"
-        >
-          Tixflow
-        </Link>
-      </header>
+      <SiteHeader />
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Your Tickets</h1>
+        <h1 className="font-display text-2xl font-semibold">Your tickets</h1>
         {refundMessage && (
           <div className="p-3 text-sm border rounded-md bg-emerald-950/30 text-emerald-400 border-emerald-800/50">
             {refundMessage}
@@ -123,7 +117,7 @@ export default function LookupVerifyPage() {
         )}
 
         {loading ? (
-          <div className="text-xs font-mono text-slate-500 uppercase tracking-widest">
+          <div className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">
             Verifying...
           </div>
         ) : error ? (
@@ -150,18 +144,18 @@ export default function LookupVerifyPage() {
                     {ticket.event.title}
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5">
-                    {new Date(ticket.event.date).toLocaleString()} &middot;{" "}
+                    {new Date(ticket.event.date).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' })} &middot;{" "}
                     {ticket.event.location}
                   </div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {ticket.ticketTier.name}
                   </div>
-                  <div className="font-mono text-xs text-slate-400 mt-1">
+                  <div className="tabular-nums text-xs text-slate-400 mt-1">
                     {ticket.ticketCode}
                   </div>
                 </div>
                 <span
-                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[ticket.status] || STATUS_STYLES.pending}`}
+                  className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[ticket.status] || STATUS_STYLES.pending} font-medium`}
                 >
                   {ticket.status}
                 </span>
@@ -216,14 +210,14 @@ export default function LookupVerifyPage() {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Why do you need a refund?"
-                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600"
+                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                   />
                   <input
                     type="tel"
                     value={refundPhone}
                     onChange={(e) => setRefundPhone(e.target.value)}
                     placeholder="M-Pesa number for the refund, e.g. 0712345678"
-                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600"
+                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                   />
                   <p className="text-[11px] text-slate-500">
                     The organiser decides on refunds. If approved, these tickets are cancelled and the ticket price is

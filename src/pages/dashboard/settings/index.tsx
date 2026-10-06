@@ -25,10 +25,10 @@ export default function SettingsIndexPage() {
   return (
     <div className="space-y-6 max-w-xl mx-auto">
       <div>
-        <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">
+        <h1 className="font-display tracking-tight text-2xl font-semibold text-white">
           Settings
         </h1>
-        <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+        <p className="text-sm text-slate-400 mt-1">
           Manage your workspace
         </p>
       </div>

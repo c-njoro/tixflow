@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, inputClass } from '@/lib/ui';
+import { formatDateTime } from '@/lib/format';
 
 interface RefundRow {
   id: string;
@@ -21,11 +23,6 @@ interface RefundRow {
   tickets: { id: string; ticketCode: string; status: string; tierName: string }[];
 }
 
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition';
 
 const STATUS: Record<string, { label: string; style: string }> = {
   requested: { label: 'Needs your decision', style: 'bg-amber-950/40 text-amber-400 border-amber-800/50' },
@@ -86,8 +83,8 @@ export default function RefundsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Refunds</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Refunds</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {title || 'Loading event...'} · {pending} waiting
           </p>
         </div>
@@ -102,7 +99,7 @@ export default function RefundsPage() {
       {message && <div className="p-3 text-xs font-medium border rounded-md bg-emerald-950/30 text-emerald-400 border-emerald-800/50">{message}</div>}
 
       {!rows ? (
-        <p className="text-xs font-mono text-slate-500 uppercase tracking-widest">Loading...</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading...</p>
       ) : rows.length === 0 ? (
         <div className={`${cardClass} text-sm text-slate-400`}>
           No refund requests. Buyers can ask for one from their ticket page (Find my tickets) before the event starts.
@@ -119,10 +116,10 @@ export default function RefundsPage() {
                       {r.buyerName} · KES {r.amount.toLocaleString()}
                     </p>
                     <p className="text-xs text-slate-500">
-                      {r.buyerEmail} · refund to M-Pesa {r.refundPhone} · {new Date(r.createdAt).toLocaleString()}
+                      {r.buyerEmail} · refund to M-Pesa {r.refundPhone} · {formatDateTime(r.createdAt)}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded border ${s.style}`}>{s.label}</span>
+                  <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${s.style} font-medium`}>{s.label}</span>
                 </div>
                 <p className="text-sm text-slate-300">&ldquo;{r.reason}&rdquo;</p>
                 <div className="text-xs text-slate-400">
@@ -147,7 +144,7 @@ export default function RefundsPage() {
                     <div className="flex flex-wrap gap-2">
                       {r.status === 'requested' ? (
                         <>
-                          <button type="button" disabled={busy === r.id} onClick={() => act(r.id, 'approve')} className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40">
+                          <button type="button" disabled={busy === r.id} onClick={() => act(r.id, 'approve')} className="px-4 py-2 text-[13px] bg-white text-black rounded-md hover:bg-slate-200 transition disabled:opacity-40 font-medium">
                             Approve &amp; cancel tickets
                           </button>
                           <button type="button" disabled={busy === r.id} onClick={() => act(r.id, 'reject')} className={`${buttonClass} text-rose-400`}>

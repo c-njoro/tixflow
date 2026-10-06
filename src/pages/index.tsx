@@ -1,21 +1,16 @@
 // pages/index.tsx
 //
 // The front door for ticket buyers: what's on, search, categories, and
-// finding tickets you already have. Organisers get a section pointing to
+// finding tickets you already have. Organisers get a band pointing to
 // /organisers (what Tixflow offers them) and sign-up.
 import { useState } from "react";
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import {
-  ArrowRightIcon,
-  CalendarIcon,
-  MagnifyingGlassIcon,
-  MapPinIcon,
-  TicketIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowRightIcon, CheckIcon, MagnifyingGlassIcon, TicketIcon } from "@heroicons/react/24/outline";
 import { listUpcomingCategories, listUpcomingEvents } from "@/lib/publicQueries";
+import { SiteFooter, SiteHeader } from "@/components/site/SiteChrome";
 
 interface EventCard {
   slug: string;
@@ -35,22 +30,101 @@ interface Props {
   category: string | null;
 }
 
-const when = (iso: string) =>
-  new Date(iso).toLocaleString("en-KE", {
-    timeZone: "Africa/Nairobi",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const NAIROBI = { timeZone: "Africa/Nairobi" } as const;
+const dayLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-KE", { ...NAIROBI, weekday: "short", day: "numeric", month: "short" });
+const timeLabel = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-KE", { ...NAIROBI, hour: "2-digit", minute: "2-digit", hour12: false });
 
 const priceLabel = (e: EventCard) =>
   e.soldOut ? "Sold out" : e.fromPrice === null ? "" : e.fromPrice === 0 ? "Free" : `From KES ${e.fromPrice.toLocaleString()}`;
 
+function Cover({ event, className = "" }: { event: EventCard; className?: string }) {
+  return (
+    <div className={`relative overflow-hidden bg-[#131924] ${className}`}>
+      {event.coverImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={event.coverImageUrl}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
+        />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center">
+          <TicketIcon className="w-10 h-10 text-slate-700" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Meta({ event }: { event: EventCard }) {
+  return (
+    <p className="text-sm text-slate-400">
+      <span className="text-slate-200">{dayLabel(event.date)}</span>
+      <span className="text-slate-600"> · </span>
+      {timeLabel(event.date)}
+      <span className="text-slate-600"> · </span>
+      {event.location}
+    </p>
+  );
+}
+
+function Price({ event }: { event: EventCard }) {
+  const label = priceLabel(event);
+  if (!label) return null;
+  return <span className={`text-sm font-medium tabular-nums ${event.soldOut ? "text-rose-400" : "text-slate-100"}`}>{label}</span>;
+}
+
+function FeaturedEvent({ event }: { event: EventCard }) {
+  return (
+    <Link
+      href={`/${event.tenant.slug}/${event.slug}`}
+      className="group grid md:grid-cols-[1.35fr_1fr] rounded-2xl overflow-hidden border border-slate-800/70 bg-[#0E131F] hover:border-slate-700 transition-colors"
+    >
+      <Cover event={event} className="aspect-[16/10] md:aspect-auto md:min-h-[340px]" />
+      <div className="p-6 sm:p-8 flex flex-col">
+        {event.category && <span className="text-sm text-slate-500">{event.category}</span>}
+        <h3 className="mt-2 font-display text-3xl sm:text-[2.5rem] leading-[1.05] font-semibold text-white">{event.title}</h3>
+        <div className="mt-4">
+          <Meta event={event} />
+        </div>
+        <p className="mt-1 text-sm text-slate-500">by {event.tenant.businessName}</p>
+        <div className="mt-auto pt-8 flex items-center justify-between gap-4">
+          <Price event={event} />
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-white">
+            Get tickets
+            <ArrowRightIcon className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function EventTile({ event }: { event: EventCard }) {
+  return (
+    <Link href={`/${event.tenant.slug}/${event.slug}`} className="group block">
+      <Cover event={event} className="aspect-[16/10] rounded-xl border border-slate-800/70" />
+      <div className="pt-4 space-y-1.5">
+        <h3 className="font-display text-xl leading-snug font-semibold text-white group-hover:text-slate-200 line-clamp-2">
+          {event.title}
+        </h3>
+        <Meta event={event} />
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <span className="text-sm text-slate-500 truncate">{event.tenant.businessName}</span>
+          <Price event={event} />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function Home({ events, categories, category }: Props) {
   const router = useRouter();
   const [term, setTerm] = useState("");
+  const [featured, ...rest] = events;
 
   const search = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,216 +132,154 @@ export default function Home({ events, categories, category }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white antialiased selection:bg-white/20">
+    <div className="min-h-screen bg-[#0B0F17] text-white">
       <Head>
         <title>Tixflow — events and tickets in Kenya</title>
         <meta name="description" content="Find concerts, conferences, parties and more. Pay with M-Pesa or card and get your ticket instantly." />
       </Head>
 
-      <header className="sticky top-0 z-40 border-b border-slate-800/40 bg-[#0B0F17]/85 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
-          <Link href="/" className="text-sm font-mono font-bold uppercase tracking-widest">
-            Tixflow
-          </Link>
-          <nav className="flex items-center gap-4 sm:gap-6 text-xs font-mono uppercase tracking-wider text-slate-400">
-            <Link href="/lookup" className="hover:text-white transition flex items-center gap-1.5">
-              <TicketIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">My tickets</span>
-            </Link>
-            <Link href="/organisers" className="hover:text-white transition">
-              For organisers
-            </Link>
-            <Link href="/auth" className="hidden sm:inline hover:text-white transition">
-              Log in
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
-      {/* Search */}
-      <section className="relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14 pb-10 sm:pt-20">
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight max-w-3xl leading-[1.05]">
-            What&apos;s on.
-            <span className="text-slate-500"> Get in.</span>
-          </h1>
-          <p className="mt-4 text-slate-400 max-w-xl">
-            Concerts, conferences, parties and more. Pay with M-Pesa or card — your ticket arrives instantly by email,
-            WhatsApp or SMS.
-          </p>
-          <form onSubmit={search} className="mt-8 flex gap-2 max-w-xl">
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder="Search events, venues, organisers…"
-                className="w-full bg-[#0E131F] border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
-              />
-            </div>
-            <button type="submit" className="px-5 rounded-xl text-sm font-medium bg-white text-black hover:bg-slate-200 transition">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-10">
+        <h1 className="font-display text-[3.25rem] sm:text-7xl lg:text-[5.5rem] leading-[0.95] font-semibold max-w-4xl">
+          What&apos;s on. <span className="text-slate-500">Get in.</span>
+        </h1>
+        <p className="mt-6 text-lg text-slate-400 max-w-xl">
+          Concerts, conferences, parties and more. Pay with M-Pesa or card — your ticket arrives instantly by email,
+          WhatsApp or SMS.
+        </p>
+
+        <form onSubmit={search} className="mt-10 max-w-2xl" role="search">
+          <label htmlFor="event-search" className="sr-only">
+            Search events
+          </label>
+          <div className="flex items-center gap-2 h-14 pl-5 pr-2 rounded-2xl bg-[#0E131F] border border-slate-800 focus-within:border-slate-500 transition-colors">
+            <MagnifyingGlassIcon className="w-5 h-5 text-slate-500 shrink-0" />
+            <input
+              id="event-search"
+              type="search"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Search events, venues, organisers"
+              className="flex-1 min-w-0 bg-transparent text-base text-white focus:outline-none"
+            />
+            <button type="submit" className="h-10 px-5 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors">
               Search
             </button>
-          </form>
+          </div>
+        </form>
 
-          {categories.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link
-                href="/"
-                className={`px-3 py-1.5 rounded-full text-xs border transition ${
-                  !category ? "bg-white text-black border-white" : "border-slate-700 text-slate-300 hover:border-slate-500"
-                }`}
-              >
-                All
-              </Link>
-              {categories.map((c) => (
+        {categories.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2" aria-label="Categories">
+            {[null, ...categories].map((c) => {
+              const active = c === null ? !category : category?.toLowerCase() === c.toLowerCase();
+              return (
                 <Link
-                  key={c}
-                  href={`/?category=${encodeURIComponent(c)}`}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition ${
-                    category?.toLowerCase() === c.toLowerCase()
-                      ? "bg-white text-black border-white"
-                      : "border-slate-700 text-slate-300 hover:border-slate-500"
+                  key={c ?? "all"}
+                  href={c === null ? "/" : `/?category=${encodeURIComponent(c)}`}
+                  aria-current={active ? "page" : undefined}
+                  className={`h-9 px-4 inline-flex items-center rounded-full text-sm transition-colors ${
+                    active
+                      ? "bg-slate-100 text-[#0B0F17] font-medium"
+                      : "border border-slate-800 text-slate-300 hover:border-slate-600 hover:text-white"
                   }`}
                 >
-                  {c}
+                  {c ?? "All events"}
                 </Link>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* Events */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
-        <h2 className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-4">
-          {category ? `${category} · upcoming` : "Upcoming events"}
-        </h2>
-        {events.length === 0 ? (
-          <div className="p-10 border border-dashed border-slate-800 rounded-2xl text-center text-sm text-slate-500">
-            {category ? "Nothing in this category right now." : "No upcoming events yet — check back soon."}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="upcoming">
+        <div className="flex items-baseline justify-between gap-4 mb-6">
+          <h2 id="upcoming" className="font-display text-2xl font-semibold">
+            {category ? `${category}` : "Coming up"}
+          </h2>
+          <span className="text-sm text-slate-500 tabular-nums">
+            {events.length} event{events.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {!featured ? (
+          <div className="py-20 rounded-2xl border border-dashed border-slate-800 text-center">
+            <p className="text-slate-300">{category ? "Nothing in this category right now." : "No upcoming events yet."}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {category ? (
+                <Link href="/" className="underline hover:text-white">
+                  See all events
+                </Link>
+              ) : (
+                "Check back soon — new events are added every week."
+              )}
+            </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {events.map((e) => (
-              <Link
-                key={`${e.tenant.slug}/${e.slug}`}
-                href={`/${e.tenant.slug}/${e.slug}`}
-                className="group block rounded-2xl overflow-hidden bg-[#0E131F] border border-slate-800/60 hover:border-slate-600 transition"
-              >
-                <div className="relative aspect-[16/9] bg-slate-900">
-                  {e.coverImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={e.coverImageUrl}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <TicketIcon className="w-10 h-10 text-slate-700" />
-                    </div>
-                  )}
-                  {priceLabel(e) && (
-                    <span
-                      className={`absolute top-3 right-3 px-2.5 py-1 rounded-md text-[11px] font-mono backdrop-blur ${
-                        e.soldOut ? "bg-rose-950/80 text-rose-300" : "bg-black/70 text-white"
-                      }`}
-                    >
-                      {priceLabel(e)}
-                    </span>
-                  )}
-                </div>
-                <div className="p-4 space-y-1.5">
-                  {e.category && (
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{e.category}</div>
-                  )}
-                  <div className="text-base font-semibold leading-snug line-clamp-2">{e.title}</div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-                    {when(e.date)}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <MapPinIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{e.location}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-600 pt-1">by {e.tenant.businessName}</div>
-                </div>
-              </Link>
-            ))}
+          <div className="space-y-12">
+            <FeaturedEvent event={featured} />
+            {rest.length > 0 && (
+              <div className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                {rest.map((e) => (
+                  <EventTile key={`${e.tenant.slug}/${e.slug}`} event={e} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mt-8 text-sm text-slate-500">
+        <p className="mt-14 text-sm text-slate-500">
           Already bought a ticket?{" "}
-          <Link href="/lookup" className="text-slate-300 underline underline-offset-2 hover:text-white">
-            Find it here
+          <Link href="/lookup" className="text-slate-200 underline hover:text-white">
+            Find it with your email
           </Link>
           .
-        </div>
+        </p>
       </section>
 
-      {/* For organisers */}
-      <section className="border-t border-slate-800/40 bg-[#080A10]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid gap-8 lg:grid-cols-2 items-center">
+      <section className="border-t border-slate-800/60 bg-[#080A10]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 grid gap-12 lg:grid-cols-[1.1fr_1fr] items-center">
           <div>
-            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">For organisers</div>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight">Running an event? Sell on Tixflow.</h2>
-            <p className="mt-4 text-slate-400 max-w-lg">
+            <h2 className="font-display text-4xl sm:text-5xl leading-[1.02] font-semibold">Running an event? Sell on Tixflow.</h2>
+            <p className="mt-5 text-lg text-slate-400 max-w-lg">
               Your own event page, M-Pesa and card payments, promo codes and promoters, a box office and fast gate
               scanning with re-entry — plus scanners and staff to hire for the day. No monthly fee.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/auth"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium bg-white text-black hover:bg-slate-200 transition"
+                className="h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors"
               >
                 Create your event
                 <ArrowRightIcon className="w-4 h-4" />
               </Link>
               <Link
                 href="/organisers"
-                className="px-6 py-3 rounded-lg text-sm font-medium border border-slate-700 hover:bg-slate-800/60 transition"
+                className="h-12 px-6 inline-flex items-center rounded-xl text-sm font-medium border border-slate-700 text-slate-200 hover:bg-slate-800/50 transition-colors"
               >
-                See features &amp; pricing
+                Features &amp; pricing
               </Link>
             </div>
           </div>
-          <ol className="grid gap-3 sm:grid-cols-2">
+          <ul className="divide-y divide-slate-800/70 border-y border-slate-800/70">
             {[
-              ["01", "Sign up", "Create your workspace in a couple of minutes."],
-              ["02", "Create the event", "Ticket types, door prices, re-entry rules."],
-              ["03", "Share the link", "Socials, posters, WhatsApp, promoters."],
-              ["04", "Scan & get paid", "Check people in, withdraw to M-Pesa or bank."],
-            ].map(([n, title, text]) => (
-              <li key={n} className="p-5 rounded-2xl bg-[#0E131F] border border-slate-800/60">
-                <div className="text-xs font-mono text-slate-600">{n}</div>
-                <div className="mt-2 text-sm font-semibold">{title}</div>
-                <div className="mt-1 text-xs text-slate-400">{text}</div>
+              ["Live in minutes", "Create the event, set ticket types and door prices, share the link."],
+              ["Paid instantly", "Buyers pay by M-Pesa or card; withdraw to M-Pesa or bank."],
+              ["A gate that keeps up", "Scan in and out, catch copied tickets, keep going offline."],
+            ].map(([title, text]) => (
+              <li key={title} className="py-5 flex gap-4">
+                <CheckIcon className="w-5 h-5 mt-0.5 text-emerald-400 shrink-0" />
+                <div>
+                  <div className="font-medium text-white">{title}</div>
+                  <div className="mt-1 text-sm text-slate-400">{text}</div>
+                </div>
               </li>
             ))}
-          </ol>
+          </ul>
         </div>
       </section>
 
-      <footer className="border-t border-slate-800/40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-xs font-mono uppercase tracking-widest text-slate-600">&copy; {new Date().getFullYear()} Tixflow</span>
-          <div className="flex gap-6 text-xs font-mono uppercase tracking-wider text-slate-500">
-            <Link href="/lookup" className="hover:text-white transition">
-              My tickets
-            </Link>
-            <Link href="/organisers" className="hover:text-white transition">
-              For organisers
-            </Link>
-            <Link href="/auth" className="hover:text-white transition">
-              Log in
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
+import { inputClass } from '@/lib/ui';
 
 // Camera code only runs in the browser.
 const QrCameraScanner = dynamic(() => import('@/components/QrCameraScanner'), { ssr: false });
@@ -32,8 +33,6 @@ const RATINGS = [
   { value: 1, label: 'Cold', className: 'border-sky-500 text-sky-300 bg-sky-950/40' },
 ];
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-500 transition';
 
 export default function ExhibitorPortal() {
   const router = useRouter();
@@ -123,17 +122,17 @@ export default function ExhibitorPortal() {
         {error ? (
           <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
         ) : !portal ? (
-          <p className="text-center text-xs font-mono uppercase tracking-widest text-slate-500 pt-20">Loading...</p>
+          <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (
           <>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500 truncate">{portal.event?.title}</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 truncate font-medium">{portal.event?.title}</p>
                 <h1 className="text-xl font-bold">{portal.exhibitor.name}</h1>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-2xl font-semibold">{counts.total}</p>
-                <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">leads · {counts.hot} hot</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">leads · {counts.hot} hot</p>
               </div>
             </div>
 
@@ -190,9 +189,9 @@ export default function ExhibitorPortal() {
             {current && <LeadEditor key={current.id} lead={current} onSave={saveLead} onClose={() => setCurrent(null)} />}
 
             <div className="flex items-center justify-between pt-2">
-              <h2 className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Your leads</h2>
+              <h2 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Your leads</h2>
               {portal.leads.length > 0 && (
-                <a href={`${base}/export`} className="text-xs font-mono uppercase tracking-wider text-sky-400">
+                <a href={`${base}/export`} className="text-[13px] text-sky-400 font-medium">
                   Export CSV
                 </a>
               )}
@@ -215,7 +214,7 @@ export default function ExhibitorPortal() {
                       <p className="text-xs text-slate-500 truncate">{l.notes || l.email}</p>
                     </div>
                     {l.rating && (
-                      <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${RATINGS.find((r) => r.value === l.rating)?.className}`}>
+                      <span className={`text-[11px] uppercase px-2 py-0.5 rounded border ${RATINGS.find((r) => r.value === l.rating)?.className} font-medium`}>
                         {RATINGS.find((r) => r.value === l.rating)?.label}
                       </span>
                     )}
@@ -262,9 +261,9 @@ function LeadEditor({
             key={r.value}
             type="button"
             onClick={() => onSave(lead, { rating: lead.rating === r.value ? null : r.value })}
-            className={`flex-1 py-2 rounded-lg border text-xs font-mono uppercase ${
+            className={`flex-1 py-2 rounded-lg border text-[13px] ${
               lead.rating === r.value ? r.className : 'border-slate-700 text-slate-400'
-            }`}
+            } font-medium`}
           >
             {r.label}
           </button>

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import QRCode from 'qrcode';
+import { buttonClass, cardClass, inputClass, labelClass } from '@/lib/ui';
 
 interface Tier {
   id: string;
@@ -43,12 +44,6 @@ interface Sold {
   qr: string;
 }
 
-const inputClass =
-  'block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition';
-const labelClass = 'block text-xs font-medium uppercase tracking-wider text-slate-400';
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition disabled:opacity-40';
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -201,8 +196,8 @@ export default function BoxOfficePage() {
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Box Office</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Box Office</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {data?.title || 'Loading event...'} · your cash: {kes(myCash)}
           </p>
         </div>
@@ -241,7 +236,7 @@ export default function BoxOfficePage() {
             <button type="button" onClick={() => window.print()} className={buttonClass}>
               Print
             </button>
-            <button type="button" onClick={reset} className="px-4 py-2 text-xs font-mono uppercase tracking-wider bg-white text-black rounded-md hover:bg-slate-200 transition">
+            <button type="button" onClick={reset} className="px-4 py-2 text-[13px] bg-white text-black rounded-md hover:bg-slate-200 transition font-medium">
               Next sale
             </button>
           </div>
@@ -249,7 +244,7 @@ export default function BoxOfficePage() {
       ) : (
         <>
           <div className={`${cardClass} space-y-3`}>
-            <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Tickets at the door</h2>
+            <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Tickets at the door</h2>
             {tiers.length === 0 && <p className="text-sm text-slate-500">No ticket types on sale.</p>}
             {tiers.map((t) => {
               const q = quantities[t.id] || 0;
@@ -269,7 +264,7 @@ export default function BoxOfficePage() {
                     <button type="button" className={`${buttonClass} w-10 text-lg`} disabled={q === 0} onClick={() => setQuantities({ ...quantities, [t.id]: q - 1 })}>
                       −
                     </button>
-                    <span className="w-6 text-center font-mono text-white">{q}</span>
+                    <span className="w-6 text-center tabular-nums text-white">{q}</span>
                     <button type="button" className={`${buttonClass} w-10 text-lg`} disabled={q >= t.available} onClick={() => setQuantities({ ...quantities, [t.id]: q + 1 })}>
                       +
                     </button>
@@ -286,9 +281,9 @@ export default function BoxOfficePage() {
                   key={m}
                   type="button"
                   onClick={() => setMethod(m)}
-                  className={`py-3 rounded-lg border text-sm font-mono uppercase tracking-wider transition ${
+                  className={`py-3 rounded-lg border text-sm transition ${
                     method === m ? 'bg-slate-800 border-slate-500 text-white' : 'border-slate-800 text-slate-500'
-                  }`}
+                  } font-medium`}
                 >
                   {m === 'cash' ? 'Cash' : 'M-Pesa'}
                 </button>
@@ -339,13 +334,13 @@ export default function BoxOfficePage() {
 
           {data && data.takings.length > 0 && (
             <div className={`${cardClass} space-y-2`}>
-              <h2 className="text-xs font-mono uppercase tracking-widest text-slate-400">Box office takings</h2>
+              <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Box office takings</h2>
               {data.takings.map((t, i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-slate-300">
                     {t.seller} · {t.method === 'cash' ? 'Cash' : t.method === 'mpesa' ? 'M-Pesa' : t.method}
                   </span>
-                  <span className="font-mono text-white">
+                  <span className="tabular-nums text-white">
                     {kes(t.total)} <span className="text-slate-500 text-xs">({t.orders})</span>
                   </span>
                 </div>

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { buttonClass, cardClass, labelClass } from '@/lib/ui';
 
 interface GateData {
   event: { id: string; title: string; date: string; location: string };
@@ -22,10 +23,6 @@ const REFRESH_MS = 5000;
 const BAR_COLOR = '#0284c7';
 const CHART_HEIGHT = 160;
 
-const cardClass = 'p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl';
-const labelClass = 'text-xs font-mono uppercase tracking-widest text-slate-500';
-const buttonClass =
-  'px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition';
 
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour: '2-digit', minute: '2-digit' });
@@ -71,8 +68,8 @@ export default function GatePage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-mono font-bold tracking-wider text-white uppercase">Gate</h1>
-          <p className="text-xs font-mono text-slate-500 mt-1 uppercase tracking-wider">
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Gate</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {data ? data.event.title : 'Loading event...'}
             {data && <> · updated {time(data.generatedAt)}</>}
           </p>
@@ -161,7 +158,7 @@ export default function GatePage() {
                           <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-slate-600" style={{ background: tier.color }} />
                           <span className="truncate">{tier.name}</span>
                         </span>
-                        <span className="font-mono text-slate-400 shrink-0">
+                        <span className="tabular-nums text-slate-400 shrink-0">
                           {tier.scanned} / {tier.expected} · {pct}%
                         </span>
                       </div>
@@ -185,7 +182,7 @@ export default function GatePage() {
                     {data.staff.map((s) => (
                       <tr key={s.name} className="border-t border-slate-800/80 first:border-0">
                         <td className="py-2 text-slate-300">{s.name}</td>
-                        <td className="py-2 text-right font-mono text-slate-400">{s.count}</td>
+                        <td className="py-2 text-right tabular-nums text-slate-400">{s.count}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -202,16 +199,16 @@ export default function GatePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left">
-                    <th className="pb-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-normal">Time</th>
-                    <th className="pb-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-normal">Name</th>
-                    <th className="pb-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-normal">Ticket</th>
-                    <th className="pb-2 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-normal hidden sm:table-cell">Scanned by</th>
+                    <th className="pb-2 text-[11px] uppercase tracking-[0.06em] text-slate-500 font-normal font-medium">Time</th>
+                    <th className="pb-2 text-[11px] uppercase tracking-[0.06em] text-slate-500 font-normal font-medium">Name</th>
+                    <th className="pb-2 text-[11px] uppercase tracking-[0.06em] text-slate-500 font-normal font-medium">Ticket</th>
+                    <th className="pb-2 text-[11px] uppercase tracking-[0.06em] text-slate-500 font-normal hidden sm:table-cell font-medium">Scanned by</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.recent.map((r, i) => (
                     <tr key={`${r.at}-${i}`} className="border-t border-slate-800/80">
-                      <td className="py-2 font-mono text-slate-400">{time(r.at)}</td>
+                      <td className="py-2 tabular-nums text-slate-400">{time(r.at)}</td>
                       <td className="py-2 text-white">{r.name}</td>
                       <td className="py-2 text-slate-300">{r.tier}</td>
                       <td className="py-2 text-slate-400 hidden sm:table-cell">{r.by ?? '—'}</td>
@@ -250,7 +247,7 @@ function ArrivalsChart({ arrivals }: { arrivals: GateData['arrivals'] }) {
       </div>
       <div className="flex gap-2">
         {/* y-axis */}
-        <div className="relative w-8 shrink-0 text-[10px] font-mono text-slate-500" style={{ height: CHART_HEIGHT }}>
+        <div className="relative w-8 shrink-0 text-[10px] tabular-nums text-slate-500" style={{ height: CHART_HEIGHT }}>
           {ticks.map((t) => (
             <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: CHART_HEIGHT - (t / niceMax) * CHART_HEIGHT }}>
               {t}
@@ -286,7 +283,7 @@ function ArrivalsChart({ arrivals }: { arrivals: GateData['arrivals'] }) {
               ))}
             </div>
           </div>
-          <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1.5">
+          <div className="flex justify-between text-[10px] tabular-nums text-slate-500 mt-1.5">
             <span>{time(arrivals.buckets[0]?.start ?? new Date().toISOString())}</span>
             <span>{time(arrivals.buckets[Math.floor(arrivals.buckets.length / 2)]?.start ?? new Date().toISOString())}</span>
             <span>now</span>
