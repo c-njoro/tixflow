@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { normalizeKenyanPhone } from '@/lib/phone';
 import { deliverTickets } from '@/lib/orders';
+import { freeRegistrationsUsed } from '@/lib/checkoutQuote';
+import { eventEntitlements, upgradeHint } from '@/lib/plans';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -72,6 +74,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ error: 'This tier is not currently active for sale.' });
     }
 
+    // Comps are free tickets: they count towards the event's plan limit.
+    const withTiers = await prisma.event.findUniqueOrThrow({ where: { id }, include: { ticketTiers: true } });
+    const limits = eventEntitlements(withTiers, withTiers.ticketTiers);
+    if (limits.registrations !== null && (await freeRegistrationsUsed(withTiers)) >= limits.registrations) {
+      return res.status(402).json({
+        error: upgradeHint(`This event's plan includes ${limits.registrations.toLocaleString()} free tickets, and they're all used.`),
+        upgrade: true,
+      });
+    }
+
     try {
       const ticket = await prisma.$transaction(async (tx) => {
         // Atomic compare-and-swap: only increments `sold` if it hasn't already
@@ -86,12 +98,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           throw new Error('SOLD_OUT');
         }
 
-        // A KES 0 'manual' order alongside the ticket, like a sale has: it
+        // A KES 0 'comp' order alongside the ticket, like a sale has: it
         // records the WhatsApp number, so this holder also gets Event Space
         // links, reminders and surveys. totalAmount 0 → revenue unaffected.
         const order = await tx.pendingOrder.create({
           data: {
-            kind: 'manual',
+            kind: 'comp',
             status: 'completed',
             paymentMethod: 'none',
             buyerName: String(buyerName).trim().slice(0, 120),

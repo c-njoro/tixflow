@@ -234,12 +234,12 @@ export default function PlanPage() {
                 <p className="text-xs text-slate-400 mt-1">
                   {ent.freeEvent
                     ? 'Free events are free up to these limits. Upgrade for more people, rooms and the conference extras.'
-                    : 'Ticketed events include everything — Tixflow earns a small fee per ticket sold.'}
+                    : `Ticketed events include everything — Tixflow earns a small fee per ticket sold. Free tickets (KES 0 ticket types and comps): ${ent.registrations === null ? 'unlimited' : `${ent.registrations.toLocaleString()} included`}.`}
                 </p>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Meter label="Registrations" used={data.usage.registrations} max={ent.registrations} />
+              <Meter label={ent.freeEvent ? 'Registrations' : 'Free tickets'} used={data.usage.registrations} max={ent.registrations} />
               <Meter label="Event Space rooms" used={data.usage.rooms} max={ent.rooms} />
             </div>
             <p className="text-[11px] text-slate-500">
@@ -262,7 +262,7 @@ export default function PlanPage() {
                       </span>
                     </div>
                     <ul className="text-xs text-slate-400 space-y-0.5">
-                      <li>{limit(u.registrations, 'registrations')}</li>
+                      <li>{limit(u.registrations, ent.freeEvent ? 'registrations' : 'free tickets')}</li>
                       <li>
                         {u.rooms} Event Space rooms{u.roomCapacity ? `, ${u.roomCapacity} people each` : ', no size limit'}
                       </li>

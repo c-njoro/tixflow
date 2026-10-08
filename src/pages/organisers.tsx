@@ -187,6 +187,8 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
               <p className="mt-2 text-sm text-slate-400">Minimum {kes(pricing.minFee)} a ticket.</p>
               <p className="mt-4 text-sm text-slate-500 leading-relaxed">
                 Pass it to buyers as a booking fee, or absorb it. Box-office cash sales too — deducted from your payout.
+                Free tickets and comps on a paid event count towards the free-event plans below (the first{' '}
+                {pricing.plans[0].registrations?.toLocaleString()} are included).
               </p>
               <ul className="mt-8 space-y-3 text-sm">
                 {[

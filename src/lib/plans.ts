@@ -33,8 +33,6 @@ export const FREE_EVENT_PLANS: Record<PlanId, PlanLimits> = {
 
 // Paid (ticketed) events: everything included in the per-ticket fee.
 export const PAID_EVENT_ROOMS = 3;
-// A paid event that needs more rooms can still buy Pro for this many.
-export const PAID_EVENT_PRO_ROOMS = FREE_EVENT_PLANS.pro.rooms;
 
 // Gate equipment & staff the platform rents out for an event day.
 export const RENTAL_RATES = {
@@ -60,28 +58,37 @@ export interface Entitlements {
   freeEvent: boolean;
   plan: PlanId | 'paid';
   planLabel: string;
+  // Limit on FREE (KES 0) registrations — on any event. Paid tickets are
+  // never capped by the plan, only by each tier's capacity. Without this,
+  // one cheap paid ticket type would unlock unlimited free registrations.
   registrations: number | null;
   rooms: number;
   roomCapacity: number | null;
   extras: boolean;
 }
 
+const PLAN_ORDER: PlanId[] = ['free', 'plus', 'pro'];
+const boughtPlan = (event: Pick<Event, 'eventPlan'>): PlanId | null =>
+  event.eventPlan && event.eventPlan in FREE_EVENT_PLANS ? (event.eventPlan as PlanId) : null;
+
 // What this event may use right now.
 export function eventEntitlements(event: Pick<Event, 'eventPlan'>, tiers: Pick<TicketTier, 'price'>[]): Entitlements {
-  const bought = (event.eventPlan as PlanId | null) ?? null;
+  const bought = boughtPlan(event);
   if (!isFreeEvent(tiers)) {
-    const pro = bought === 'pro';
+    // Ticket sales pay for rooms and extras; the plan only sets how many
+    // free tickets (comps, free tiers) the event may hand out.
+    const limits = FREE_EVENT_PLANS[bought ?? 'free'];
     return {
       freeEvent: false,
-      plan: pro ? 'pro' : 'paid',
-      planLabel: pro ? 'Pro' : 'Included with ticket sales',
-      registrations: null,
-      rooms: pro ? PAID_EVENT_PRO_ROOMS : PAID_EVENT_ROOMS,
+      plan: bought ?? 'paid',
+      planLabel: bought ? limits.label : 'Included with ticket sales',
+      registrations: limits.registrations,
+      rooms: Math.max(PAID_EVENT_ROOMS, limits.rooms),
       roomCapacity: null,
       extras: true,
     };
   }
-  const plan = bought && bought in FREE_EVENT_PLANS ? bought : 'free';
+  const plan = bought ?? 'free';
   const limits = FREE_EVENT_PLANS[plan];
   return {
     freeEvent: true,
@@ -97,14 +104,21 @@ export function eventEntitlements(event: Pick<Event, 'eventPlan'>, tiers: Pick<T
 // Plans this event could upgrade to, with prices.
 export function availableUpgrades(event: Pick<Event, 'eventPlan'>, tiers: Pick<TicketTier, 'price'>[]) {
   const current = eventEntitlements(event, tiers);
-  if (!current.freeEvent) {
-    return current.plan === 'pro' ? [] : [{ id: 'pro' as PlanId, ...FREE_EVENT_PLANS.pro, rooms: PAID_EVENT_PRO_ROOMS }];
-  }
-  const order: PlanId[] = ['free', 'plus', 'pro'];
-  return order
-    .filter((id) => order.indexOf(id) > order.indexOf(current.plan as PlanId))
-    .map((id) => ({ id, ...FREE_EVENT_PLANS[id] }));
+  const at = PLAN_ORDER.indexOf(current.plan === 'paid' ? 'free' : current.plan);
+  return PLAN_ORDER.filter((id) => PLAN_ORDER.indexOf(id) > at).map((id) => ({
+    id,
+    ...FREE_EVENT_PLANS[id],
+    ...(!current.freeEvent && {
+      rooms: Math.max(PAID_EVENT_ROOMS, FREE_EVENT_PLANS[id].rooms),
+      roomCapacity: null,
+      extras: true,
+    }),
+  }));
 }
+
+// How many of these tiers' tickets are free ones (count towards the plan).
+export const freeTicketsSold = (tiers: Pick<TicketTier, 'price' | 'sold'>[]) =>
+  tiers.filter((t) => t.price <= 0).reduce((n, t) => n + t.sold, 0);
 
 // The entitlements of a stored event (loads its tiers).
 export async function loadEntitlements(eventId: string) {

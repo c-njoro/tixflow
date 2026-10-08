@@ -10,7 +10,7 @@ import { prisma } from './prisma';
 import { normalizeKenyanPhone } from './phone';
 import { computeCommission, promoterById, resolvePromoter } from './promoters';
 import { installmentsOpen, minimumDeposit } from './installments';
-import { eventEntitlements } from './plans';
+import { eventEntitlements, freeTicketsSold } from './plans';
 import { findPromoCode, isPricingError, priceOrder, type PricedOrder, type PricingError } from './pricing';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,11 +37,26 @@ export async function loadSellableEvent(eventId: unknown) {
 // Are the tiers on sale with enough seats, and is the free event's
 // registration limit still open? `atDoor` (box office): sales windows
 // don't apply — the gate sells while there are seats.
-export function checkAvailability(
+// Free registrations used so far: tickets on KES 0 tiers, plus comps the
+// organiser issued on paid tiers (manual free tickets count too).
+export async function freeRegistrationsUsed(event: { id: string; ticketTiers: Pick<TicketTier, 'id' | 'price' | 'sold'>[] }) {
+  const paidTierIds = new Set(event.ticketTiers.filter((t) => t.price > 0).map((t) => t.id));
+  const comps = await prisma.pendingOrder.findMany({
+    where: { eventId: event.id, kind: 'comp', status: 'completed' },
+    select: { items: true },
+  });
+  const compsOnPaidTiers = comps.reduce(
+    (n, o) => n + o.items.filter((i) => paidTierIds.has(i.ticketTierId)).reduce((m, i) => m + i.quantity, 0),
+    0
+  );
+  return freeTicketsSold(event.ticketTiers) + compsOnPaidTiers;
+}
+
+export async function checkAvailability(
   event: Event & { ticketTiers: TicketTier[] },
   items: { ticketTierId: string; quantity: number }[],
   { atDoor = false }: { atDoor?: boolean } = {}
-): PricingError | null {
+): Promise<PricingError | null> {
   const now = new Date();
   for (const item of items) {
     const tier = event.ticketTiers.find((t) => t.id === item.ticketTierId);
@@ -58,14 +73,17 @@ export function checkAvailability(
       };
     }
   }
+  // Free (KES 0) tickets count towards the event's plan — on any event.
   const limits = eventEntitlements(event, event.ticketTiers);
   if (limits.registrations !== null) {
-    const taken = event.ticketTiers.reduce((n, t) => n + t.sold, 0);
-    const wanted = items.reduce((n, i) => n + Number(i.quantity), 0);
-    if (taken + wanted > limits.registrations) {
+    const freeTier = (id: string) => (event.ticketTiers.find((t) => t.id === id)?.price ?? 1) <= 0;
+    const wanted = items.filter((i) => freeTier(i.ticketTierId)).reduce((n, i) => n + Number(i.quantity), 0);
+    const taken = wanted > 0 ? await freeRegistrationsUsed(event) : 0;
+    if (wanted > 0 && taken + wanted > limits.registrations) {
       const left = Math.max(limits.registrations - taken, 0);
+      const what = limits.freeEvent ? 'Registration for this event' : 'Free tickets for this event';
       return {
-        error: left === 0 ? 'Registration for this event is full.' : `Only ${left} place${left === 1 ? '' : 's'} left.`,
+        error: left === 0 ? `${what} ${limits.freeEvent ? 'is' : 'are'} full.` : `Only ${left} free place${left === 1 ? '' : 's'} left.`,
         status: 409,
       };
     }
@@ -95,7 +113,7 @@ export async function quoteCheckout(
   const tenant = await prisma.tenant.findUnique({ where: { id: event.tenantId } });
   if (!tenant) return { error: 'Organizer not found.', status: 404 };
 
-  const unavailable = checkAvailability(event, items);
+  const unavailable = await checkAvailability(event, items);
   if (unavailable) return unavailable;
 
   const ticketsWanted = items.reduce((n: number, i: any) => n + (Number(i.quantity) || 0), 0);

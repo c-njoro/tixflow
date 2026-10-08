@@ -10,6 +10,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { createOrderAndPush } from '@/lib/checkout';
+import { freeRegistrationsUsed } from '@/lib/checkoutQuote';
 import { cardPaymentsEnabled, startCardCheckout } from '@/lib/intasend';
 import { normalizeKenyanPhone } from '@/lib/phone';
 import { availableUpgrades, eventEntitlements, FREE_EVENT_PLANS, RENTAL_RATES, type PlanId } from '@/lib/plans';
@@ -45,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         date: event.date,
         endDate: event.endDate,
         entitlements: current,
-        usage: { registrations: event.ticketTiers.reduce((n, t) => n + t.sold, 0), rooms },
+        usage: { registrations: await freeRegistrationsUsed(event), rooms },
         upgrades,
         cardPayments: cardPaymentsEnabled(),
         rentalRates: RENTAL_RATES,

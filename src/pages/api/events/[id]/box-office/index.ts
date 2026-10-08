@@ -91,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const email = typeof b.buyerEmail === 'string' ? b.buyerEmail.trim().toLowerCase() : '';
   if (email && !EMAIL_REGEX.test(email)) return res.status(400).json({ error: 'Enter a valid email, or leave it blank.' });
 
-  const unavailable = checkAvailability(event, Array.isArray(b.items) ? b.items : [], { atDoor: true });
+  const unavailable = await checkAvailability(event, Array.isArray(b.items) ? b.items : [], { atDoor: true });
   if (unavailable) return res.status(unavailable.status).json({ error: unavailable.error });
   const priced = priceOrder(event, event.ticketTiers, b.items, { atDoor: true });
   if (isPricingError(priced)) return res.status(priced.status).json({ error: priced.error });
