@@ -33,7 +33,7 @@ export default function LookupRequestPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <SiteHeader />
 
       <main className="max-w-2xl mx-auto p-6 pt-16 space-y-6">
@@ -63,7 +63,7 @@ export default function LookupRequestPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+              className="block w-full bg-panel border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
             />
             <div>
               <input
@@ -71,7 +71,7 @@ export default function LookupRequestPage() {
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="WhatsApp number (optional)"
-                className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+                className="block w-full bg-panel border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
               />
               <p className="text-[11px] text-slate-600 mt-1.5">
                 Use the WhatsApp number you gave at checkout and we&apos;ll send the link there too. The email link

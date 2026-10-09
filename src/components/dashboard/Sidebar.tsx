@@ -12,6 +12,7 @@ import {
   ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
+import { ThemeToggleRow } from '@/components/site/ThemeToggle';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -36,7 +37,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
     <span className="inline-flex items-center gap-2 select-none">
       <span
         aria-hidden
-        className="grid place-items-center w-7 h-7 rounded-lg bg-slate-100 text-[#0B0F17] font-display text-[15px] font-bold leading-none"
+        className="grid place-items-center w-7 h-7 rounded-lg bg-slate-100 text-ink font-display text-[15px] font-bold leading-none"
       >
         t
       </span>
@@ -53,7 +54,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`h-screen bg-[#0E131F] border-r border-slate-800/70 transition-[width] duration-200 flex flex-col ${
+      className={`h-screen bg-panel border-r border-slate-800/70 transition-[width] duration-200 flex flex-col ${
         collapsed ? 'w-[72px]' : 'w-60'
       }`}
     >
@@ -93,6 +94,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </div>
           </div>
         )}
+        <ThemeToggleRow collapsed={collapsed} />
         <button
           type="button"
           onClick={logout}

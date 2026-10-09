@@ -56,7 +56,7 @@ export default function QrCameraScanner({ onScan }: { onScan: (code: string) => 
 
   return (
     <div className="space-y-2">
-      <div id={elementId} className="w-full overflow-hidden rounded-xl bg-black min-h-[240px]" />
+      <div id={elementId} className="w-full overflow-hidden rounded-xl bg-[#000] min-h-[240px]" />
       {error && <p className="text-xs text-amber-400">{error}</p>}
     </div>
   );

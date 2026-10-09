@@ -211,7 +211,7 @@ export default function AttendeesPage() {
 
       {/* Issue a comp/manual ticket — admin only */}
       {isAdmin && (
-      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+      <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
           Issue Ticket Manually
         </h3>
@@ -320,7 +320,7 @@ export default function AttendeesPage() {
           Loading attendees...
         </div>
       ) : tickets.length === 0 ? (
-        <div className="p-8 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 flex flex-col items-center justify-center text-center min-h-[160px]">
+        <div className="p-8 border border-dashed border-slate-800 rounded-xl bg-ink/40 flex flex-col items-center justify-center text-center min-h-[160px]">
           <p className="text-xs text-slate-400 uppercase tracking-[0.08em] font-medium">
             No attendees yet
           </p>
@@ -328,7 +328,7 @@ export default function AttendeesPage() {
       ) : (
         <div className="border border-slate-800/80 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#0E131F] text-left">
+            <thead className="bg-panel text-left">
               <tr>
                 <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Buyer</th>
                 <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Tier</th>

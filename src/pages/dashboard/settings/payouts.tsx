@@ -243,7 +243,7 @@ export default function PayoutSettingsPage() {
 
   if (user?.role !== 'admin') {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
         <p className="text-sm text-slate-400">Only admins can view payout settings.</p>
       </div>
     );
@@ -278,7 +278,7 @@ export default function PayoutSettingsPage() {
       ) : (
         <>
           {isOnboarded && (
-            <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+            <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                   Outstanding Balance
@@ -334,7 +334,7 @@ export default function PayoutSettingsPage() {
                     type="button"
                     onClick={handleRequestPayout}
                     disabled={!balance || balance <= 0}
-                    className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Request payout
                   </button>
@@ -344,7 +344,7 @@ export default function PayoutSettingsPage() {
               {payoutStage === 'otp' && (
                 <div className="space-y-3">
                   {otpSplit && (
-                    <div className="p-3 rounded-md bg-[#0B0F17] border border-slate-800/80 text-xs space-y-1">
+                    <div className="p-3 rounded-md bg-ink border border-slate-800/80 text-xs space-y-1">
                       <div className="flex justify-between text-slate-400">
                         <span>Requested</span>
                         <span className="text-white">KES {otpSplit.amount.toLocaleString()}</span>
@@ -409,7 +409,7 @@ export default function PayoutSettingsPage() {
           )}
 
           {isOnboarded && history.length > 0 && (
-            <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
+            <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-3">
               <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                 Recent Requests
               </span>
@@ -417,7 +417,7 @@ export default function PayoutSettingsPage() {
                 {history.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-md bg-[#0B0F17] border border-slate-800/60"
+                    className="flex items-center justify-between gap-3 p-3 rounded-md bg-ink border border-slate-800/60"
                   >
                     <div className="min-w-0">
                       <div className="text-sm text-white tabular-nums">
@@ -445,7 +445,7 @@ export default function PayoutSettingsPage() {
             </div>
           )}
 
-          <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+          <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
               Status
@@ -595,7 +595,7 @@ export default function PayoutSettingsPage() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors disabled:opacity-50"
+              className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save payout details'}
             </button>

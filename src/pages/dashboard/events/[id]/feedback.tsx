@@ -35,7 +35,7 @@ interface Survey {
 
 // Validated on the dashboard surface (see gate.tsx).
 const BAR_COLOR = '#0284c7';
-const TRACK_COLOR = '#0c2a40';
+const TRACK_COLOR = 'var(--meter-track)';
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' });

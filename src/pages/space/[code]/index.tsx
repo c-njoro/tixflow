@@ -168,7 +168,7 @@ export default function SpacePage() {
                       <button
                         type="button"
                         onClick={followLive}
-                        className="px-3 py-1.5 text-xs rounded-md bg-emerald-500 text-black font-semibold"
+                        className="px-3 py-1.5 text-xs rounded-md bg-emerald-500 text-[#000] font-semibold"
                       >
                         Back to live · p.{state.live!.page}
                       </button>
@@ -244,7 +244,7 @@ export default function SpacePage() {
         {tab === 'questions' && <QuestionsTab state={state} me={me} code={code!} refresh={refresh} />}
       </main>
 
-      <nav className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto h-16 bg-[#131924]/90 backdrop-blur-xl border border-slate-800 rounded-xl flex">
+      <nav className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto h-16 bg-raised/90 backdrop-blur-xl border border-slate-800 rounded-xl flex">
         <TabButton active={tab === 'live'} onClick={() => setTab('live')} label="Live" Icon={SignalIcon} dot={!!state.poll && state.poll.status === 'live' && !me.myResponse} />
         <TabButton active={tab === 'documents'} onClick={() => setTab('documents')} label="Documents" Icon={DocumentTextIcon} dot={!!presenting} />
         <TabButton active={tab === 'questions'} onClick={() => setTab('questions')} label="Q&A" Icon={ChatBubbleLeftRightIcon} />
@@ -255,7 +255,7 @@ export default function SpacePage() {
 
 function Shell({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100">
+    <div className="min-h-screen bg-ink text-slate-100">
       <Head>
         <title>{title ? `${title} · Tixflow` : 'Event Space · Tixflow'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -603,7 +603,7 @@ function QuestionsTab({ state, me, code, refresh }: TabProps) {
             <div
               key={q.id}
               className={`p-4 rounded-xl border flex gap-3 ${
-                state.spotlightQuestion?.id === q.id ? 'border-sky-500/60 bg-sky-950/20' : 'border-slate-800/80 bg-[#0E131F]'
+                state.spotlightQuestion?.id === q.id ? 'border-sky-500/60 bg-sky-950/20' : 'border-slate-800/80 bg-panel'
               }`}
             >
               <button

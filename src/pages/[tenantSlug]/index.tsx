@@ -32,7 +32,7 @@ export default function TenantStorefrontPage({ tenant }: Props) {
   useEffect(() => captureRef(tenant.slug), [tenant.slug]);
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <Head>
         <title>{`${tenant.businessName} — events on Tixflow`}</title>
       </Head>
@@ -74,7 +74,7 @@ export default function TenantStorefrontPage({ tenant }: Props) {
           <div className="mt-12 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {tenant.events.map((event) => (
               <Link key={event.slug} href={`/${tenant.slug}/${event.slug}`} className="group block">
-                <div className="relative aspect-[16/10] rounded-xl overflow-hidden border border-slate-800/70 bg-[#131924]">
+                <div className="relative aspect-[16/10] rounded-xl overflow-hidden border border-slate-800/70 bg-raised">
                   {event.coverImageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

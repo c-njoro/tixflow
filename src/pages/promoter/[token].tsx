@@ -55,7 +55,7 @@ export default function PromoterStatsPage() {
     `https://wa.me/?text=${encodeURIComponent(`Get your tickets for ${title}: ${url}`)}`;
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100">
+    <div className="min-h-screen bg-ink text-slate-100">
       <Head>
         <title>{data ? `${data.name} · Promoter` : 'Promoter · Tixflow'}</title>
         <meta name="robots" content="noindex" />
@@ -183,7 +183,7 @@ function LinkRow({
           href={whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-3 py-1.5 text-[13px] rounded-md bg-emerald-600 text-white hover:bg-emerald-500 font-medium"
+          className="px-3 py-1.5 text-[13px] rounded-md bg-emerald-600 text-[#fff] hover:bg-emerald-500 font-medium"
         >
           Share on WhatsApp
         </a>

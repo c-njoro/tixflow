@@ -113,7 +113,7 @@ export default function ExhibitorPortal() {
     : { hot: 0, total: 0 };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100">
+    <div className="min-h-screen bg-ink text-slate-100">
       <Head>
         <title>{portal ? `${portal.exhibitor.name} · Leads` : 'Lead scanning · Tixflow'}</title>
         <meta name="robots" content="noindex" />
@@ -207,7 +207,7 @@ export default function ExhibitorPortal() {
                     key={l.id}
                     type="button"
                     onClick={() => setCurrent(l)}
-                    className="w-full text-left p-3 rounded-xl border border-slate-800 bg-[#0E131F] flex items-center gap-3"
+                    className="w-full text-left p-3 rounded-xl border border-slate-800 bg-panel flex items-center gap-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-white truncate">{l.name}</p>
@@ -245,7 +245,7 @@ function LeadEditor({
   const [saved, setSaved] = useState(false);
 
   return (
-    <div className="p-4 rounded-xl border border-slate-700 bg-[#0E131F] space-y-3">
+    <div className="p-4 rounded-xl border border-slate-700 bg-panel space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-base font-semibold text-white">{lead.name}</p>

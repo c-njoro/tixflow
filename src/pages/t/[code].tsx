@@ -20,7 +20,7 @@ interface Props {
 export default function ShortTicketPage({ ticketCode, status, tierName, holder, event }: Props) {
   const valid = status === 'active' || status === 'scanned';
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <Head>
         <title>{`Ticket · ${event.title}`}</title>
       </Head>

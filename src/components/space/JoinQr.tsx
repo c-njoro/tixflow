@@ -34,7 +34,7 @@ export default function JoinQr({ joinCode, size = 240, className = '', downloadN
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  const img = <img src={dataUrl} alt="Scan to join" width={size} height={size} className={`rounded-lg bg-white ${className}`} />;
+  const img = <img src={dataUrl} alt="Scan to join" width={size} height={size} className={`rounded-lg bg-[#fff] ${className}`} />;
   return downloadName ? (
     <a href={dataUrl} download={downloadName} title="Download QR code">
       {img}

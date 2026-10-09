@@ -16,7 +16,7 @@ export default function SettingsIndexPage() {
   const { user } = useAuth();
   if (user?.role !== 'admin') {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
         <p className="text-sm text-slate-400">Only admins can view settings.</p>
       </div>
     );
@@ -38,7 +38,7 @@ export default function SettingsIndexPage() {
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-start gap-4 p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl hover:border-slate-600 transition"
+            className="flex items-start gap-4 p-5 bg-panel border border-slate-800/80 rounded-xl hover:border-slate-600 transition"
           >
             <link.icon className="w-6 h-6 text-slate-400 shrink-0" />
             <div>

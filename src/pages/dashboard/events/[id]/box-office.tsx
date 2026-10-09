@@ -219,7 +219,7 @@ export default function BoxOfficePage() {
           </p>
           <div id="print-area" className="flex flex-wrap justify-center gap-4">
             {sold.tickets.map((t) => (
-              <div key={t.ticketCode} className="print-ticket bg-white text-black rounded-lg p-3 w-[220px]">
+              <div key={t.ticketCode} className="print-ticket bg-[#fff] text-[#000] rounded-lg p-3 w-[220px]">
                 <div className="text-sm font-bold leading-tight">{data?.title}</div>
                 <div className="text-[10px]">
                   {data && new Date(data.date).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' })}

@@ -83,8 +83,8 @@ export default function AuthPage() {
   ];
 
   return (
-    <div className="min-h-dvh bg-[#0B0F17] text-slate-100 grid lg:grid-cols-[1.1fr_1fr]">
-      <aside className="hidden lg:flex flex-col justify-between p-12 border-r border-slate-800/60 bg-[#080A10]">
+    <div className="min-h-dvh bg-ink text-slate-100 grid lg:grid-cols-[1.1fr_1fr]">
+      <aside className="hidden lg:flex flex-col justify-between p-12 border-r border-slate-800/60 bg-deep">
         <Link href="/" aria-label="Tixflow home">
           <Wordmark />
         </Link>
@@ -195,7 +195,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white disabled:opacity-50 transition-colors"
+              className="w-full h-11 rounded-lg text-sm font-medium bg-slate-100 text-ink hover:bg-white disabled:opacity-50 transition-colors"
             >
               {isLoading ? 'Please wait…' : isLogin ? 'Log in' : 'Create workspace'}
             </button>

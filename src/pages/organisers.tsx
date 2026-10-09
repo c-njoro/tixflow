@@ -88,7 +88,7 @@ const kes = (n: number) => `KES ${n.toLocaleString()}`;
 
 export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <Head>
         <title>Tixflow for organisers — sell tickets, run the gate, get paid</title>
         <meta
@@ -113,7 +113,7 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/auth"
-              className="h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors"
+              className="h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors"
             >
               Start selling — free to set up
               <ArrowRightIcon className="w-4 h-4" />
@@ -152,12 +152,12 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
       </section>
 
       {/* How it works */}
-      <section className="border-t border-slate-800/60 bg-[#080A10]">
+      <section className="border-t border-slate-800/60 bg-deep">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
           <h2 className="font-display text-4xl sm:text-5xl font-semibold max-w-xl leading-[1.02]">From sign-up to sold out</h2>
           <ol className="mt-12 grid gap-px bg-slate-800/70 rounded-2xl overflow-hidden sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
-              <li key={step.title} className="bg-[#080A10] p-6">
+              <li key={step.title} className="bg-deep p-6">
                 <span className="text-sm text-slate-500 tabular-nums">Step {i + 1}</span>
                 <div className="mt-6 font-medium text-white">{step.title}</div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-400">{step.text}</p>
@@ -178,7 +178,7 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
           </div>
 
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1.15fr]">
-            <div className="rounded-2xl border border-slate-700/70 bg-[#0E131F] p-8 flex flex-col">
+            <div className="rounded-2xl border border-slate-700/70 bg-panel p-8 flex flex-col">
               <h3 className="text-sm font-medium text-slate-400">Paid events</h3>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="font-display text-6xl font-semibold tabular-nums">{pricing.feePercent}%</span>
@@ -242,7 +242,7 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-800/70 bg-[#080A10] p-8 grid gap-6 md:grid-cols-[1.6fr_1fr] md:items-center">
+          <div className="mt-4 rounded-2xl border border-slate-800/70 bg-deep p-8 grid gap-6 md:grid-cols-[1.6fr_1fr] md:items-center">
             <div>
               <h3 className="font-display text-2xl font-semibold">Rent our gate scanners and staff</h3>
               <p className="mt-2 text-sm text-slate-400 leading-relaxed max-w-xl">
@@ -289,14 +289,14 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
       </section>
 
       {/* Final CTA */}
-      <section className="border-t border-slate-800/60 bg-[#080A10]">
+      <section className="border-t border-slate-800/60 bg-deep">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
           <h2 className="font-display text-4xl sm:text-6xl font-semibold leading-[1] max-w-3xl">
             Your next event deserves better than a group chat and a cash box.
           </h2>
           <Link
             href="/auth"
-            className="mt-10 h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors"
+            className="mt-10 h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors"
           >
             Start selling tickets
             <ArrowRightIcon className="w-4 h-4" />

@@ -4,10 +4,11 @@
 // search, ticket lookup).
 import Link from "next/link";
 import { Wordmark } from "@/components/dashboard/Sidebar";
+import { ThemeToggle } from "@/components/site/ThemeToggle";
 
 export function SiteHeader({ cta = "organiser" }: { cta?: "organiser" | "buyer" }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-[#0B0F17]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-ink/90 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/" aria-label="Tixflow home">
           <Wordmark />
@@ -28,9 +29,10 @@ export function SiteHeader({ cta = "organiser" }: { cta?: "organiser" | "buyer" 
           <Link href="/auth" className="hidden sm:inline-flex px-3 h-9 items-center rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/40 transition-colors">
             Log in
           </Link>
+          <ThemeToggle />
           <Link
             href="/auth"
-            className="ml-1 px-4 h-9 inline-flex items-center rounded-lg bg-slate-100 text-[#0B0F17] font-medium hover:bg-white transition-colors"
+            className="ml-1 px-4 h-9 inline-flex items-center rounded-lg bg-slate-100 text-ink font-medium hover:bg-white transition-colors"
           >
             Create event
           </Link>

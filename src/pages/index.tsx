@@ -41,7 +41,7 @@ const priceLabel = (e: EventCard) =>
 
 function Cover({ event, className = "" }: { event: EventCard; className?: string }) {
   return (
-    <div className={`relative overflow-hidden bg-[#131924] ${className}`}>
+    <div className={`relative overflow-hidden bg-raised ${className}`}>
       {event.coverImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -81,7 +81,7 @@ function FeaturedEvent({ event }: { event: EventCard }) {
   return (
     <Link
       href={`/${event.tenant.slug}/${event.slug}`}
-      className="group grid md:grid-cols-[1.35fr_1fr] rounded-2xl overflow-hidden border border-slate-800/70 bg-[#0E131F] hover:border-slate-700 transition-colors"
+      className="group grid md:grid-cols-[1.35fr_1fr] rounded-2xl overflow-hidden border border-slate-800/70 bg-panel hover:border-slate-700 transition-colors"
     >
       <Cover event={event} className="aspect-[16/10] md:aspect-auto md:min-h-[340px]" />
       <div className="p-6 sm:p-8 flex flex-col">
@@ -132,7 +132,7 @@ export default function Home({ events, categories, category }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <Head>
         <title>Tixflow — events and tickets in Kenya</title>
         <meta name="description" content="Find concerts, conferences, parties and more. Pay with M-Pesa or card and get your ticket instantly." />
@@ -153,7 +153,7 @@ export default function Home({ events, categories, category }: Props) {
           <label htmlFor="event-search" className="sr-only">
             Search events
           </label>
-          <div className="flex items-center gap-2 h-14 pl-5 pr-2 rounded-2xl bg-[#0E131F] border border-slate-800 focus-within:border-slate-500 transition-colors">
+          <div className="flex items-center gap-2 h-14 pl-5 pr-2 rounded-2xl bg-panel border border-slate-800 focus-within:border-slate-500 transition-colors">
             <MagnifyingGlassIcon className="w-5 h-5 text-slate-500 shrink-0" />
             <input
               id="event-search"
@@ -163,7 +163,7 @@ export default function Home({ events, categories, category }: Props) {
               placeholder="Search events, venues, organisers"
               className="flex-1 min-w-0 bg-transparent text-base text-white focus:outline-none"
             />
-            <button type="submit" className="h-10 px-5 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors">
+            <button type="submit" className="h-10 px-5 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors">
               Search
             </button>
           </div>
@@ -180,7 +180,7 @@ export default function Home({ events, categories, category }: Props) {
                   aria-current={active ? "page" : undefined}
                   className={`h-9 px-4 inline-flex items-center rounded-full text-sm transition-colors ${
                     active
-                      ? "bg-slate-100 text-[#0B0F17] font-medium"
+                      ? "bg-slate-100 text-ink font-medium"
                       : "border border-slate-800 text-slate-300 hover:border-slate-600 hover:text-white"
                   }`}
                 >
@@ -237,7 +237,7 @@ export default function Home({ events, categories, category }: Props) {
         </p>
       </section>
 
-      <section className="border-t border-slate-800/60 bg-[#080A10]">
+      <section className="border-t border-slate-800/60 bg-deep">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 grid gap-12 lg:grid-cols-[1.1fr_1fr] items-center">
           <div>
             <h2 className="font-display text-4xl sm:text-5xl leading-[1.02] font-semibold">Running an event? Sell on Tixflow.</h2>
@@ -248,7 +248,7 @@ export default function Home({ events, categories, category }: Props) {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/auth"
-                className="h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors"
+                className="h-12 px-6 inline-flex items-center gap-2 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors"
               >
                 Create your event
                 <ArrowRightIcon className="w-4 h-4" />

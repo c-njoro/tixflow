@@ -30,7 +30,7 @@ export default function PlatformAdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white flex items-center justify-center px-6">
+    <div className="min-h-screen bg-ink text-white flex items-center justify-center px-6">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <h1 className="text-sm uppercase tracking-[0.08em] text-slate-400 text-center font-medium">
           Platform Admin
@@ -48,7 +48,7 @@ export default function PlatformAdminLoginPage() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
-          className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+          className="block w-full bg-panel border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
         />
         <input
           type="password"
@@ -56,7 +56,7 @@ export default function PlatformAdminLoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="block w-full bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+          className="block w-full bg-panel border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
         />
         <button
           type="submit"

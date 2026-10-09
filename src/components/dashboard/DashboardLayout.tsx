@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { Bars3Icon, XMarkIcon, ArrowLeftStartOnRectangleIcon } from "@heroicons/react/24/outline";
 import Sidebar, { DASHBOARD_NAV, isNavActive, Wordmark } from "./Sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { ThemeToggle } from "@/components/site/ThemeToggle";
 
 const COLLAPSE_KEY = "tixflow:sidebar-collapsed";
 
@@ -38,26 +39,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     });
 
   return (
-    <div className="h-dvh overflow-hidden bg-[#0B0F17] text-slate-100 flex w-full">
+    <div className="h-dvh overflow-hidden bg-ink text-slate-100 flex w-full">
       <div className="hidden md:block h-full shrink-0">
         <Sidebar collapsed={collapsed} onToggle={toggle} />
       </div>
 
       <div className="flex-1 flex flex-col h-full min-w-0">
         {/* Mobile top bar */}
-        <header className="md:hidden h-14 shrink-0 flex items-center justify-between px-4 border-b border-slate-800/70 bg-[#0B0F17]">
+        <header className="md:hidden h-14 shrink-0 flex items-center justify-between px-4 border-b border-slate-800/70 bg-ink">
           <Link href="/dashboard" aria-label="Tixflow dashboard">
             <Wordmark />
           </Link>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="w-10 h-10 -mr-2 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800/50"
-          >
-            {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="w-10 h-10 -mr-2 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800/50"
+            >
+              {menuOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">
@@ -67,7 +71,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile menu sheet */}
       <div
-        className={`md:hidden fixed inset-x-0 top-14 bottom-0 z-40 bg-[#0B0F17] border-t border-slate-800/70 flex flex-col transition-[opacity,transform] duration-200 ease-out ${
+        className={`md:hidden fixed inset-x-0 top-14 bottom-0 z-40 bg-ink border-t border-slate-800/70 flex flex-col transition-[opacity,transform] duration-200 ease-out ${
           menuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
         }`}
       >

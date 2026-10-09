@@ -309,8 +309,8 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`;
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
-      <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-[#0B0F17]/90 backdrop-blur-md">
+    <div className="min-h-screen bg-ink text-white">
+      <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-ink/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <a href={`/${tenant.slug}`} className="flex items-center gap-3 min-w-0">
             {tenant.logoUrl ? (
@@ -331,7 +331,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-40 lg:pb-24">
         {event.coverImageUrl && (
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-[#131924] aspect-[16/9] sm:aspect-[21/9]">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-raised aspect-[16/9] sm:aspect-[21/9]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={event.coverImageUrl} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
           </div>
@@ -390,7 +390,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                 <h2 className="text-sm font-medium text-slate-400">Gallery</h2>
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {galleryUrls.map((url, i) => (
-                    <div key={i} className="aspect-[4/3] overflow-hidden rounded-xl border border-slate-800/70 bg-[#131924]">
+                    <div key={i} className="aspect-[4/3] overflow-hidden rounded-xl border border-slate-800/70 bg-raised">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
                     </div>
@@ -430,7 +430,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                     <div
                       key={tier.id}
                       className={`relative p-4 rounded-xl border transition-colors ${
-                        isSelected ? 'bg-[#0E131F] border-slate-500/70' : 'bg-[#0E131F]/50 border-slate-800/70 hover:border-slate-700'
+                        isSelected ? 'bg-panel border-slate-500/70' : 'bg-panel/50 border-slate-800/70 hover:border-slate-700'
                       } ${isSoldOut ? 'opacity-60' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -470,7 +470,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                               type="button"
                               onClick={() => setQuantity(tier.id, qty - 1)}
                               disabled={qty === 0}
-                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-ink text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <MinusIcon className="w-3.5 h-3.5" />
                             </button>
@@ -486,7 +486,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                                 )
                               }
                               disabled={qty >= tier.available}
-                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-[#0B0F17] text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-ink text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <PlusIcon className="w-3.5 h-3.5" />
                             </button>
@@ -501,7 +501,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
           </div>
 
           {totalTickets > 0 && checkoutStage === 'idle' && !showCheckoutForm && (
-            <div className="hidden lg:flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-800/70 bg-[#080A10]">
+            <div className="hidden lg:flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-800/70 bg-deep">
               <div>
                 <div className="text-sm text-slate-400 tabular-nums">
                   {totalTickets} ticket{totalTickets === 1 ? '' : 's'}
@@ -511,7 +511,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
               <button
                 type="button"
                 onClick={() => setShowCheckoutForm(true)}
-                className="h-11 px-6 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors inline-flex items-center gap-2"
+                className="h-11 px-6 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors inline-flex items-center gap-2"
               >
                 Checkout
                 <ChevronRightIcon className="w-4 h-4" />
@@ -626,7 +626,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                 </div>
               </div>
             ) : showCheckoutForm ? (
-              <div className="p-6 sm:p-8 bg-[#0E131F] border border-slate-800/60 rounded-2xl space-y-6">
+              <div className="p-6 sm:p-8 bg-panel border border-slate-800/60 rounded-2xl space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-semibold">Checkout</h3>
@@ -661,7 +661,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="John"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                        className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -674,7 +674,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Doe"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                        className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                       />
                     </div>
                   </div>
@@ -689,7 +689,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerEmail}
                       onChange={(e) => setBuyerEmail(e.target.value)}
                       placeholder="john@example.com"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                      className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       Your tickets always go here — keep this safe
@@ -705,7 +705,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerWhatsapp}
                       onChange={(e) => setBuyerWhatsapp(e.target.value)}
                       placeholder="0712345678"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                      className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       We&apos;ll also send your tickets here — email is still what matters if this doesn&apos;t go through
@@ -722,7 +722,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                           className={`px-4 py-3 rounded-xl border text-sm text-left transition ${
                             payMethod === m
                               ? 'border-slate-500 bg-slate-800/60 text-white'
-                              : 'border-slate-800 bg-[#0B0F17] text-slate-400 hover:border-slate-700'
+                              : 'border-slate-800 bg-ink text-slate-400 hover:border-slate-700'
                           }`}
                         >
                           <span className="block font-medium">{m === 'mpesa' ? 'M-Pesa' : 'Card'}</span>
@@ -745,7 +745,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                       value={buyerPhone}
                       onChange={(e) => setBuyerPhone(e.target.value)}
                       placeholder="0712345678"
-                      className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                      className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-[15px] text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                     />
                     <p className="text-[11px] text-slate-600">
                       You&apos;ll receive an STK push on this number
@@ -764,7 +764,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                         onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                         onKeyDown={(e) => e.key === 'Enter' && applyPromo(e)}
                         placeholder="e.g. MUKURU"
-                        className="block w-full bg-[#0B0F17] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition font-medium"
+                        className="block w-full bg-ink border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition font-medium"
                       />
                       {appliedPromo && quote?.promoCode ? (
                         <button
@@ -792,7 +792,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   </div>
 
                   {quote && (quote.discount > 0 || quote.bookingFee > 0) && (
-                    <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-1.5 text-sm">
+                    <div className="p-4 rounded-xl border border-slate-800 bg-ink space-y-1.5 text-sm">
                       <div className="flex justify-between text-slate-400">
                         <span>Tickets</span>
                         <span className="tabular-nums">{kes(quote.subtotal)}</span>
@@ -817,7 +817,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                   )}
 
                   {event.installments && orderTotal > 0 && payMethod === 'mpesa' && (
-                    <div className="p-4 rounded-xl border border-slate-800 bg-[#0B0F17] space-y-3">
+                    <div className="p-4 rounded-xl border border-slate-800 bg-ink space-y-3">
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input
                           type="checkbox"
@@ -845,7 +845,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                             value={deposit}
                             onChange={(e) => setDeposit(e.target.value)}
                             placeholder={String(minDeposit)}
-                            className="block w-full bg-[#0E131F] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
+                            className="block w-full bg-panel border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600 transition"
                           />
                           <p className="text-[11px] text-slate-600">
                             KES {Math.max(orderTotal - chargeNow, 0).toLocaleString()}{' '}left to pay after today. If it
@@ -891,7 +891,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
 
       {/* Sticky Checkout Bar */}
       {totalTickets > 0 && checkoutStage === 'idle' && !showCheckoutForm && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/60 bg-[#0B0F17]/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/60 bg-ink/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
             <div>
               <div className="text-sm text-slate-400 tabular-nums">
@@ -904,7 +904,7 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
             <button
               type="button"
               onClick={() => setShowCheckoutForm(true)}
-              className="h-12 px-7 rounded-xl text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors flex items-center gap-2 shrink-0"
+              className="h-12 px-7 rounded-xl text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors flex items-center gap-2 shrink-0"
             >
               Checkout
               <ChevronRightIcon className="w-4 h-4" />

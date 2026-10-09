@@ -318,7 +318,7 @@ export default function PlatformAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white p-6">
+    <div className="min-h-screen bg-ink text-white p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="font-display tracking-tight text-2xl font-semibold">
@@ -662,7 +662,7 @@ export default function PlatformAdminDashboard() {
 
         {tab === 'whatsapp' && (
           <div className="space-y-4 max-w-md mx-auto">
-            <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+            <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                   Ticket Delivery Number

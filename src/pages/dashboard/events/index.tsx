@@ -102,7 +102,7 @@ export default function EventsListPage() {
       {loading ? (
         <ul className="rounded-2xl border border-slate-800/70 divide-y divide-slate-800/70 overflow-hidden">
           {[0, 1, 2].map((k) => (
-            <li key={k} className="flex items-center gap-4 px-5 py-4 bg-[#0E131F]">
+            <li key={k} className="flex items-center gap-4 px-5 py-4 bg-panel">
               <div className="w-20 h-12 rounded-lg bg-slate-800 animate-pulse" />
               <div className="flex-1 space-y-2">
                 <div className="h-3.5 w-48 rounded bg-slate-800 animate-pulse" />
@@ -130,10 +130,10 @@ export default function EventsListPage() {
             const pct = capacity > 0 ? Math.min((sold / capacity) * 100, 100) : 0;
             const href = isAdmin ? `/dashboard/events/${event.id}` : `/dashboard/events/${event.id}/checkin`;
             return (
-              <li key={event.id} className="bg-[#0E131F] hover:bg-[#121827] transition-colors">
+              <li key={event.id} className="bg-panel hover:bg-raised transition-colors">
                 <div className="flex items-center gap-4 px-4 sm:px-5 py-4">
                   <Link href={href} className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="hidden sm:block w-20 h-12 rounded-lg overflow-hidden bg-[#131924] border border-slate-800/70 shrink-0">
+                    <div className="hidden sm:block w-20 h-12 rounded-lg overflow-hidden bg-raised border border-slate-800/70 shrink-0">
                       {event.coverImageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={event.coverImageUrl} alt="" className="w-full h-full object-cover" />

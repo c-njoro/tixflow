@@ -48,7 +48,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <SiteHeader />
 
       <main className="max-w-2xl mx-auto p-6 space-y-6">
@@ -58,7 +58,7 @@ export default function SearchPage() {
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Search events by name, category, or location..."
-            className="flex-1 bg-[#0E131F] border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
+            className="flex-1 bg-panel border border-slate-800 rounded-md px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:border-slate-400 transition"
           />
           <button
             type="submit"

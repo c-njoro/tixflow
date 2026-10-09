@@ -13,7 +13,7 @@ export default function TicketCard({ ticketCode, label }: { ticketCode: string; 
     <div className="w-full max-w-[320px] mx-auto space-y-2">
       {failed ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/api/tickets/qr/${ticketCode}`} alt={`QR code for ${ticketCode}`} className="w-full rounded-xl bg-white p-3" />
+        <img src={`/api/tickets/qr/${ticketCode}`} alt={`QR code for ${ticketCode}`} className="w-full rounded-xl bg-[#fff] p-3" />
       ) : (
         <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-slate-900" style={{ aspectRatio: '2 / 3' }}>
           {!loaded && (

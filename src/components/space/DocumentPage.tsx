@@ -27,7 +27,7 @@ export default function DocumentPage({ doc, page, className = '' }: { doc: Space
         src={src}
         alt={`${doc.title} — page ${page}`}
         onError={() => setFailedSrc(src)}
-        className={`w-full h-auto rounded-lg bg-white ${className}`}
+        className={`w-full h-auto rounded-lg bg-[#fff] ${className}`}
       />
       {page < doc.pageCount && (
         // eslint-disable-next-line @next/next/no-img-element

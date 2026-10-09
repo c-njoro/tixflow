@@ -109,7 +109,7 @@ export default function PlanPage() {
   const pct = plan ? Math.min(Math.round((plan.paidAmount / plan.totalAmount) * 100), 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100">
+    <div className="min-h-screen bg-ink text-slate-100">
       <Head>
         <title>{plan?.event ? `${plan.event.title} · Payment plan` : 'Payment plan · Tixflow'}</title>
         <meta name="robots" content="noindex" />
@@ -139,7 +139,7 @@ export default function PlanPage() {
                 <span className="text-3xl font-semibold">{kes(plan.paidAmount)}</span>
                 <span className="text-sm text-slate-400">of {kes(plan.totalAmount)}</span>
               </div>
-              <div className="h-3 rounded-full overflow-hidden" style={{ background: '#0c2a40' }}>
+              <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--meter-track)' }}>
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: '#0284c7' }} />
               </div>
               {plan.status === 'active' && (

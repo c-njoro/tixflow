@@ -163,7 +163,7 @@ export default function GatePage() {
                         </span>
                       </div>
                       {/* Meter: fill in the accent, track a lighter step of the same hue. */}
-                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#0c2a40' }}>
+                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--meter-track)' }}>
                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: BAR_COLOR }} />
                       </div>
                     </div>

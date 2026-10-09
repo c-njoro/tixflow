@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import AssistantWidget from "@/components/site/AssistantWidget";
+import { followSystemTheme } from "@/lib/theme";
 
 // AuthGuard (unchanged)
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[#0B0F17] flex items-center justify-center text-sm text-slate-500">
+      <div className="min-h-screen bg-ink flex items-center justify-center text-sm text-slate-500">
         <span className="w-4 h-4 mr-3 rounded-full border-2 border-slate-700 border-t-slate-300 animate-spin" />
         Loading your workspace…
       </div>
@@ -36,6 +37,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isDashboardRoute = router.pathname.startsWith("/dashboard");
+
+  useEffect(() => followSystemTheme(), []);
 
   return (
     <AuthProvider>

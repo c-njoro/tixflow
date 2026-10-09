@@ -105,7 +105,7 @@ export default function LookupVerifyPage() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-white">
+    <div className="min-h-screen bg-ink text-white">
       <SiteHeader />
 
       <main className="max-w-3xl mx-auto p-6 space-y-6">
@@ -182,7 +182,7 @@ export default function LookupVerifyPage() {
                 </button>
               )}
               {refundFor === ticket.event.title && selected[0] === ticket.id && (
-                <div className="p-4 rounded-lg border border-slate-800 bg-[#0E131F] space-y-3">
+                <div className="p-4 rounded-lg border border-slate-800 bg-panel space-y-3">
                   <div className="text-sm font-semibold">Refund request</div>
                   {tickets.filter((t) => t.event.title === ticket.event.title && refundable(t)).length > 1 && (
                     <div className="space-y-1">
@@ -210,14 +210,14 @@ export default function LookupVerifyPage() {
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Why do you need a refund?"
-                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                   />
                   <input
                     type="tel"
                     value={refundPhone}
                     onChange={(e) => setRefundPhone(e.target.value)}
                     placeholder="M-Pesa number for the refund, e.g. 0712345678"
-                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
                   />
                   <p className="text-[11px] text-slate-500">
                     The organiser decides on refunds. If approved, these tickets are cancelled and the ticket price is

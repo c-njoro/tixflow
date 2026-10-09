@@ -73,11 +73,11 @@ export default function CertificatePage() {
   };
 
   if (error) {
-    return <div className="min-h-screen bg-[#0B0F17] text-slate-400 flex items-center justify-center p-6 text-sm">{error}</div>;
+    return <div className="min-h-screen bg-ink text-slate-400 flex items-center justify-center p-6 text-sm">{error}</div>;
   }
   if (!cert) {
     return (
-      <div className="min-h-screen bg-[#0B0F17] text-slate-500 flex items-center justify-center text-sm">
+      <div className="min-h-screen bg-ink text-slate-500 flex items-center justify-center text-sm">
         Loading...
       </div>
     );
@@ -100,7 +100,7 @@ export default function CertificatePage() {
       `}</style>
 
       <div className="no-print max-w-[297mm] mx-auto mb-4 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => window.print()} className="px-4 py-2 rounded-md bg-white text-black text-sm font-medium">
+        <button type="button" onClick={() => window.print()} className="px-4 py-2 rounded-md bg-[#fff] text-[#000] text-sm font-medium">
           Download / print (Save as PDF)
         </button>
         {editing ? (
@@ -109,7 +109,7 @@ export default function CertificatePage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={80}
-              className="bg-[#0B0F17] border border-slate-700 rounded-md px-3 py-2 text-sm text-white"
+              className="bg-ink border border-slate-700 rounded-md px-3 py-2 text-sm text-white"
             />
             <button type="submit" disabled={saving} className="px-3 py-2 rounded-md border border-slate-600 text-sm text-slate-200">
               {saving ? 'Saving…' : 'Save name'}
@@ -132,7 +132,7 @@ export default function CertificatePage() {
       {/* The sheet itself: fixed A4 landscape proportions, scrolls on small screens. */}
       <div className="overflow-x-auto">
         <div
-          className="sheet mx-auto bg-white text-[#1f2933] shadow-2xl relative"
+          className="sheet mx-auto bg-[#fff] text-[#1f2933] shadow-2xl relative"
           style={{ width: '297mm', height: '210mm', fontFamily: 'Georgia, "Times New Roman", serif' }}
         >
           <div className="absolute inset-[10mm] border-[3px] border-[#0b3a5c]" />

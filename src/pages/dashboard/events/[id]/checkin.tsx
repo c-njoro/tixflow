@@ -78,12 +78,12 @@ const TITLES: Record<string, string> = {
 
 const flashClass = (r: ScanResult) =>
   r.result === "exit"
-    ? "bg-sky-600 text-white"
+    ? "bg-sky-600 text-[#fff]"
     : GOOD.has(r.result)
-      ? "bg-emerald-600 text-white"
+      ? "bg-emerald-600 text-[#fff]"
       : r.result === "already_inside" || r.result === "already_scanned" || r.result === "no_reentries_left"
-        ? "bg-amber-500 text-black"
-        : "bg-rose-600 text-white";
+        ? "bg-amber-500 text-[#000]"
+        : "bg-rose-600 text-[#fff]";
 
 // Ignore a repeat scan of the same code within this window — the camera
 // keeps decoding every frame while the QR is in view.
@@ -450,18 +450,18 @@ export default function CheckInPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
+        <div className="p-3 bg-panel border border-slate-800/80 rounded-xl">
           <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Inside now</div>
           <div className="text-2xl tabular-nums font-bold text-white">{insideNow ?? "—"}</div>
         </div>
-        <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
+        <div className="p-3 bg-panel border border-slate-800/80 rounded-xl">
           <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">This device</div>
           <div className="text-sm tabular-nums text-white mt-1">
             {counts.in} in{reentry && ` · ${counts.out} out`}
           </div>
           <div className="text-[11px] tabular-nums text-rose-400">{counts.rejected} rejected</div>
         </div>
-        <div className="p-3 bg-[#0E131F] border border-slate-800/80 rounded-xl">
+        <div className="p-3 bg-panel border border-slate-800/80 rounded-xl">
           <div className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Connection</div>
           <div className={`text-sm tabular-nums mt-1 ${online ? "text-emerald-400" : "text-amber-400"}`}>{online ? "Online" : "Offline"}</div>
           <div className="text-[11px] tabular-nums text-slate-500">{queue.length > 0 ? `${queue.length} to sync` : "all synced"}</div>
@@ -481,8 +481,8 @@ export default function CheckInPage() {
               className={`py-4 rounded-xl text-lg font-bold border-2 transition ${
                 direction === d
                   ? d === "in"
-                    ? "bg-emerald-600 border-emerald-400 text-white"
-                    : "bg-sky-600 border-sky-400 text-white"
+                    ? "bg-emerald-600 border-emerald-400 text-[#fff]"
+                    : "bg-sky-600 border-sky-400 text-[#fff]"
                   : "border-slate-800 text-slate-500"
               }`}
             >
@@ -540,7 +540,7 @@ export default function CheckInPage() {
             onBlur={() => setTimeout(() => mode === "scanner" && inputRef.current?.focus(), 300)}
             placeholder="Scan, or type a ticket code and press Enter"
             autoFocus
-            className="block w-full bg-[#0B0F17] border border-slate-800 rounded-md px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition tabular-nums"
+            className="block w-full bg-ink border border-slate-800 rounded-md px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition tabular-nums"
           />
         </form>
       ) : (
@@ -548,11 +548,11 @@ export default function CheckInPage() {
           {cameraError && (
             <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">{cameraError}</div>
           )}
-          <div id="qr-camera-reader" className="w-full rounded-xl overflow-hidden border border-slate-800/80 bg-black" />
+          <div id="qr-camera-reader" className="w-full rounded-xl overflow-hidden border border-slate-800/80 bg-[#000]" />
         </div>
       )}
 
-      <div className="p-4 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-2">
+      <div className="p-4 bg-panel border border-slate-800/80 rounded-xl space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Offline mode</div>
@@ -576,7 +576,7 @@ export default function CheckInPage() {
 
       {history.length > 0 && (
         <div className="border border-slate-800/80 rounded-xl overflow-hidden">
-          <div className="p-3 bg-[#0E131F] text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Recent scans</div>
+          <div className="p-3 bg-panel text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Recent scans</div>
           <div className="divide-y divide-slate-800/80">
             {history.map((entry, i) => (
               <div key={i} className="p-3 flex items-center justify-between text-sm">

@@ -105,7 +105,7 @@ export default function StaffPage() {
 
   if (user?.role !== 'admin') {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
         <p className="text-sm text-slate-400">Only admins can view staff.</p>
       </div>
     );
@@ -129,7 +129,7 @@ export default function StaffPage() {
       )}
 
       {/* Add staff */}
-      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+      <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
           Add Staff Member
         </h3>
@@ -202,7 +202,7 @@ export default function StaffPage() {
       ) : (
         <div className="border border-slate-800/80 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#0E131F] text-left">
+            <thead className="bg-panel text-left">
               <tr>
                 <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Name</th>
                 <th className="p-3 text-xs uppercase tracking-[0.06em] text-slate-500 font-medium">Email</th>

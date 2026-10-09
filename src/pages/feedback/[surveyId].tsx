@@ -69,7 +69,7 @@ export default function FeedbackPage() {
   const set = (id: string, value: number | string) => setAnswers((a) => ({ ...a, [id]: value }));
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100">
+    <div className="min-h-screen bg-ink text-slate-100">
       <Head>
         <title>{survey?.event ? `Feedback · ${survey.event.title}` : 'Feedback · Tixflow'}</title>
         <meta name="robots" content="noindex" />
@@ -94,7 +94,7 @@ export default function FeedbackPage() {
             </div>
 
             {survey.questions.map((q) => (
-              <fieldset key={q.id} className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-3">
+              <fieldset key={q.id} className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-3">
                 <legend className="sr-only">{q.prompt}</legend>
                 <p className="text-sm font-medium text-white">
                   {q.prompt}
@@ -145,7 +145,7 @@ export default function FeedbackPage() {
                     onChange={(e) => set(q.id, e.target.value)}
                     rows={3}
                     maxLength={1000}
-                    className="block w-full bg-[#0B0F17] border border-slate-800 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-slate-500"
                   />
                 )}
               </fieldset>

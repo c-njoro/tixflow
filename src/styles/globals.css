@@ -1,11 +1,23 @@
 @import "tailwindcss";
 
+/* `light:` utilities apply in light mode (see the theme notes below). */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
 /*
- * Tixflow — dark, minimal.
- * Colour: the existing ink/panel palette (slate on near-black blue), with
+ * Tixflow — minimal, dark by default with a light mode.
+ * Colour: the ink/panel palette (slate on near-black blue), with
  * emerald/rose/amber/sky reserved for state. Type: Bricolage Grotesque for
  * headlines (font-display), Geist for everything else, Geist Mono only for
  * ticket codes and figures.
+ *
+ * Light mode (<html data-theme="light">, set in _document) works by
+ * redefining the colour variables every utility reads, so pages keep using
+ * the same classes: bg-ink / bg-panel / bg-deep / bg-raised for surfaces,
+ * text-white for primary text, slate for the rest. Slate flips end to end,
+ * the state colours swap to shades that read on light, and white/black swap
+ * so bg-white buttons become dark ones. Anything that must look the same in
+ * both modes (QR codes, paper, solid status fills) uses literal colours like
+ * bg-[#fff], or sits inside .keep-colors (the projector screen).
  */
 
 @theme {
@@ -16,7 +28,7 @@
   --color-ink: #0b0f17; /* page */
   --color-deep: #080a10; /* recessed bands */
   --color-panel: #0e131f; /* cards, sidebar */
-  --color-raised: #131924; /* floating bars, popovers */
+  --color-raised: #131924; /* floating bars, popovers, row hover */
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -24,23 +36,188 @@
 :root {
   color-scheme: dark;
   --focus: #e2e8f0;
+  --meter-track: #0c2a40; /* empty part of the sky-blue meters */
+  --scroll-thumb: #232b3a;
+  --scroll-thumb-hover: #33405a;
+  --selection: rgba(226, 232, 240, 0.22);
+}
+
+/* Light mode: near-white, never pure white, in the same cool slate family. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --focus: #0f172a;
+  --meter-track: #dbeafe;
+  --scroll-thumb: #cdd5e0;
+  --scroll-thumb-hover: #aab6c6;
+  --selection: rgba(15, 23, 42, 0.14);
+
+  --color-ink: #f2f4f7;
+  --color-deep: #e9edf2;
+  --color-panel: #fafbfc;
+  --color-raised: #eef1f5;
+  --color-white: #0b0f17;
+  --color-black: #f8fafc;
+  --color-slate-50: oklch(12.9% 0.042 264.695);
+  --color-slate-100: oklch(20.8% 0.042 265.755);
+  --color-slate-200: oklch(27.9% 0.041 260.031);
+  --color-slate-300: oklch(37.2% 0.044 257.287);
+  --color-slate-400: oklch(44.6% 0.043 257.281);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(70.4% 0.04 256.788);
+  --color-slate-700: oklch(86.9% 0.022 252.894);
+  --color-slate-800: oklch(92.9% 0.013 255.508);
+  --color-slate-900: oklch(96.8% 0.007 247.896);
+  --color-slate-950: oklch(98.4% 0.003 247.858);
+  --color-emerald-50: oklch(26.2% 0.051 172.552);
+  --color-emerald-100: oklch(37.8% 0.077 168.94);
+  --color-emerald-200: oklch(43.2% 0.095 166.913);
+  --color-emerald-300: oklch(43.2% 0.095 166.913);
+  --color-emerald-400: oklch(50.8% 0.118 165.612);
+  --color-emerald-500: oklch(69.6% 0.17 162.48);
+  --color-emerald-600: oklch(59.6% 0.145 163.225);
+  --color-emerald-700: oklch(50.8% 0.118 165.612);
+  --color-emerald-800: oklch(90.5% 0.093 164.15);
+  --color-emerald-900: oklch(95% 0.052 163.051);
+  --color-emerald-950: oklch(95% 0.052 163.051);
+  --color-rose-50: oklch(27.1% 0.105 12.094);
+  --color-rose-100: oklch(41% 0.159 10.272);
+  --color-rose-200: oklch(45.5% 0.188 13.697);
+  --color-rose-300: oklch(45.5% 0.188 13.697);
+  --color-rose-400: oklch(51.4% 0.222 16.935);
+  --color-rose-500: oklch(64.5% 0.246 16.439);
+  --color-rose-600: oklch(58.6% 0.253 17.585);
+  --color-rose-700: oklch(51.4% 0.222 16.935);
+  --color-rose-800: oklch(89.2% 0.058 10.001);
+  --color-rose-900: oklch(94.1% 0.03 12.58);
+  --color-rose-950: oklch(94.1% 0.03 12.58);
+  --color-amber-50: oklch(27.9% 0.077 45.635);
+  --color-amber-100: oklch(41.4% 0.112 45.904);
+  --color-amber-200: oklch(47.3% 0.137 46.201);
+  --color-amber-300: oklch(47.3% 0.137 46.201);
+  --color-amber-400: oklch(55.5% 0.163 48.998);
+  --color-amber-500: oklch(76.9% 0.188 70.08);
+  --color-amber-600: oklch(66.6% 0.179 58.318);
+  --color-amber-700: oklch(55.5% 0.163 48.998);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+  --color-amber-900: oklch(96.2% 0.059 95.617);
+  --color-amber-950: oklch(96.2% 0.059 95.617);
+  --color-sky-50: oklch(29.3% 0.066 243.157);
+  --color-sky-100: oklch(39.1% 0.09 240.876);
+  --color-sky-200: oklch(44.3% 0.11 240.79);
+  --color-sky-300: oklch(44.3% 0.11 240.79);
+  --color-sky-400: oklch(50% 0.134 242.749);
+  --color-sky-500: oklch(68.5% 0.169 237.323);
+  --color-sky-600: oklch(58.8% 0.158 241.966);
+  --color-sky-700: oklch(50% 0.134 242.749);
+  --color-sky-800: oklch(90.1% 0.058 230.902);
+  --color-sky-900: oklch(95.1% 0.026 236.824);
+  --color-sky-950: oklch(95.1% 0.026 236.824);
+  --color-violet-50: oklch(28.3% 0.141 291.089);
+  --color-violet-100: oklch(38% 0.189 293.745);
+  --color-violet-200: oklch(43.2% 0.232 292.759);
+  --color-violet-300: oklch(43.2% 0.232 292.759);
+  --color-violet-400: oklch(49.1% 0.27 292.581);
+  --color-violet-500: oklch(60.6% 0.25 292.717);
+  --color-violet-600: oklch(54.1% 0.281 293.009);
+  --color-violet-700: oklch(49.1% 0.27 292.581);
+  --color-violet-800: oklch(89.4% 0.057 293.283);
+  --color-violet-900: oklch(94.3% 0.029 294.588);
+  --color-violet-950: oklch(94.3% 0.029 294.588);
+}
+
+/* Keeps the dark palette inside light mode (e.g. the projector screen). */
+:root[data-theme="light"] .keep-colors {
+  color-scheme: dark;
+  --meter-track: #0c2a40;
+  --color-ink: #0b0f17;
+  --color-deep: #080a10;
+  --color-panel: #0e131f;
+  --color-raised: #131924;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-slate-50: oklch(98.4% 0.003 247.858);
+  --color-slate-100: oklch(96.8% 0.007 247.896);
+  --color-slate-200: oklch(92.9% 0.013 255.508);
+  --color-slate-300: oklch(86.9% 0.022 252.894);
+  --color-slate-400: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(44.6% 0.043 257.281);
+  --color-slate-700: oklch(37.2% 0.044 257.287);
+  --color-slate-800: oklch(27.9% 0.041 260.031);
+  --color-slate-900: oklch(20.8% 0.042 265.755);
+  --color-slate-950: oklch(12.9% 0.042 264.695);
+  --color-emerald-50: oklch(97.9% 0.021 166.113);
+  --color-emerald-100: oklch(95% 0.052 163.051);
+  --color-emerald-200: oklch(90.5% 0.093 164.15);
+  --color-emerald-300: oklch(84.5% 0.143 164.978);
+  --color-emerald-400: oklch(76.5% 0.177 163.223);
+  --color-emerald-500: oklch(69.6% 0.17 162.48);
+  --color-emerald-600: oklch(59.6% 0.145 163.225);
+  --color-emerald-700: oklch(50.8% 0.118 165.612);
+  --color-emerald-800: oklch(43.2% 0.095 166.913);
+  --color-emerald-900: oklch(37.8% 0.077 168.94);
+  --color-emerald-950: oklch(26.2% 0.051 172.552);
+  --color-rose-50: oklch(96.9% 0.015 12.422);
+  --color-rose-100: oklch(94.1% 0.03 12.58);
+  --color-rose-200: oklch(89.2% 0.058 10.001);
+  --color-rose-300: oklch(81% 0.117 11.638);
+  --color-rose-400: oklch(71.2% 0.194 13.428);
+  --color-rose-500: oklch(64.5% 0.246 16.439);
+  --color-rose-600: oklch(58.6% 0.253 17.585);
+  --color-rose-700: oklch(51.4% 0.222 16.935);
+  --color-rose-800: oklch(45.5% 0.188 13.697);
+  --color-rose-900: oklch(41% 0.159 10.272);
+  --color-rose-950: oklch(27.1% 0.105 12.094);
+  --color-amber-50: oklch(98.7% 0.022 95.277);
+  --color-amber-100: oklch(96.2% 0.059 95.617);
+  --color-amber-200: oklch(92.4% 0.12 95.746);
+  --color-amber-300: oklch(87.9% 0.169 91.605);
+  --color-amber-400: oklch(82.8% 0.189 84.429);
+  --color-amber-500: oklch(76.9% 0.188 70.08);
+  --color-amber-600: oklch(66.6% 0.179 58.318);
+  --color-amber-700: oklch(55.5% 0.163 48.998);
+  --color-amber-800: oklch(47.3% 0.137 46.201);
+  --color-amber-900: oklch(41.4% 0.112 45.904);
+  --color-amber-950: oklch(27.9% 0.077 45.635);
+  --color-sky-50: oklch(97.7% 0.013 236.62);
+  --color-sky-100: oklch(95.1% 0.026 236.824);
+  --color-sky-200: oklch(90.1% 0.058 230.902);
+  --color-sky-300: oklch(82.8% 0.111 230.318);
+  --color-sky-400: oklch(74.6% 0.16 232.661);
+  --color-sky-500: oklch(68.5% 0.169 237.323);
+  --color-sky-600: oklch(58.8% 0.158 241.966);
+  --color-sky-700: oklch(50% 0.134 242.749);
+  --color-sky-800: oklch(44.3% 0.11 240.79);
+  --color-sky-900: oklch(39.1% 0.09 240.876);
+  --color-sky-950: oklch(29.3% 0.066 243.157);
+  --color-violet-50: oklch(96.9% 0.016 293.756);
+  --color-violet-100: oklch(94.3% 0.029 294.588);
+  --color-violet-200: oklch(89.4% 0.057 293.283);
+  --color-violet-300: oklch(81.1% 0.111 293.571);
+  --color-violet-400: oklch(70.2% 0.183 293.541);
+  --color-violet-500: oklch(60.6% 0.25 292.717);
+  --color-violet-600: oklch(54.1% 0.281 293.009);
+  --color-violet-700: oklch(49.1% 0.27 292.581);
+  --color-violet-800: oklch(43.2% 0.232 292.759);
+  --color-violet-900: oklch(38% 0.189 293.745);
+  --color-violet-950: oklch(28.3% 0.141 291.089);
 }
 
 html {
   font-size: 100%;
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
-  scrollbar-color: #283142 transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 body {
   background: var(--color-ink);
-  color: #e2e8f0;
+  color: var(--color-slate-200);
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  caret-color: #f8fafc;
+  caret-color: var(--color-slate-50);
 }
 
 /* Headlines: the display face, tight but never cramped. */
@@ -72,8 +249,8 @@ table {
 }
 
 ::selection {
-  background: rgba(226, 232, 240, 0.22);
-  color: #fff;
+  background: var(--selection);
+  color: var(--color-white);
 }
 
 :focus-visible {
@@ -104,13 +281,13 @@ a {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232b3a;
+  background: var(--scroll-thumb);
   border: 3px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #33405a;
+  background: var(--scroll-thumb-hover);
   background-clip: padding-box;
   border: 3px solid transparent;
 }
@@ -119,8 +296,8 @@ a {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #f1f5f9;
-  -webkit-box-shadow: 0 0 0 1000px #0b0f17 inset;
+  -webkit-text-fill-color: var(--color-slate-100);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-ink) inset;
   transition: background-color 9999s ease-out;
 }
 
@@ -133,18 +310,22 @@ textarea::placeholder {
 /* Native controls in the palette. */
 input[type="checkbox"],
 input[type="radio"] {
-  accent-color: #e2e8f0;
+  accent-color: var(--color-slate-200);
 }
 input[type="number"]::-webkit-inner-spin-button {
   opacity: 0.4;
 }
 select option {
-  background: #0e131f;
-  color: #e2e8f0;
+  background: var(--color-panel);
+  color: var(--color-slate-200);
 }
 input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.75);
+}
+:root[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+:root[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
 }
 
 @keyframes fade-up {

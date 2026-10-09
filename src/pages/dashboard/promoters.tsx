@@ -374,7 +374,7 @@ function PayDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-[#000]/70 flex items-center justify-center p-4" onClick={onClose}>
       <div className={`${cardClass} w-full max-w-md space-y-4`} onClick={(e) => e.stopPropagation()}>
         <h3 className="text-sm font-semibold text-white">Pay {promoter.name}</h3>
         {done ? (

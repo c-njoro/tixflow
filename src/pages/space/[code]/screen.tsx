@@ -101,7 +101,8 @@ function useViewportFontSize() {
 function Frame({ children, title }: { children: React.ReactNode; title?: string }) {
   useViewportFontSize();
   return (
-    <div className="h-screen bg-black text-white relative overflow-hidden">
+    // The projector stays dark in light mode too (venue screens, big rooms).
+    <div className="keep-colors h-screen bg-black text-white relative overflow-hidden">
       <Head>
         <title>{title ? `${title} · Screen` : 'Event Space Screen'}</title>
       </Head>

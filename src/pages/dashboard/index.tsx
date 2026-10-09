@@ -66,7 +66,7 @@ export default function DashboardHome() {
             {user ? `Welcome back, ${user.name}` : 'Overview'}
           </p>
         </div>
-        <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+        <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
           <p className="text-sm text-slate-300 mb-4">
             Head to Events to check attendees in for a specific event.
           </p>
@@ -93,7 +93,7 @@ export default function DashboardHome() {
         </div>
         <Link
           href="/dashboard/events/new"
-          className="inline-flex items-center h-10 px-4 rounded-lg text-sm font-medium bg-slate-100 text-[#0B0F17] hover:bg-white transition-colors"
+          className="inline-flex items-center h-10 px-4 rounded-lg text-sm font-medium bg-slate-100 text-ink hover:bg-white transition-colors"
         >
           New event
         </Link>
@@ -106,7 +106,7 @@ export default function DashboardHome() {
       {loading || !t ? (
         <div className="grid gap-px rounded-2xl overflow-hidden border border-slate-800/70 bg-slate-800/70 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           {[0, 1, 2, 3].map((k) => (
-            <div key={k} className="bg-[#0E131F] p-6 h-[116px]">
+            <div key={k} className="bg-panel p-6 h-[116px]">
               <div className="h-3 w-20 rounded bg-slate-800 animate-pulse" />
               <div className="mt-4 h-7 w-28 rounded bg-slate-800 animate-pulse" />
             </div>
@@ -115,25 +115,25 @@ export default function DashboardHome() {
       ) : (
         <>
           <div className="grid gap-px rounded-2xl overflow-hidden border border-slate-800/70 bg-slate-800/70 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-            <div className="bg-[#0E131F] p-6">
+            <div className="bg-panel p-6">
               <div className="text-sm text-slate-400">Revenue</div>
               <div className="mt-2 font-display text-4xl font-semibold tabular-nums text-white">
                 <span className="text-xl text-slate-500 font-medium mr-1.5">KES</span>
                 {t.revenue.toLocaleString()}
               </div>
             </div>
-            <div className="bg-[#0E131F] p-6">
+            <div className="bg-panel p-6">
               <div className="text-sm text-slate-400">Tickets issued</div>
               <div className="mt-2 text-3xl font-semibold tabular-nums text-white">{t.ticketsIssued.toLocaleString()}</div>
             </div>
-            <div className="bg-[#0E131F] p-6">
+            <div className="bg-panel p-6">
               <div className="text-sm text-slate-400">Checked in</div>
               <div className="mt-2 text-3xl font-semibold tabular-nums text-white">
                 {t.ticketsScanned.toLocaleString()}
                 <span className="ml-2 text-sm font-normal text-slate-500">{scannedPct}%</span>
               </div>
             </div>
-            <div className="bg-[#0E131F] p-6">
+            <div className="bg-panel p-6">
               <div className="text-sm text-slate-400">Events live</div>
               <div className="mt-2 text-3xl font-semibold tabular-nums text-white">
                 {t.publishedEvents}
@@ -163,7 +163,7 @@ export default function DashboardHome() {
                     <li key={event.id}>
                       <Link
                         href={`/dashboard/events/${event.id}`}
-                        className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_200px] items-center gap-6 px-5 py-4 bg-[#0E131F] hover:bg-[#121827] transition-colors"
+                        className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_200px] items-center gap-6 px-5 py-4 bg-panel hover:bg-raised transition-colors"
                       >
                         <div className="min-w-0">
                           <div className="font-medium text-white truncate">{event.title}</div>

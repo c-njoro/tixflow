@@ -429,7 +429,7 @@ export default function EventDetailPage() {
         {error && <div className="p-3 text-sm border rounded-lg bg-rose-950/30 text-rose-300 border-rose-800/50">{error}</div>}
 
         <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
-          <div className="w-full sm:w-44 aspect-[16/10] rounded-xl overflow-hidden border border-slate-800/70 bg-[#131924] shrink-0">
+          <div className="w-full sm:w-44 aspect-[16/10] rounded-xl overflow-hidden border border-slate-800/70 bg-raised shrink-0">
             {event.coverImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={event.coverImageUrl} alt="" className="w-full h-full object-cover" />
@@ -480,7 +480,7 @@ export default function EventDetailPage() {
               </div>
               <ul className="rounded-2xl border border-slate-800/70 divide-y divide-slate-800/70 overflow-hidden">
                 {event.ticketTiers.map((tier) => (
-                  <li key={tier.id} className="flex items-center justify-between gap-4 px-5 py-4 bg-[#0E131F]">
+                  <li key={tier.id} className="flex items-center justify-between gap-4 px-5 py-4 bg-panel">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tier.tierColor }} />
                       <div className="min-w-0">
@@ -505,13 +505,13 @@ export default function EventDetailPage() {
             {isAdmin && (
               <section>
                 <h2 className="text-base font-semibold text-white mb-3">Settings</h2>
-                <div className="rounded-2xl border border-slate-800/70 bg-[#0E131F] px-5 divide-y divide-slate-800/70">
+                <div className="rounded-2xl border border-slate-800/70 bg-panel px-5 divide-y divide-slate-800/70">
                   <div className={settingRow}>
                     <div>
                       <div className="text-sm font-medium text-white">Status</div>
                       <p className="text-sm text-slate-500">Only published events can sell tickets.</p>
                     </div>
-                    <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-[#0B0F17] border border-slate-800">
+                    <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-ink border border-slate-800">
                       {['draft', 'published', 'cancelled', 'completed'].map((st) => (
                         <button
                           key={st}
@@ -538,7 +538,7 @@ export default function EventDetailPage() {
                       onClick={() => patchEvent({ remindersEnabled: !event.remindersEnabled })}
                       className={`relative w-11 h-6 rounded-full transition-colors ${event.remindersEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
                     >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${event.remindersEnabled ? 'translate-x-5' : ''}`} />
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#fff] transition-transform ${event.remindersEnabled ? 'translate-x-5' : ''}`} />
                     </button>
                   </div>
                   <div className={settingRow}>
@@ -554,7 +554,7 @@ export default function EventDetailPage() {
                       defaultValue={event.reentryLimit}
                       onBlur={(e) => Number(e.target.value) !== event.reentryLimit && patchEvent({ reentryLimit: Number(e.target.value) })}
                       aria-label="Re-entries per ticket"
-                      className="w-20 h-9 bg-[#0B0F17] border border-slate-800 rounded-lg px-3 text-sm text-white text-center tabular-nums focus:outline-none focus:border-slate-500"
+                      className="w-20 h-9 bg-ink border border-slate-800 rounded-lg px-3 text-sm text-white text-center tabular-nums focus:outline-none focus:border-slate-500"
                     />
                   </div>
                   <div className={settingRow}>
@@ -566,7 +566,7 @@ export default function EventDetailPage() {
                           : 'Tixflow’s fee comes out of your sales — buyers pay just the ticket price.'}
                       </p>
                     </div>
-                    <div className="flex gap-1 p-1 rounded-lg bg-[#0B0F17] border border-slate-800">
+                    <div className="flex gap-1 p-1 rounded-lg bg-ink border border-slate-800">
                       {[
                         { value: true, label: 'Buyer pays' },
                         { value: false, label: 'I pay' },
@@ -618,7 +618,7 @@ export default function EventDetailPage() {
                       <li key={tool.href}>
                         <a
                           href={`/dashboard/events/${event.id}/${tool.href}`}
-                          className="group flex items-center justify-between gap-3 px-4 py-3 bg-[#0E131F] hover:bg-[#121827] transition-colors"
+                          className="group flex items-center justify-between gap-3 px-4 py-3 bg-panel hover:bg-raised transition-colors"
                         >
                           <span className="min-w-0">
                             <span className="block text-sm font-medium text-white">{tool.label}</span>
@@ -668,7 +668,7 @@ export default function EventDetailPage() {
       )}
 
       {/* Images */}
-      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+      <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Images</h3>
 
         <div>
@@ -682,7 +682,7 @@ export default function EventDetailPage() {
                   type="button"
                   onClick={handleDeleteCover}
                   disabled={deletingImage === 'cover'}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-[#fff] text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
                 >
                   ×
                 </button>
@@ -718,7 +718,7 @@ export default function EventDetailPage() {
                   type="button"
                   onClick={() => handleDeleteGalleryImage(img.publicId)}
                   disabled={deletingImage === img.publicId}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-[#fff] text-xs flex items-center justify-center hover:bg-rose-500 transition disabled:opacity-50"
                 >
                   ×
                 </button>
@@ -746,7 +746,7 @@ export default function EventDetailPage() {
 
       {/* Core details */}
       <form onSubmit={handleSave} className="space-y-6">
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <div>
             <label className={labelClass}>Title</label>
             <div className="mt-1">
@@ -799,7 +799,7 @@ export default function EventDetailPage() {
       </form>
 
       {/* Ticket tiers management */}
-      <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+      <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Ticket Tiers</h3>
 
         {event.ticketTiers.map((tier) => (
@@ -823,7 +823,7 @@ export default function EventDetailPage() {
                     type="color"
                     defaultValue={tier.tierColor}
                     onBlur={(e) => e.target.value !== tier.tierColor && handleUpdateTier(tier.id, { tierColor: e.target.value })}
-                    className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer"
+                    className="h-10 w-full bg-ink border border-slate-800 rounded-lg p-1 cursor-pointer"
                   />
                 </div>
               </div>
@@ -898,7 +898,7 @@ export default function EventDetailPage() {
           <h4 className="text-[11px] uppercase tracking-[0.08em] text-slate-500 font-medium">Add New Tier</h4>
           <div className="grid grid-cols-2 gap-3">
             <input type="text" placeholder="Tier name" value={newTier.name} onChange={(e) => setNewTier({ ...newTier, name: e.target.value })} className={inputClass} />
-            <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer" />
+            <input type="color" value={newTier.tierColor} onChange={(e) => setNewTier({ ...newTier, tierColor: e.target.value })} className="h-10 w-full bg-ink border border-slate-800 rounded-lg p-1 cursor-pointer" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <input type="number" min="0" step="0.01" placeholder="Price" value={newTier.price} onChange={(e) => setNewTier({ ...newTier, price: e.target.value })} className={inputClass} />
@@ -918,7 +918,7 @@ export default function EventDetailPage() {
       </div>
 
       {/* Danger zone */}
-      <div className="p-5 bg-[#0E131F] border border-rose-900/40 rounded-xl space-y-3">
+      <div className="p-5 bg-panel border border-rose-900/40 rounded-xl space-y-3">
         <h3 className="text-xs uppercase tracking-[0.08em] text-rose-400 font-medium">Danger Zone</h3>
         <p className="text-[11px] tabular-nums text-slate-500">
           {event._count.tickets > 0

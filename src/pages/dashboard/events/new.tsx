@@ -184,7 +184,7 @@ export default function NewEventPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-[#0B0F17]/40 text-center">
+      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
         <p className="text-sm text-slate-400">Only admins can create events.</p>
       </div>
     );
@@ -208,7 +208,7 @@ export default function NewEventPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <div>
             <label className={labelClass}>Title</label>
             <div className="mt-1">
@@ -292,7 +292,7 @@ export default function NewEventPage() {
         </div>
 
         {/* Images */}
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
             Images
           </h3>
@@ -307,7 +307,7 @@ export default function NewEventPage() {
                   <button
                     type="button"
                     onClick={handleRemoveCover}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-[#fff] text-xs flex items-center justify-center hover:bg-rose-500 transition"
                   >
                     ×
                   </button>
@@ -342,7 +342,7 @@ export default function NewEventPage() {
                   <button
                     type="button"
                     onClick={() => handleRemoveGalleryImage(img.publicId)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center hover:bg-rose-500 transition"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-600 text-[#fff] text-xs flex items-center justify-center hover:bg-rose-500 transition"
                   >
                     ×
                   </button>
@@ -369,7 +369,7 @@ export default function NewEventPage() {
         </div>
 
         {/* Ticket Tiers */}
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
             Ticket Tiers
           </h3>
@@ -410,7 +410,7 @@ export default function NewEventPage() {
                       type="color"
                       value={tier.tierColor}
                       onChange={(e) => updateTier(index, 'tierColor', e.target.value)}
-                      className="h-10 w-full bg-[#0B0F17] border border-slate-800 rounded-lg p-1 cursor-pointer"
+                      className="h-10 w-full bg-ink border border-slate-800 rounded-lg p-1 cursor-pointer"
                     />
                   </div>
                 </div>
@@ -488,7 +488,7 @@ export default function NewEventPage() {
         </div>
 
         {/* Entry & fees */}
-        <div className="p-5 bg-[#0E131F] border border-slate-800/80 rounded-xl space-y-4">
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Entry &amp; Fees</h3>
           <div>
             <label className={labelClass}>Re-entries allowed per ticket</label>
