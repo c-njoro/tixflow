@@ -172,3 +172,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     scroll-behavior: auto !important;
   }
 }
+
+/* The website assistant stays loaded across navigation; hide it on the
+   working screens (src/components/site/AssistantWidget.tsx). */
+html[data-no-assistant] #agent-widget-root {
+  display: none !important;
+}

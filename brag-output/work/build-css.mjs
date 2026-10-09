@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import postcss from 'postcss';
+const req = createRequire('/home/njoro/work/tixflow/package.json');
+const tw = req('@tailwindcss/postcss');
+const from = new URL('./input.css', import.meta.url).pathname;
+const css = fs.readFileSync(from, 'utf8');
+const out = await postcss([tw({ base: new URL('.', import.meta.url).pathname })]).process(css, { from, to: from.replace('input.css', 'out.css') });
+fs.writeFileSync(from.replace('input.css', 'out.css'), out.css);
+console.log('css bytes', out.css.length);

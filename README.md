@@ -40,6 +40,7 @@ In production the app refuses to run a route that needs a missing secret (there 
 | `OTP_SECRET` | Hashing emailed confirmation codes (optional, falls back to `JWT_SECRET`) |
 | `MPESA_CALLBACK_SECRET` | Appended to every Daraja callback URL; callbacks without it are rejected |
 | `CRON_SECRET` | Authorises `/api/cron/reconcile` and `/api/cron/scheduled` |
+| `ASSISTANT_API_KEY` | Authorises the website assistant's tools at `/api/assistant/*` (see `docs/assistant/README.md`) |
 | `PLATFORM_ADMIN_USERNAME` / `PLATFORM_ADMIN_PASSWORD` | Platform-admin login |
 
 ### Reconcile job

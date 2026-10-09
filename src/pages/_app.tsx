@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import AssistantWidget from "@/components/site/AssistantWidget";
 
 // AuthGuard (unchanged)
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -49,6 +50,7 @@ export default function App({ Component, pageProps }: AppProps) {
           <Component {...pageProps} />
         )}
       </main>
+      <AssistantWidget />
     </AuthProvider>
   );
 }

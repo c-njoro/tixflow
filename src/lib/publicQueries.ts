@@ -124,12 +124,27 @@ export async function searchPublicEvents(query: string, limit = 20) {
 }
 // The homepage listing: upcoming published events, soonest first, with the
 // cheapest ticket price ("from KES …" / free).
-export async function listUpcomingEvents({ category, limit = 24 }: { category?: string; limit?: number } = {}) {
+// `query` narrows it by title, category or location (the website assistant).
+export async function listUpcomingEvents({ category, query, limit = 24 }: { category?: string; query?: string; limit?: number } = {}) {
+  const q = query?.trim();
   const events = await prisma.event.findMany({
     where: {
       status: 'published',
-      // Still on (multi-day events stay listed until they end).
-      OR: [{ date: { gte: new Date() } }, { endDate: { gte: new Date() } }],
+      AND: [
+        // Still on (multi-day events stay listed until they end).
+        { OR: [{ date: { gte: new Date() } }, { endDate: { gte: new Date() } }] },
+        ...(q
+          ? [
+              {
+                OR: [
+                  { title: { contains: q, mode: 'insensitive' as const } },
+                  { category: { contains: q, mode: 'insensitive' as const } },
+                  { location: { contains: q, mode: 'insensitive' as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(category && { category: { equals: category, mode: 'insensitive' } }),
     },
     orderBy: { date: 'asc' },
