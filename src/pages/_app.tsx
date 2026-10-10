@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import AssistantWidget from "@/components/site/AssistantWidget";
+import ErrorBoundary from "@/components/site/ErrorBoundary";
 import { followSystemTheme } from "@/lib/theme";
 
 // AuthGuard (unchanged)
@@ -46,11 +47,15 @@ export default function App({ Component, pageProps }: AppProps) {
         {isDashboardRoute ? (
           <AuthGuard>
             <DashboardLayout>
-              <Component {...pageProps} />
+              <ErrorBoundary resetKey={router.asPath} variant="block">
+                <Component {...pageProps} />
+              </ErrorBoundary>
             </DashboardLayout>
           </AuthGuard>
         ) : (
-          <Component {...pageProps} />
+          <ErrorBoundary resetKey={router.asPath}>
+            <Component {...pageProps} />
+          </ErrorBoundary>
         )}
       </main>
       <AssistantWidget />

@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import TicketCard from "@/components/TicketCard";
 import { SiteHeader } from "@/components/site/SiteChrome";
+import { StatusBlock } from "@/components/site/StatusPage";
 
 interface TicketResult {
   id: string;
@@ -121,12 +122,14 @@ export default function LookupVerifyPage() {
             Verifying...
           </div>
         ) : error ? (
-          <div className="p-4 text-sm border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50 space-y-3">
-            <p>{error}</p>
-            <Link href="/lookup" className="underline text-sm">
-              Request a new link
-            </Link>
-          </div>
+          <StatusBlock
+            label="TIX-LINK"
+            verdict="Not valid"
+            tone="amber"
+            title="This tickets link didn't work"
+            message={`${error} For your security, links only work for 15 minutes.`}
+            actions={[{ label: "Send me a new link", href: "/lookup" }]}
+          />
         ) : tickets.length === 0 ? (
           <p className="text-sm text-slate-500">
             No tickets found for this email.

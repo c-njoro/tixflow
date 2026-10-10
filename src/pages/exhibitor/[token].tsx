@@ -5,6 +5,7 @@
 // Reached by the secret link the organiser gives each exhibitor.
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
+import { StatusBlock } from '@/components/site/StatusPage';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { inputClass } from '@/lib/ui';
@@ -120,7 +121,7 @@ export default function ExhibitorPortal() {
       </Head>
       <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
         {error ? (
-          <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
+          <StatusBlock verdict="Not valid" title="This exhibitor link didn't work" message={error} />
         ) : !portal ? (
           <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (

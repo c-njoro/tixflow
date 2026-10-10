@@ -4,6 +4,7 @@
 // person; the organiser sees answers without names.
 import { FormEvent, useEffect, useState } from 'react';
 import Head from 'next/head';
+import { StatusBlock } from '@/components/site/StatusPage';
 import { useRouter } from 'next/router';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 
@@ -34,6 +35,8 @@ export default function FeedbackPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  // A link that lost its token would otherwise sit on "Loading..." forever.
+  const problem = error || (router.isReady && !token ? 'This link is incomplete. Open it again from your email or WhatsApp message.' : '');
 
   useEffect(() => {
     if (!surveyId || !token) return;
@@ -75,8 +78,10 @@ export default function FeedbackPage() {
         <meta name="robots" content="noindex" />
       </Head>
       <main className="max-w-lg mx-auto px-4 py-10 space-y-6">
-        {!survey ? (
-          <p className="text-center text-sm text-slate-400 pt-20">{error || 'Loading...'}</p>
+        {!survey && problem ? (
+          <StatusBlock verdict="Not valid" title="This feedback link didn't work" message={problem} />
+        ) : !survey ? (
+          <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : done || survey.alreadyAnswered ? (
           <div className="pt-16 text-center space-y-3">
             <CheckCircleIcon className="w-12 h-12 text-emerald-400 mx-auto" />

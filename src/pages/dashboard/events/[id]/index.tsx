@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import { buttonClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
+import { StatusBlock } from '@/components/site/StatusPage';
 
 interface TicketTier {
   id: string;
@@ -398,9 +399,13 @@ export default function EventDetailPage() {
   }
   if (!event) {
     return (
-      <div className="p-3 text-xs font-medium border rounded-md bg-rose-950/30 text-rose-400 border-rose-800/50">
-        {error || 'Event not found.'}
-      </div>
+      <StatusBlock
+        label="TIX-404"
+        verdict="Not found"
+        title="We couldn't open this event"
+        message={error || 'It may have been deleted, or it belongs to another account.'}
+        actions={[{ label: 'All events', href: '/dashboard/events' }]}
+      />
     );
   }
 

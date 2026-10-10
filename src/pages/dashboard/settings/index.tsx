@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { BanknotesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/context/AuthContext';
+import { AdminsOnly } from '@/components/site/StatusPage';
 
 const SETTINGS_LINKS = [
   {
@@ -16,9 +17,7 @@ export default function SettingsIndexPage() {
   const { user } = useAuth();
   if (user?.role !== 'admin') {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
-        <p className="text-sm text-slate-400">Only admins can view settings.</p>
-      </div>
+      <AdminsOnly what="open settings" />
     );
   }
 

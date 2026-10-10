@@ -5,6 +5,7 @@
 // secret link sent at deposit time.
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+import { StatusBlock } from '@/components/site/StatusPage';
 import { useRouter } from 'next/router';
 import { CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
 import TicketCard from '@/components/TicketCard';
@@ -115,8 +116,8 @@ export default function PlanPage() {
         <meta name="robots" content="noindex" />
       </Head>
       <main className="max-w-lg mx-auto px-4 py-10 space-y-5">
-        {error ? (
-          <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
+        {error || (router.isReady && !key) ? (
+          <StatusBlock verdict="Not valid" title="We couldn't open this payment plan" message={error || 'This link is incomplete. Open it again from your email or WhatsApp message.'} actions={[{ label: "Find my tickets", href: "/lookup" }]} />
         ) : !plan ? (
           <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (

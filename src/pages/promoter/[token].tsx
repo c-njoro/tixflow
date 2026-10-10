@@ -4,6 +4,7 @@
 // Reached by the secret link the organiser shares — no account needed.
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import { StatusBlock } from '@/components/site/StatusPage';
 import { useRouter } from 'next/router';
 import { cardClass, labelClass } from '@/lib/ui';
 
@@ -62,7 +63,7 @@ export default function PromoterStatsPage() {
       </Head>
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-5">
         {error ? (
-          <p className="text-center text-sm text-slate-400 pt-20">{error}</p>
+          <StatusBlock verdict="Not valid" title="This promoter link didn't work" message={error} />
         ) : !data ? (
           <p className="text-center text-xs uppercase tracking-[0.08em] text-slate-500 pt-20 font-medium">Loading...</p>
         ) : (

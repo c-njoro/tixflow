@@ -2,6 +2,7 @@
 import { useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
+import { AdminsOnly } from '@/components/site/StatusPage';
 import { inputClass, labelClass } from '@/lib/ui';
 
 interface TierDraft {
@@ -184,9 +185,7 @@ export default function NewEventPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
-        <p className="text-sm text-slate-400">Only admins can create events.</p>
-      </div>
+      <AdminsOnly what="create events" />
     );
   }
 

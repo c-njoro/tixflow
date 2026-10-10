@@ -1,6 +1,7 @@
 // pages/dashboard/settings/payouts.tsx
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { AdminsOnly } from '@/components/site/StatusPage';
 import { inputClass, labelClass } from '@/lib/ui';
 import { formatDate } from '@/lib/format';
 
@@ -243,9 +244,7 @@ export default function PayoutSettingsPage() {
 
   if (user?.role !== 'admin') {
     return (
-      <div className="p-6 border border-dashed border-slate-800 rounded-xl bg-ink/40 text-center">
-        <p className="text-sm text-slate-400">Only admins can view payout settings.</p>
-      </div>
+      <AdminsOnly what="see payouts" />
     );
   }
 

@@ -5,6 +5,7 @@
 // an emailed code, then platform-admin approval, then M-Pesa.
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { AdminsOnly } from '@/components/site/StatusPage';
 import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
 interface PromoterRow {
@@ -116,7 +117,7 @@ export default function PromotersPage() {
   };
 
   if (user && user.role !== 'admin') {
-    return <p className="text-sm text-slate-400">Only admins can manage promoters.</p>;
+    return <AdminsOnly what="manage promoters" />;
   }
 
   const totals = (promoters || []).reduce(

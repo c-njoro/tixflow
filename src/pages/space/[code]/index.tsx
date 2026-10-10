@@ -4,6 +4,7 @@
 // venue or the link sent to ticket holders — no login or app needed.
 import { FormEvent, useEffect, useState } from 'react';
 import Head from 'next/head';
+import { StatusBlock } from '@/components/site/StatusPage';
 import { useRouter } from 'next/router';
 import {
   ChatBubbleLeftRightIcon,
@@ -67,9 +68,8 @@ export default function SpacePage() {
   if (notFound) {
     return (
       <Shell>
-        <div className="text-center pt-24 px-6">
-          <h1 className="text-xl font-semibold">Space not found</h1>
-          <p className="text-sm text-slate-400 mt-2">Check the link or scan the QR code at the venue again.</p>
+        <div className="pt-10 px-4">
+          <StatusBlock label="TIX-404" verdict="Not found" title="Space not found" message="Check the link, or scan the QR code at the venue again." />
         </div>
       </Shell>
     );

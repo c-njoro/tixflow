@@ -4,6 +4,7 @@
 // printing or "Save as PDF". The attendee can set the name it shows.
 import { FormEvent, useEffect, useState } from 'react';
 import Head from 'next/head';
+import StatusPage from '@/components/site/StatusPage';
 import { useRouter } from 'next/router';
 
 interface Certificate {
@@ -72,8 +73,15 @@ export default function CertificatePage() {
     }
   };
 
-  if (error) {
-    return <div className="min-h-screen bg-ink text-slate-400 flex items-center justify-center p-6 text-sm">{error}</div>;
+  // A link that lost its token would otherwise sit on "Loading..." forever.
+  const problem = error || (router.isReady && !token ? 'This link is incomplete. Open it again from your email or WhatsApp message.' : '');
+  if (problem) {
+    return (
+      <StatusPage
+        label="TIX-CERT"
+        content={{ verdict: 'Not valid', tone: 'rose', title: "We couldn't open this certificate.", message: problem, actions: [{ label: 'Find my tickets', href: '/lookup' }] }}
+      />
+    );
   }
   if (!cert) {
     return (
