@@ -142,3 +142,34 @@ export const certificateMessage = (name: string, eventTitle: string, urls: strin
         ? `Your certificate of attendance: ${urls[0]}`
         : `Your certificates of attendance:\n${urls.map((u, i) => `${i + 1}. ${u}`).join('\n')}`)
   );
+
+export const checkoutRetryMessage = (d: { name: string; eventTitle: string; url: string }) =>
+  message(
+    'tixflow_checkout_retry',
+    [d.name, d.eventTitle, d.url],
+    `Hi ${d.name}, your payment for *${d.eventTitle}* didn't go through, so your tickets aren't reserved yet.\n\n` +
+      `We saved your order. Finish it here: ${d.url}`
+  );
+
+export const waitlistOfferMessage = (d: { name: string; what: string; eventTitle: string; until: string; url: string }) =>
+  message(
+    'tixflow_waitlist_offer',
+    [d.name, d.what, d.eventTitle, d.until, d.url],
+    `Hi ${d.name}, tickets you waited for are free: *${d.what}* for *${d.eventTitle}*.\n\n` +
+      `They're held for you until ${d.until}. Buy them here: ${d.url}\n\nAfter that they go to the next person on the waitlist.`
+  );
+
+export const groupLinkMessage = (d: { name: string; eventTitle: string; paid: number; size: number; url: string; until: string }) =>
+  message(
+    'tixflow_group_link',
+    [d.name, d.eventTitle, d.paid, d.size, d.url, d.until],
+    `Hi ${d.name}, your group for *${d.eventTitle}* is set up: ${d.paid} of ${d.size} seats paid.\n\n` +
+      `Share this link so everyone pays for their own ticket: ${d.url}\n\nUnpaid seats are released on ${d.until}, so share it soon.`
+  );
+
+export const groupUpdateMessage = (d: { name: string; eventTitle: string; update: string; url: string }) =>
+  message(
+    'tixflow_group_update',
+    [d.name, d.eventTitle, d.update, d.url],
+    `Hi ${d.name}, an update on your group for *${d.eventTitle}*: ${d.update}.\n\nSee the group here: ${d.url}`
+  );

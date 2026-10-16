@@ -5,7 +5,7 @@
 // POST  — send every scanned-in attendee their certificate (once).
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import { loadEntitlements, upgradeHint } from '@/lib/plans';
+import { roomAllowance, roomHint } from '@/lib/plans';
 import { getSession } from '@/lib/auth';
 import { certificateUrl, sendCertificates } from '@/lib/certificates';
 
@@ -22,9 +22,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!event) return res.status(404).json({ error: 'Event not found.' });
 
   if (req.method !== 'GET') {
-    const limits = await loadEntitlements(event.id);
-    if (limits && !limits.extras) {
-      return res.status(402).json({ error: upgradeHint('Certificates are part of the Plus and Pro plans for free events.'), upgrade: true });
+    const rooms = await roomAllowance(event.id);
+    if (rooms && !rooms.extras) {
+      return res.status(402).json({
+        error: roomHint('Certificates come with ticket sales, or with any Event Space room bought for this event.'),
+        upgrade: true,
+      });
     }
   }
 

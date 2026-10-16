@@ -6,14 +6,13 @@ import Link from "next/link";
 import Head from "next/head";
 import type { GetStaticProps } from "next";
 import { ArrowRightIcon, CheckIcon, PlusIcon } from "@heroicons/react/24/outline";
-import { FEE_PERCENT, FREE_EVENT_PLANS, MIN_TICKET_FEE, PAID_EVENT_ROOMS, RENTAL_RATES } from "@/lib/plans";
+import { FEE_PERCENT, MIN_TICKET_FEE, RENTAL_RATES, ROOM_SIZES } from "@/lib/plans";
 import { SiteFooter, SiteHeader } from "@/components/site/SiteChrome";
 
 interface Pricing {
   feePercent: number;
   minFee: number;
-  paidRooms: number;
-  plans: { id: string; label: string; price: number; registrations: number | null; rooms: number; roomCapacity: number | null; extras: boolean }[];
+  rooms: { id: string; label: string; capacity: number | null; price: number }[];
   rental: { devicePerDay: number; staffPerDay: number };
 }
 
@@ -64,11 +63,11 @@ const FAQS = [
   },
   {
     q: "How much does Tixflow cost?",
-    a: "There's no monthly fee. On paid events we take a small fee per ticket sold — you choose whether buyers pay it on top or it comes out of your sales. Free events are free up to a limit, with affordable plans for bigger ones.",
+    a: "There's no monthly fee. On paid events we take a small fee per ticket sold — you choose whether buyers pay it on top or it comes out of your sales, and one Event Space room is included. Free events and guest lists cost nothing to run; you only pay for the Event Space rooms you open.",
   },
   {
     q: "Can you help at the gate on the day?",
-    a: "Yes — rent our handheld scanners (with built-in receipt printers for the box office) and trained scanning staff by the day. Request them from your event's Plan & Gear page.",
+    a: "Yes — rent our handheld scanners (with built-in receipt printers for the box office) and trained scanning staff by the day. Request them from your event's Rooms & gear page.",
   },
   {
     q: "Can I run more than one event?",
@@ -173,7 +172,7 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
           <div className="max-w-2xl">
             <h2 className="font-display text-4xl sm:text-5xl font-semibold leading-[1.02]">Simple, honest pricing</h2>
             <p className="mt-4 text-lg text-slate-400">
-              No setup fee. No subscription. Paid events pay per ticket sold; free events are free up to a generous limit.
+              No setup fee. No subscription. Paid events pay per ticket sold. Free events pay only for the Event Space rooms they open.
             </p>
           </div>
 
@@ -187,13 +186,12 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
               <p className="mt-2 text-sm text-slate-400">Minimum {kes(pricing.minFee)} a ticket.</p>
               <p className="mt-4 text-sm text-slate-500 leading-relaxed">
                 Pass it to buyers as a booking fee, or absorb it. Box-office cash sales too — deducted from your payout.
-                Free tickets and comps on a paid event count towards the free-event plans below (the first{' '}
-                {pricing.plans[0].registrations?.toLocaleString()} are included).
+                Free tickets, comps and guest lists cost nothing.
               </p>
               <ul className="mt-8 space-y-3 text-sm">
                 {[
                   "Unlimited events, ticket types and promo codes",
-                  `${pricing.paidRooms} Event Space rooms (polls, Q&A, slides)`,
+                  "One Event Space room (polls, Q&A, slides), any size",
                   "Certificates and exhibitor lead scanning",
                   "Gate scanning with re-entry, box office, offline mode",
                   "M-Pesa, cards and Lipa Pole Pole",
@@ -207,37 +205,31 @@ export default function OrganisersPage({ pricing }: { pricing: Pricing }) {
             </div>
 
             <div className="rounded-2xl border border-slate-800/70 p-8">
-              <h3 className="text-sm font-medium text-slate-400">Free events</h3>
+              <h3 className="text-sm font-medium text-slate-400">Free events &amp; guest lists</h3>
               <p className="mt-4 text-slate-300">
-                Free to run up to the limits below. Need more? Buy a plan for that event by M-Pesa or card.
+                No ticket fees and no limit on registrations or guests. Pay only for the Event Space rooms you open, by
+                M-Pesa or card. Paid events buy extra rooms at the same prices.
               </p>
               <table className="mt-6 w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500">
-                    <th className="font-normal pb-3">Plan</th>
-                    <th className="font-normal pb-3">People</th>
-                    <th className="font-normal pb-3">Rooms</th>
+                    <th className="font-normal pb-3">Room</th>
+                    <th className="font-normal pb-3">People at once</th>
                     <th className="font-normal pb-3 text-right">Per event</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70 border-t border-slate-800/70">
-                  {pricing.plans.map((p) => (
-                    <tr key={p.id}>
-                      <td className="py-4 font-medium text-white">{p.label}</td>
-                      <td className="py-4 text-slate-300 tabular-nums">
-                        {p.registrations === null ? "Unlimited" : p.registrations.toLocaleString()}
-                      </td>
-                      <td className="py-4 text-slate-300 tabular-nums">
-                        {p.rooms}
-                        {p.roomCapacity && <span className="text-slate-500"> × {p.roomCapacity}</span>}
-                      </td>
-                      <td className="py-4 text-right font-medium tabular-nums">{p.price === 0 ? "Free" : kes(p.price)}</td>
+                  {pricing.rooms.map((r) => (
+                    <tr key={r.id}>
+                      <td className="py-4 font-medium text-white">{r.label}</td>
+                      <td className="py-4 text-slate-300 tabular-nums">{r.capacity === null ? "No limit" : `Up to ${r.capacity.toLocaleString()}`}</td>
+                      <td className="py-4 text-right font-medium tabular-nums">{kes(r.price)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="mt-4 text-xs text-slate-500">
-                Plus and Pro add certificates and exhibitor lead scanning. Room size is people in a room at once.
+                Any room also turns on certificates and exhibitor lead scanning for that event.
               </p>
             </div>
           </div>
@@ -314,8 +306,7 @@ export const getStaticProps: GetStaticProps = async () => ({
     pricing: {
       feePercent: FEE_PERCENT(),
       minFee: MIN_TICKET_FEE(),
-      paidRooms: PAID_EVENT_ROOMS,
-      plans: Object.entries(FREE_EVENT_PLANS).map(([id, p]) => ({ id, ...p })),
+      rooms: Object.entries(ROOM_SIZES).map(([id, r]) => ({ id, ...r })),
       rental: RENTAL_RATES,
     } satisfies Pricing,
   },

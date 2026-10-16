@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { forDashboard } from '@/lib/plans';
 import { uploadImage, deleteImage } from '@/lib/cloudinary';
 
 export const config = {
@@ -48,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: { coverImageUrl: uploaded.url, coverImagePublicId: uploaded.publicId },
           include: { ticketTiers: true },
         });
-        return res.status(200).json({ success: true, data: updated });
+        return res.status(200).json({ success: true, data: forDashboard(updated) });
       }
 
       const updated = await prisma.event.update({
@@ -56,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { galleryImages: { push: uploaded } },
         include: { ticketTiers: true },
       });
-      return res.status(200).json({ success: true, data: updated });
+      return res.status(200).json({ success: true, data: forDashboard(updated) });
     } catch (error) {
       console.error('CRITICAL_EVENT_IMAGE_UPLOAD_ERROR:', error);
       return res.status(500).json({ error: 'Failed to upload image.' });
@@ -76,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: { coverImageUrl: null, coverImagePublicId: null },
           include: { ticketTiers: true },
         });
-        return res.status(200).json({ success: true, data: updated });
+        return res.status(200).json({ success: true, data: forDashboard(updated) });
       }
 
       if (type === 'gallery') {
@@ -100,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: { galleryImages: { set: remaining } },
           include: { ticketTiers: true },
         });
-        return res.status(200).json({ success: true, data: updated });
+        return res.status(200).json({ success: true, data: forDashboard(updated) });
       }
 
       return res.status(400).json({ error: 'type must be "cover" or "gallery".' });

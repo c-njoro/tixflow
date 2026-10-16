@@ -1,31 +1,20 @@
 // pages/dashboard/events/[id]/plan.tsx
 //
-// What this event's plan includes (registrations, Event Space rooms,
-// conference extras), upgrades by M-Pesa or card, and renting gate
-// scanners and scanning staff from Tixflow for the event day.
+// Rooms & gear: the event's Event Space rooms (one comes with ticket
+// sales; the rest are bought by size, by M-Pesa or card — src/lib/plans.ts)
+// and renting gate scanners and scanning staff from Tixflow for the day.
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { buttonClass, cardClass, inputClass, labelClass, primaryButtonClass } from '@/lib/ui';
 
-interface Entitlements {
-  freeEvent: boolean;
-  plan: string;
-  planLabel: string;
-  registrations: number | null;
-  rooms: number;
-  roomCapacity: number | null;
-  extras: boolean;
-}
+type RoomSize = 'small' | 'medium' | 'large';
 
-interface Upgrade {
-  id: string;
-  label: string;
-  price: number;
-  charge: number;
-  registrations: number | null;
-  rooms: number;
-  roomCapacity: number | null;
+interface Rooms {
+  ticketed: boolean;
+  included: { owned: number; used: number };
+  bought: Record<RoomSize, { owned: number; used: number }>;
+  available: number;
   extras: boolean;
 }
 
@@ -44,9 +33,8 @@ interface PlanData {
   title: string;
   date: string;
   endDate: string | null;
-  entitlements: Entitlements;
-  usage: { registrations: number; rooms: number };
-  upgrades: Upgrade[];
+  rooms: Rooms;
+  roomSizes: Record<RoomSize, { label: string; capacity: number | null; price: number }>;
   cardPayments: boolean;
   rentalRates: { devicePerDay: number; staffPerDay: number };
   equipment: EquipmentRow[];
@@ -54,7 +42,7 @@ interface PlanData {
 
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
-const limit = (n: number | null, unit: string) => (n === null ? `Unlimited ${unit}` : `${n.toLocaleString()} ${unit}`);
+const people = (capacity: number | null) => (capacity === null ? 'No limit on people' : `Up to ${capacity.toLocaleString()} people at once`);
 
 const EQUIPMENT_STATUS: Record<string, string> = {
   requested: 'Requested — we’ll call you to confirm',
@@ -63,25 +51,6 @@ const EQUIPMENT_STATUS: Record<string, string> = {
   declined: 'Declined',
   done: 'Done',
 };
-
-function Meter({ label, used, max }: { label: string; used: number; max: number | null }) {
-  const pct = max ? Math.min((used / max) * 100, 100) : 0;
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-slate-400">{label}</span>
-        <span className="tabular-nums text-slate-300">
-          {used.toLocaleString()} / {max === null ? '∞' : max.toLocaleString()}
-        </span>
-      </div>
-      {max !== null && (
-        <div className="h-1.5 rounded bg-slate-800 overflow-hidden">
-          <div className={`h-full ${pct >= 90 ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function PlanPage() {
   const router = useRouter();
@@ -125,7 +94,7 @@ export default function PlanPage() {
             stopPolling();
             setWaiting(false);
             setBuying(null);
-            setNotice('Payment received — your plan is upgraded.');
+            setNotice('Payment received. Your room is ready: open it from Event Space.');
             load().catch(() => {});
           } else if (status === 'failed' || Date.now() - started > 5 * 60_000) {
             stopPolling();
@@ -152,14 +121,14 @@ export default function PlanPage() {
     return stopPolling;
   }, [id, load, poll]);
 
-  const buy = async (plan: string) => {
+  const buy = async (size: string) => {
     setError('');
     setNotice('');
     try {
       const res = await fetch(`/api/events/${id}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, method: payMethod, phoneNumber: phone }),
+        body: JSON.stringify({ size, method: payMethod, phoneNumber: phone }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Could not start payment.');
@@ -196,7 +165,7 @@ export default function PlanPage() {
     }
   };
 
-  const ent = data?.entitlements;
+  const rooms = data?.rooms;
   const rates = data?.rentalRates;
   const gearEstimate = rates
     ? ((Number(gear.devices) || 0) * rates.devicePerDay + (Number(gear.staff) || 0) * rates.staffPerDay) *
@@ -207,7 +176,7 @@ export default function PlanPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Plan &amp; Gear</h1>
+          <h1 className="font-display tracking-tight text-2xl font-semibold text-white">Rooms &amp; gear</h1>
           <p className="text-sm text-slate-400 mt-1">{data?.title || 'Loading event...'}</p>
         </div>
         {id && (
@@ -222,91 +191,117 @@ export default function PlanPage() {
         <div className="p-3 text-xs font-medium border rounded-md bg-emerald-950/30 text-emerald-400 border-emerald-800/50">{notice}</div>
       )}
 
-      {!data || !ent ? (
+      {!data || !rooms ? (
         <p className="text-xs text-slate-500 uppercase tracking-[0.08em] font-medium">Loading...</p>
       ) : (
         <>
-          <div className={`${cardClass} space-y-4`}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">Current plan</div>
-                <div className="text-lg font-semibold text-white mt-1">{ent.planLabel}</div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {ent.freeEvent
-                    ? 'Free events are free up to these limits. Upgrade for more people, rooms and the conference extras.'
-                    : `Ticketed events include everything — Tixflow earns a small fee per ticket sold. Free tickets (KES 0 ticket types and comps): ${ent.registrations === null ? 'unlimited' : `${ent.registrations.toLocaleString()} included`}.`}
-                </p>
-              </div>
+          <div className={`${cardClass} space-y-5`}>
+            <div>
+              <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Event Space rooms</h2>
+              <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+                {rooms.ticketed
+                  ? 'Your ticket sales include one room with no limit on people. Buy more rooms for extra halls or tracks.'
+                  : 'This event has no ticket sales, so each room is bought on its own. There’s no limit on registrations or guests.'}{' '}
+                A room is a live space for polls, Q&amp;A and slides; its size is how many people can be in it at once.
+              </p>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Meter label={ent.freeEvent ? 'Registrations' : 'Free tickets'} used={data.usage.registrations} max={ent.registrations} />
-              <Meter label="Event Space rooms" used={data.usage.rooms} max={ent.rooms} />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              {ent.roomCapacity ? `Up to ${ent.roomCapacity} people in a room at once. ` : 'No limit on people per room. '}
-              Certificates &amp; exhibitor lead scanning: {ent.extras ? 'included' : 'not included'}.
-            </p>
-          </div>
 
-          {data.upgrades.length > 0 && (
-            <div className={`${cardClass} space-y-4`}>
-              <h2 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Upgrade</h2>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {data.upgrades.map((u) => (
-                  <div key={u.id} className="p-4 border border-slate-800 rounded-lg space-y-2">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm font-semibold text-white">{u.label}</span>
-                      <span className="tabular-nums text-sm text-white">
-                        {kes(u.charge)}
-                        {u.charge !== u.price && <span className="text-[10px] text-slate-500 ml-1">(difference)</span>}
-                      </span>
-                    </div>
-                    <ul className="text-xs text-slate-400 space-y-0.5">
-                      <li>{limit(u.registrations, ent.freeEvent ? 'registrations' : 'free tickets')}</li>
-                      <li>
-                        {u.rooms} Event Space rooms{u.roomCapacity ? `, ${u.roomCapacity} people each` : ', no size limit'}
-                      </li>
-                      {u.extras && <li>Certificates &amp; exhibitor lead scanning</li>}
-                    </ul>
-                    {buying === u.id ? (
-                      <div className="space-y-2 pt-2">
-                        {data.cardPayments && (
-                          <div className="flex gap-2">
-                            {(['mpesa', 'card'] as const).map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                onClick={() => setPayMethod(m)}
-                                className={`${buttonClass} ${payMethod === m ? 'bg-slate-800 text-white' : ''}`}
-                              >
-                                {m === 'mpesa' ? 'M-Pesa' : 'Card'}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {payMethod === 'mpesa' && (
-                          <input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="M-Pesa number, e.g. 0712345678"
-                            className={inputClass}
-                          />
-                        )}
-                        <button type="button" disabled={waiting} onClick={() => buy(u.id)} className={primaryButtonClass}>
-                          {waiting ? 'Waiting for payment...' : `Pay ${kes(u.charge)}`}
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setBuying(u.id)} className={buttonClass}>
-                        Choose {u.label}
-                      </button>
-                    )}
+            <ul className="rounded-xl border border-slate-800/70 divide-y divide-slate-800/70 overflow-hidden">
+              {rooms.included.owned > 0 && (
+                <li className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div>
+                    <div className="text-sm text-white">Included with ticket sales</div>
+                    <div className="text-xs text-slate-500">No limit on people</div>
                   </div>
+                  <span className="text-sm tabular-nums text-slate-300">{rooms.included.used > 0 ? 'In use' : 'Ready to open'}</span>
+                </li>
+              )}
+              {(Object.keys(data.roomSizes) as RoomSize[])
+                .filter((size) => rooms.bought[size].owned > 0)
+                .map((size) => (
+                  <li key={size} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div>
+                      <div className="text-sm text-white">
+                        {rooms.bought[size].owned} × {data.roomSizes[size].label} room{rooms.bought[size].owned === 1 ? '' : 's'}
+                      </div>
+                      <div className="text-xs text-slate-500">{people(data.roomSizes[size].capacity)}</div>
+                    </div>
+                    <span className="text-sm tabular-nums text-slate-300">
+                      {rooms.bought[size].used} in use · {Math.max(rooms.bought[size].owned - rooms.bought[size].used, 0)} ready
+                    </span>
+                  </li>
                 ))}
+              {rooms.included.owned === 0 && (Object.values(rooms.bought) as { owned: number }[]).every((b) => b.owned === 0) && (
+                <li className="px-4 py-3 text-sm text-slate-500">No rooms yet.</li>
+              )}
+            </ul>
+            {rooms.available > 0 && id && (
+              <p className="text-xs text-slate-400">
+                {rooms.available} room{rooms.available === 1 ? '' : 's'} ready to open.{' '}
+                <Link href={`/dashboard/events/${id}/spaces`} className="text-slate-200 underline underline-offset-2 hover:text-white">
+                  Open it in Event Space
+                </Link>
+              </p>
+            )}
+
+            <div>
+              <h3 className="text-sm font-medium text-white">Buy a room</h3>
+              <div className="mt-3 grid sm:grid-cols-3 gap-3">
+                {(Object.keys(data.roomSizes) as RoomSize[]).map((size) => {
+                  const r = data.roomSizes[size];
+                  return (
+                    <div key={size} className="p-4 border border-slate-800 rounded-lg space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-sm font-semibold text-white">{r.label}</span>
+                        <span className="tabular-nums text-sm text-white">{kes(r.price)}</span>
+                      </div>
+                      <p className="text-xs text-slate-400">{people(r.capacity)}</p>
+                      {buying === size ? (
+                        <div className="space-y-2 pt-1">
+                          {data.cardPayments && (
+                            <div className="flex gap-2">
+                              {(['mpesa', 'card'] as const).map((m) => (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => setPayMethod(m)}
+                                  className={`${buttonClass} ${payMethod === m ? 'bg-slate-800 text-white' : ''}`}
+                                >
+                                  {m === 'mpesa' ? 'M-Pesa' : 'Card'}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {payMethod === 'mpesa' && (
+                            <input
+                              type="tel"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="M-Pesa number, e.g. 0712345678"
+                              className={inputClass}
+                            />
+                          )}
+                          <button type="button" disabled={waiting} onClick={() => buy(size)} className={primaryButtonClass}>
+                            {waiting ? 'Waiting for payment...' : `Pay ${kes(r.price)}`}
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setBuying(size)} className={buttonClass}>
+                          Buy a {r.label.toLowerCase()} room
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              <p className="mt-3 text-[11px] text-slate-500">
+                Rooms are per event.{' '}
+                {rooms.extras
+                  ? 'Certificates and exhibitor lead scanning are on for this event.'
+                  : 'Buying any room also turns on certificates and exhibitor lead scanning for this event.'}
+              </p>
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             <form onSubmit={requestGear} className={`${cardClass} space-y-4 lg:col-span-2`}>

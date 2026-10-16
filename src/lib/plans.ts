@@ -3,36 +3,37 @@
 // Tixflow's pricing, in one place. Change numbers here (or the env vars)
 // and everything — checkout, limits, the dashboard — follows.
 //
-// Paid events: the platform takes a fee per ticket sold (FEE_PERCENT, never
-// less than MIN_TICKET_FEE) and every feature is included, with
-// PAID_EVENT_ROOMS Event Space rooms.
-// Free events: free up to the 'free' plan's limits; organisers buy a plan
-// per event (M-Pesa or card) for more registrations, rooms and the
-// conference extras (certificates, exhibitors).
+// Ticketed events (selling at least one paid ticket type): the platform
+// takes a fee per ticket sold (FEE_PERCENT, never less than
+// MIN_TICKET_FEE). Every feature is included, with one Event Space room of
+// any size.
+// Events with no ticket revenue (free registration, guest list only, an
+// Event Space on its own): no fees and no limit on people; they pay for
+// each Event Space room they open, priced by size (ROOM_SIZES).
+// Ticketed events buy any extra rooms the same way. Certificates and
+// exhibitor lead scanning come with ticket sales or with any bought room.
 import type { Event, TicketTier } from '@prisma/client';
 
 export const FEE_PERCENT = () => Number(process.env.PLATFORM_FEE_PERCENT || 5);
 export const MIN_TICKET_FEE = () => Number(process.env.MIN_TICKET_FEE || 20);
 
-export type PlanId = 'free' | 'plus' | 'pro';
+export type RoomSize = 'small' | 'medium' | 'large';
 
-export interface PlanLimits {
-  label: string;
-  price: number; // KES per event
-  registrations: number | null; // null = unlimited
-  rooms: number;
-  roomCapacity: number | null; // people in one Event Space room at a time
-  extras: boolean; // certificates + exhibitor lead scanning
-}
-
-export const FREE_EVENT_PLANS: Record<PlanId, PlanLimits> = {
-  free: { label: 'Free', price: 0, registrations: 300, rooms: 1, roomCapacity: 100, extras: false },
-  plus: { label: 'Plus', price: 2500, registrations: 1000, rooms: 3, roomCapacity: 500, extras: true },
-  pro: { label: 'Pro', price: 6000, registrations: null, rooms: 10, roomCapacity: null, extras: true },
+// An Event Space room, by how many people can be in it at once.
+export const ROOM_SIZES: Record<RoomSize, { label: string; capacity: number | null; price: number }> = {
+  small: { label: 'Small', capacity: 100, price: Number(process.env.ROOM_PRICE_SMALL || 1000) },
+  medium: { label: 'Medium', capacity: 500, price: Number(process.env.ROOM_PRICE_MEDIUM || 2500) },
+  large: { label: 'Large', capacity: null, price: Number(process.env.ROOM_PRICE_LARGE || 5000) },
 };
+export const ROOM_SIZE_IDS = Object.keys(ROOM_SIZES) as RoomSize[];
+export const isRoomSize = (v: unknown): v is RoomSize => typeof v === 'string' && v in ROOM_SIZES;
 
-// Paid (ticketed) events: everything included in the per-ticket fee.
-export const PAID_EVENT_ROOMS = 3;
+// Plans sold before rooms were priced one by one (Event.eventPlan). Events
+// that bought one keep what it came with.
+const LEGACY_PLANS: Record<string, { rooms: number; size: RoomSize }> = {
+  plus: { rooms: 3, size: 'medium' },
+  pro: { rooms: 10, size: 'large' },
+};
 
 // Gate equipment & staff the platform rents out for an event day.
 export const RENTAL_RATES = {
@@ -50,85 +51,107 @@ export function ticketFee(unitPrice: number) {
   return round2(Math.min(Math.max(unitPrice * (FEE_PERCENT() / 100), MIN_TICKET_FEE()), unitPrice));
 }
 
-export function isFreeEvent(tiers: Pick<TicketTier, 'price'>[]) {
-  return tiers.length > 0 && tiers.every((t) => t.price <= 0);
+// Does this event earn from ticket sales (and so get a room included)?
+export function isTicketedEvent(
+  event: Pick<Event, 'guestListOnly'>,
+  tiers: Pick<TicketTier, 'price' | 'isGuestList'>[]
+) {
+  return !event.guestListOnly && tiers.some((t) => !t.isGuestList && t.price > 0);
 }
 
-export interface Entitlements {
-  freeEvent: boolean;
-  plan: PlanId | 'paid';
-  planLabel: string;
-  // Limit on FREE (KES 0) registrations — on any event. Paid tickets are
-  // never capped by the plan, only by each tier's capacity. Without this,
-  // one cheap paid ticket type would unlock unlimited free registrations.
-  registrations: number | null;
-  rooms: number;
-  roomCapacity: number | null;
+// The room size a room created without one (before room pricing) has.
+const legacyCapacity = (event: Pick<Event, 'eventPlan'>, ticketed: boolean) => {
+  const legacy = event.eventPlan ? LEGACY_PLANS[event.eventPlan] : null;
+  if (legacy) return ROOM_SIZES[legacy.size].capacity;
+  return ticketed ? null : 100;
+};
+
+export interface RoomAllowance {
+  ticketed: boolean;
+  // The free room that comes with ticket sales (no size limit).
+  included: { owned: number; used: number };
+  // Bought rooms, per size.
+  bought: Record<RoomSize, { owned: number; used: number }>;
+  // Rooms of any kind that can still be opened.
+  available: number;
+  // Certificates and exhibitor lead scanning.
   extras: boolean;
+  // People at once in a room opened before room pricing (null = no limit).
+  legacyCapacity: number | null;
 }
 
-const PLAN_ORDER: PlanId[] = ['free', 'plus', 'pro'];
-const boughtPlan = (event: Pick<Event, 'eventPlan'>): PlanId | null =>
-  event.eventPlan && event.eventPlan in FREE_EVENT_PLANS ? (event.eventPlan as PlanId) : null;
-
-// What this event may use right now.
-export function eventEntitlements(event: Pick<Event, 'eventPlan'>, tiers: Pick<TicketTier, 'price'>[]): Entitlements {
-  const bought = boughtPlan(event);
-  if (!isFreeEvent(tiers)) {
-    // Ticket sales pay for rooms and extras; the plan only sets how many
-    // free tickets (comps, free tiers) the event may hand out.
-    const limits = FREE_EVENT_PLANS[bought ?? 'free'];
-    return {
-      freeEvent: false,
-      plan: bought ?? 'paid',
-      planLabel: bought ? limits.label : 'Included with ticket sales',
-      registrations: limits.registrations,
-      rooms: Math.max(PAID_EVENT_ROOMS, limits.rooms),
-      roomCapacity: null,
-      extras: true,
-    };
-  }
-  const plan = bought ?? 'free';
-  const limits = FREE_EVENT_PLANS[plan];
-  return {
-    freeEvent: true,
-    plan,
-    planLabel: limits.label,
-    registrations: limits.registrations,
-    rooms: limits.rooms,
-    roomCapacity: limits.roomCapacity,
-    extras: limits.extras,
-  };
-}
-
-// Plans this event could upgrade to, with prices.
-export function availableUpgrades(event: Pick<Event, 'eventPlan'>, tiers: Pick<TicketTier, 'price'>[]) {
-  const current = eventEntitlements(event, tiers);
-  const at = PLAN_ORDER.indexOf(current.plan === 'paid' ? 'free' : current.plan);
-  return PLAN_ORDER.filter((id) => PLAN_ORDER.indexOf(id) > at).map((id) => ({
-    id,
-    ...FREE_EVENT_PLANS[id],
-    ...(!current.freeEvent && {
-      rooms: Math.max(PAID_EVENT_ROOMS, FREE_EVENT_PLANS[id].rooms),
-      roomCapacity: null,
-      extras: true,
-    }),
-  }));
-}
-
-// How many of these tiers' tickets are free ones (count towards the plan).
-export const freeTicketsSold = (tiers: Pick<TicketTier, 'price' | 'sold'>[]) =>
-  tiers.filter((t) => t.price <= 0).reduce((n, t) => n + t.sold, 0);
-
-// The entitlements of a stored event (loads its tiers).
-export async function loadEntitlements(eventId: string) {
+// What Event Space rooms this event has paid for (or got with ticket
+// sales), and how many are in use.
+export async function roomAllowance(eventId: string): Promise<RoomAllowance | null> {
   const { prisma } = await import('./prisma');
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    select: { eventPlan: true, ticketTiers: { select: { price: true } } },
+    select: { eventPlan: true, guestListOnly: true, ticketTiers: { select: { price: true, isGuestList: true } } },
   });
-  return event ? eventEntitlements(event, event.ticketTiers) : null;
+  if (!event) return null;
+  const [purchases, spaces] = await Promise.all([
+    prisma.pendingOrder.findMany({
+      where: { eventId, kind: 'event_plan', status: 'completed', eventPlanTier: { in: ROOM_SIZE_IDS } },
+      select: { eventPlanTier: true },
+    }),
+    prisma.eventSpace.findMany({ where: { eventId }, select: { size: true } }),
+  ]);
+  const ticketed = isTicketedEvent(event, event.ticketTiers);
+  const bought = Object.fromEntries(
+    ROOM_SIZE_IDS.map((size) => [
+      size,
+      {
+        owned: purchases.filter((p) => p.eventPlanTier === size).length,
+        used: spaces.filter((s) => s.size === size).length,
+      },
+    ])
+  ) as RoomAllowance['bought'];
+  const legacy = event.eventPlan ? LEGACY_PLANS[event.eventPlan] : null;
+  if (legacy) bought[legacy.size].owned += legacy.rooms;
+  const included = { owned: ticketed ? 1 : 0, used: spaces.filter((s) => s.size === 'included').length };
+  const available =
+    Math.max(included.owned - included.used, 0) +
+    ROOM_SIZE_IDS.reduce((n, size) => n + Math.max(bought[size].owned - bought[size].used, 0), 0);
+  return {
+    ticketed,
+    included,
+    bought,
+    available,
+    extras: ticketed || !!legacy || purchases.length > 0,
+    legacyCapacity: legacyCapacity(event, ticketed),
+  };
 }
 
-// Copy for a feature locked on this event's plan.
-export const upgradeHint = (what: string) => `${what} Upgrade this event's plan under Plan & Gear.`;
+// Which room a new Event Space takes: the size asked for if there's one
+// free, otherwise the biggest free one (the included room first).
+export function pickRoom(allowance: RoomAllowance, wanted?: unknown): 'included' | RoomSize | null {
+  const free = (size: RoomSize) => allowance.bought[size].owned > allowance.bought[size].used;
+  if (wanted === 'included' && allowance.included.owned > allowance.included.used) return 'included';
+  if (isRoomSize(wanted) && free(wanted)) return wanted;
+  if (allowance.included.owned > allowance.included.used) return 'included';
+  return (['large', 'medium', 'small'] as RoomSize[]).find(free) ?? null;
+}
+
+// People at once in a room (null = no limit).
+export function roomCapacity(size: string | null, allowance: Pick<RoomAllowance, 'legacyCapacity'>) {
+  if (size === 'included') return null;
+  if (isRoomSize(size)) return ROOM_SIZES[size].capacity;
+  return allowance.legacyCapacity;
+}
+
+// Copy for something that needs a bought room.
+export const roomHint = (what: string) => `${what} Buy one under Rooms & gear.`;
+
+// The tiers an organiser sells and edits: everything but the hidden
+// guest-list tier (src/lib/guests.ts).
+export const salesTiers = <T extends Pick<TicketTier, 'isGuestList'>>(tiers: T[]) => tiers.filter((t) => !t.isGuestList);
+
+// An event for the dashboard: its sales tiers, plus how many guest passes
+// are out (they're not "sold" tickets).
+export function forDashboard<E extends { ticketTiers: Pick<TicketTier, 'isGuestList' | 'sold'>[] }>(event: E) {
+  return {
+    ...event,
+    ticketTiers: salesTiers(event.ticketTiers),
+    guestPasses: event.ticketTiers.filter((t) => t.isGuestList).reduce((n, t) => n + t.sold, 0),
+  };
+}

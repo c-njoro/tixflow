@@ -18,6 +18,8 @@ const WHATSAPP_GAP_MS = 2_500;
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface Recipient {
+  // Who this is: their email, or their order for people without one.
+  key: string;
   name: string;
   email: string | null;
   whatsapp: string | null;
@@ -47,12 +49,15 @@ export async function collectEventRecipients(
   for (const ticket of tickets) {
     const email = ticket.buyerEmail.toLowerCase().trim();
     const whatsapp = ticket.orderId ? normalizeKenyanPhone(whatsappByOrder.get(ticket.orderId) ?? '') : null;
-    const existing = byEmail.get(email);
+    // Guests and box-office buyers may have no email: they're one person
+    // per order, not all one person under "".
+    const key = email || `order:${ticket.orderId ?? ticket.ticketCode}`;
+    const existing = byEmail.get(key);
     if (existing) {
       existing.whatsapp ??= whatsapp;
       existing.ticketCodes.push(ticket.ticketCode);
     } else {
-      byEmail.set(email, { name: ticket.buyerName, email, whatsapp, ticketCodes: [ticket.ticketCode] });
+      byEmail.set(key, { key, name: ticket.buyerName, email: email || null, whatsapp, ticketCodes: [ticket.ticketCode] });
     }
   }
 
@@ -110,12 +115,14 @@ export async function deliverToAll(
 
 // For a single buyer straight after their order completes.
 export const recipientFromOrder = (order: {
+  id: string;
   buyerName: string;
   buyerEmail: string;
   buyerWhatsapp: string | null;
 }): Recipient => ({
+  key: order.buyerEmail || `order:${order.id}`,
   name: order.buyerName,
-  email: order.buyerEmail,
+  email: order.buyerEmail || null,
   whatsapp: normalizeKenyanPhone(order.buyerWhatsapp ?? ''),
   ticketCodes: [],
 });

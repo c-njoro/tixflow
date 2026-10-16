@@ -5,7 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { ACTIVE_WINDOW_MS, ensureParticipantId, findSpaceByCode, touchParticipant } from '@/lib/eventSpace';
-import { loadEntitlements } from '@/lib/plans';
+import { roomAllowance, roomCapacity } from '@/lib/plans';
 import { getClientIp, rateLimit } from '@/lib/rateLimit';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -25,10 +25,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const participantId = ensureParticipantId(req, res);
 
-  // Free plans cap how many people can be in a room at once. Someone
+  // A room's size caps how many people can be in it at once. Someone
   // already in (rejoining, refreshing) is never turned away.
-  const limits = await loadEntitlements(space.eventId);
-  if (limits?.roomCapacity) {
+  const allowance = await roomAllowance(space.eventId);
+  const capacity = allowance ? roomCapacity(space.size, allowance) : null;
+  if (capacity) {
     const here = await prisma.spaceParticipant.findUnique({
       where: { spaceId_participantId: { spaceId: space.id, participantId } },
     });
@@ -36,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const active = await prisma.spaceParticipant.count({
         where: { spaceId: space.id, lastSeenAt: { gte: new Date(Date.now() - ACTIVE_WINDOW_MS) } },
       });
-      if (active >= limits.roomCapacity) {
+      if (active >= capacity) {
         return res.status(409).json({ error: 'This room is full right now. Try again in a few minutes.' });
       }
     }

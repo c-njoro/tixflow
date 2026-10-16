@@ -56,6 +56,8 @@ export default function NewEventPage() {
   const [tiers, setTiers] = useState<TierDraft[]>([emptyTier()]);
   const [reentryLimit, setReentryLimit] = useState('0');
   const [passFeeToBuyer, setPassFeeToBuyer] = useState(false);
+  // Guest list only: no tickets on sale, entry by the organiser's list.
+  const [guestListOnly, setGuestListOnly] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -155,7 +157,8 @@ export default function NewEventPage() {
       galleryImages,
       reentryLimit: Number(reentryLimit) || 0,
       passFeeToBuyer,
-      ticketTiers: tiers.map((t) => ({
+      guestListOnly,
+      ticketTiers: guestListOnly ? [] : tiers.map((t) => ({
         name: t.name,
         price: Number(t.price),
         doorPrice: t.doorPrice === '' ? null : Number(t.doorPrice),
@@ -174,7 +177,7 @@ export default function NewEventPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to create event.');
 
-      router.push(`/dashboard/events/${result.data.id}`);
+      router.push(`/dashboard/events/${result.data.id}${guestListOnly ? '/guests' : ''}`);
     } catch (err: any) {
       setErrorMessage(err.message);
     } finally {
@@ -367,7 +370,36 @@ export default function NewEventPage() {
           </div>
         </div>
 
+        {/* How people get in */}
+        <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-3">
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">How people get in</h3>
+          <div className="grid sm:grid-cols-2 gap-2" role="radiogroup" aria-label="How people get in">
+            {[
+              { value: false, title: 'Tickets', text: 'Sell tickets, or open free registration on a public event page.' },
+              { value: true, title: 'Guest list only', text: 'Invite people by name. No ticket sales and no public page.' },
+            ].map((o) => (
+              <button
+                key={o.title}
+                type="button"
+                role="radio"
+                aria-checked={guestListOnly === o.value}
+                onClick={() => setGuestListOnly(o.value)}
+                className={`text-left p-4 rounded-lg border transition ${
+                  guestListOnly === o.value ? 'border-slate-400 bg-raised' : 'border-slate-800 hover:border-slate-600'
+                }`}
+              >
+                <span className="block text-sm font-medium text-white">{o.title}</span>
+                <span className="block text-xs text-slate-500 mt-1">{o.text}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Any event can have a guest list. You add guests after creating the event, and can send each one a pass by email or WhatsApp.
+          </p>
+        </div>
+
         {/* Ticket Tiers */}
+        {!guestListOnly && (
         <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
           <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
             Ticket Tiers
@@ -485,12 +517,13 @@ export default function NewEventPage() {
             + Add another tier
           </button>
         </div>
+        )}
 
         {/* Entry & fees */}
         <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
-          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Entry &amp; Fees</h3>
+          <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">{guestListOnly ? 'Entry' : <>Entry &amp; Fees</>}</h3>
           <div>
-            <label className={labelClass}>Re-entries allowed per ticket</label>
+            <label className={labelClass}>Re-entries allowed per {guestListOnly ? 'guest' : 'ticket'}</label>
             <div className="mt-1 max-w-[10rem]">
               <input
                 type="number"
@@ -505,6 +538,7 @@ export default function NewEventPage() {
               0 = once in, stays in. Otherwise attendees scan out when leaving and can come back in this many times.
             </p>
           </div>
+          {!guestListOnly && (
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -520,6 +554,7 @@ export default function NewEventPage() {
               </span>
             </span>
           </label>
+          )}
         </div>
 
         <button

@@ -1,6 +1,7 @@
 // src/lib/publicQueries.ts
 import { prisma } from '@/lib/prisma';
 import { installmentDueAt, installmentsOpen } from '@/lib/installments';
+import { heldSeats } from '@/lib/holds';
 
 export async function getTenantStorefront(slug: string) {
   const tenant = await prisma.tenant.findUnique({
@@ -10,7 +11,7 @@ export async function getTenantStorefront(slug: string) {
       slug: true,
       logoUrl: true,
       events: {
-        where: { status: 'published', date: { gte: new Date() } },
+        where: { status: 'published', guestListOnly: false, date: { gte: new Date() } },
         orderBy: { date: 'asc' },
         select: {
           slug: true,
@@ -35,7 +36,7 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
   if (!tenant) return null;
 
   const event = await prisma.event.findFirst({
-    where: { tenantId: tenant.id, slug: eventSlug, status: 'published' },
+    where: { tenantId: tenant.id, slug: eventSlug, status: 'published', guestListOnly: false },
     select: {
       id: true,
       title: true,
@@ -49,6 +50,8 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
       installmentsEnabled: true,
       installmentMinDepositPercent: true,
       installmentDueDaysBefore: true,
+      waitlistEnabled: true,
+      groupBookingEnabled: true,
       ticketTiers: {
         where: { isActive: true },
         select: {
@@ -67,16 +70,25 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
 
   // Don't leak exact sold/capacity numbers publicly — just how many are left.
   // A tenant may not want competitors or attendees seeing their total capacity.
+  // Seats held for the waitlist or a group count as taken.
+  const held = await heldSeats(event.ticketTiers.map((t) => t.id));
   const tiers = event.ticketTiers.map((t) => ({
     id: t.id,
     name: t.name,
     price: t.price,
     description: t.description,
     tierColor: t.tierColor,
-    available: Math.max(t.capacity - t.sold, 0),
+    available: Math.max(t.capacity - t.sold - (held.get(t.id) ?? 0), 0),
   }));
 
-  const { installmentsEnabled, installmentMinDepositPercent, installmentDueDaysBefore, ...publicEvent } = event;
+  const {
+    installmentsEnabled,
+    installmentMinDepositPercent,
+    installmentDueDaysBefore,
+    waitlistEnabled,
+    groupBookingEnabled,
+    ...publicEvent
+  } = event;
   const installmentConfig = { installmentsEnabled, installmentMinDepositPercent, installmentDueDaysBefore, date: event.date };
 
   return {
@@ -84,6 +96,8 @@ export async function getPublicEvent(tenantSlug: string, eventSlug: string) {
     event: {
       ...publicEvent,
       ticketTiers: tiers,
+      waitlist: waitlistEnabled,
+      groups: groupBookingEnabled,
       galleryImages: event.galleryImages.map((img) => img.url),
       // Lipa Pole Pole terms, only while new plans can still be started.
       installments: installmentsOpen(installmentConfig)
@@ -100,6 +114,7 @@ export async function searchPublicEvents(query: string, limit = 20) {
   const events = await prisma.event.findMany({
     where: {
       status: 'published',
+      guestListOnly: false,
       date: { gte: new Date() },
       OR: [
         { title: { contains: q, mode: 'insensitive' } },
@@ -130,6 +145,7 @@ export async function listUpcomingEvents({ category, query, limit = 24 }: { cate
   const events = await prisma.event.findMany({
     where: {
       status: 'published',
+      guestListOnly: false,
       AND: [
         // Still on (multi-day events stay listed until they end).
         { OR: [{ date: { gte: new Date() } }, { endDate: { gte: new Date() } }] },
@@ -174,7 +190,7 @@ export async function listUpcomingEvents({ category, query, limit = 24 }: { cate
 export async function listUpcomingCategories() {
   const groups = await prisma.event.groupBy({
     by: ['category'],
-    where: { status: 'published', date: { gte: new Date() }, category: { not: null } },
+    where: { status: 'published', guestListOnly: false, date: { gte: new Date() }, category: { not: null } },
     _count: { _all: true },
   });
   return groups

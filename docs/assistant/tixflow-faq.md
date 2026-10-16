@@ -26,6 +26,14 @@ Can I use a promo code? Yes, if the organiser has created one. Enter it in the "
 
 How do I get a free ticket? On a free event, choose your tickets and press "Get my free ticket". No payment is needed. The ticket is sent to your email (and WhatsApp, if you gave a number) straight away.
 
+My M-Pesa payment failed. Do I have to start again? No. A little while after a payment fails, Tixflow emails you (and WhatsApps you, if you gave a number) a link that reopens checkout with the same tickets and details filled in. Your tickets are not reserved until you pay, so they can sell out in the meantime.
+
+Can I buy tickets with friends without one person paying for everyone? Yes, with a group booking, on events where the organiser allows it. On the event page, choose "Buying with friends? Start a group", pick the ticket type and how many of you there are, and pay for your own seat by M-Pesa. You get a group link to share. Each friend opens it, pays for their own seat, and gets a ticket in their own name.
+
+How long are group seats held? Up to 48 hours from when the group starts, and never later than 3 hours before the event. The group page shows the exact time. Seats nobody pays for by then go back on sale. Nobody is ever charged for someone else's seat, and everyone who paid keeps their ticket.
+
+The tickets I want are sold out. Can I wait for one? On most events, yes. A sold-out ticket type shows "Join the waitlist". Leave your name, email, WhatsApp number (optional) and how many tickets you want. If tickets come back (for example after a refund), the next people in line get an offer: the tickets are held for them for 2 hours, with a link to buy them. If you don't buy in time, they go to the next person.
+
 # Lipa Pole Pole (pay in instalments)
 
 What is Lipa Pole Pole? Lipa Pole Pole lets you pay for tickets in instalments, on events where the organiser has switched it on. You pay a deposit at checkout to reserve your seats, then pay the rest in any amounts before a deadline set by the organiser.
@@ -102,13 +110,13 @@ Can I sell different ticket types? Yes: Early Bird, Regular, VIP, tables and mor
 
 How much does Tixflow cost? There is no setup fee and no monthly fee. On paid events Tixflow takes 5% per ticket sold, with a minimum of KES 20 a ticket. You choose whether buyers pay it on top as a booking fee or it comes out of your sales. Box-office cash sales are charged too, deducted from your payout.
 
-What does a paid event include? Everything: unlimited events, ticket types and promo codes, 3 Event Space rooms (polls, Q&A, slides), certificates, exhibitor lead scanning, gate scanning with re-entry, the box office, offline mode, and M-Pesa, card and Lipa Pole Pole payments.
+What does a paid event include? Everything: unlimited events, ticket types and promo codes, one Event Space room (polls, Q&A, slides) with no limit on people, certificates, exhibitor lead scanning, gate scanning with re-entry, the box office, offline mode, and M-Pesa, card and Lipa Pole Pole payments. Extra rooms are bought at the room prices below.
 
-How much do free events cost? Free events are free up to the Free plan's limits. For more, buy a plan for that one event by M-Pesa or card.
-- Free: up to 300 people, 1 Event Space room for up to 100 people at once. KES 0.
-- Plus: up to 1,000 people, 3 rooms for up to 500 people each, plus certificates and exhibitor lead scanning. KES 2,500 per event.
-- Pro: unlimited people, 10 rooms with no room size limit, plus certificates and exhibitor lead scanning. KES 6,000 per event.
-Free tickets and complimentary tickets on a paid event count towards these limits, and the first 300 are included.
+How much do free events cost? Free events and guest-list-only events have no ticket fees and no limit on registrations or guests. You pay only for the Event Space rooms you open, per event, by M-Pesa or card:
+- Small room, up to 100 people at once: KES 1,000.
+- Medium room, up to 500 people at once: KES 2,500.
+- Large room, no limit on people: KES 5,000.
+Buying any room also turns on certificates and exhibitor lead scanning for that event. Buy rooms on the event's Rooms & gear page.
 
 # For organisers: getting paid
 
@@ -124,11 +132,25 @@ How do promo codes work? Create codes such as MUKURU for a set amount or a perce
 
 How do promoters work? Each promoter gets their own link. Sales through that link (or their promo code) earn them the commission you set. Commission is held back from your withdrawable balance and paid to the promoter's M-Pesa through Tixflow.
 
+Can Tixflow help me recover failed payments? Yes, automatically. When a buyer's M-Pesa or card payment fails, Tixflow sends them one message a little later with a link that reopens checkout as it was. The event page in your dashboard shows how many orders were won back and what they were worth.
+
+Can buyers split the cost of a group? Yes. Group bookings let a buyer start a group and share a link; each friend pays for their own ticket by M-Pesa. Unpaid seats are held for the group for up to 48 hours. You can switch group bookings off for an event on its Group bookings page.
+
+What happens when an event sells out? Buyers can join a waitlist for the sold-out ticket type. When seats come back (a refund, an expired Lipa Pole Pole plan, a cancelled ticket or more capacity), they're held for the next people in line for 2 hours and offered by email and WhatsApp. You can see the line, and switch the waitlist off, on the event's Waitlist page.
+
+# For organisers: guest lists
+
+Can I let people in by name instead of selling tickets? Yes. Any event can have a guest list, and you can also create an event as "Guest list only": no ticket sales, no public event page, entry by your list alone. This suits private events, launches and meetings, and works with Event Space rooms.
+
+How do guest lists work? Add guests one at a time or paste a whole list (a name, then optionally an email, a phone number, "+2" for guests they bring, and a group such as Press or Family). Guests with an email or WhatsApp number can be sent a pass with a QR code. Guests without one are on the door list, and gate staff find them by name. There's no limit on guests.
+
 # For organisers: at the gate
 
 How does check-in work? Gate staff scan tickets with a phone camera or a handheld scanner, and the screen shows instantly whether a ticket is valid, already used, or not recognised. A live gate dashboard shows arrivals, who is inside and scans by each staff member.
 
 Can I control re-entry? Yes. You set how many re-entries each ticket gets (or none). Staff scan people out and back in, and a copied ticket that is already inside is caught.
+
+Can staff let someone in without a QR code? Yes. The gate screen has "Find by name": type part of a name to find their ticket or guest pass and let them in. It also works offline from the downloaded list.
 
 What if the internet goes down at the venue? Download the ticket list on the gate screen before the gates open. Scanning then keeps working without signal and syncs when the connection is back.
 
@@ -136,7 +158,7 @@ Can I sell tickets at the door? Yes, with the box office. Sell walk-in tickets a
 
 Can my staff scan without seeing my payouts? Yes. Add staff accounts that can only scan tickets, separate from admin access to your events and payouts.
 
-Can I rent scanners and gate staff? Yes. Tixflow rents handheld scanners with a built-in barcode reader and receipt printer at KES 1,500 per day, and trained scanning staff at KES 2,000 per person per day. Request them from your event's Plan & Gear page.
+Can I rent scanners and gate staff? Yes. Tixflow rents handheld scanners with a built-in barcode reader and receipt printer at KES 1,500 per day, and trained scanning staff at KES 2,000 per person per day. Request them from your event's Rooms & gear page.
 
 # For organisers: conferences and engagement
 

@@ -35,6 +35,10 @@ interface EventDetail {
   remindersEnabled: boolean;
   reentryLimit: number;
   passFeeToBuyer: boolean;
+  guestListOnly: boolean;
+  guestPasses: number;
+  // Failed payments followed up with a "finish your order" link.
+  recovery?: { nudged: number; recovered: number; revenue: number };
   coverImageUrl: string | null;
   coverImagePublicId: string | null;
   galleryImages: EventImage[];
@@ -45,23 +49,27 @@ interface EventDetail {
 }
 
 // The event's tools, grouped by the job they do.
-const TOOL_GROUPS: { title: string; tools: { href: string; label: string; hint: string; adminOnly: boolean }[] }[] = [
+// ticketsOnly: tools with nothing to do on a guest-list-only event.
+const TOOL_GROUPS: { title: string; tools: { href: string; label: string; hint: string; adminOnly: boolean; ticketsOnly?: boolean }[] }[] = [
   {
     title: 'On the day',
     tools: [
       { href: 'checkin', label: 'Check-in', hint: 'Scan tickets in and out', adminOnly: false },
       { href: 'gate', label: 'Gate dashboard', hint: 'Live arrivals and who is inside', adminOnly: false },
-      { href: 'box-office', label: 'Box office', hint: 'Sell at the door', adminOnly: false },
+      { href: 'guests', label: 'Guest list', hint: 'Invite people by name', adminOnly: false },
+      { href: 'box-office', label: 'Box office', hint: 'Sell at the door', adminOnly: false, ticketsOnly: true },
       { href: 'attendees', label: 'Attendees', hint: 'Tickets and buyers', adminOnly: false },
     ],
   },
   {
     title: 'Selling',
     tools: [
-      { href: 'promos', label: 'Promo codes', hint: 'Discounts and promoters', adminOnly: true },
-      { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true },
-      { href: 'refunds', label: 'Refunds', hint: 'Buyer requests', adminOnly: true },
-      { href: 'plan', label: 'Plan & gear', hint: 'Rooms, scanners, staff', adminOnly: true },
+      { href: 'promos', label: 'Promo codes', hint: 'Discounts and promoters', adminOnly: true, ticketsOnly: true },
+      { href: 'installments', label: 'Lipa Pole Pole', hint: 'Pay in instalments', adminOnly: true, ticketsOnly: true },
+      { href: 'refunds', label: 'Refunds', hint: 'Buyer requests', adminOnly: true, ticketsOnly: true },
+      { href: 'waitlist', label: 'Waitlist', hint: 'Sold-out ticket demand', adminOnly: false, ticketsOnly: true },
+      { href: 'groups', label: 'Group bookings', hint: 'Friends paying their own share', adminOnly: false, ticketsOnly: true },
+      { href: 'plan', label: 'Rooms & gear', hint: 'Event Space rooms, scanners, staff', adminOnly: true },
     ],
   },
   {
@@ -212,7 +220,8 @@ export default function EventDetailPage() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to update the event.');
-      setEvent(result.data);
+      // The PATCH response leaves out the tenant (for the public link).
+      setEvent((prev) => (prev ? { ...prev, ...result.data } : result.data));
     } catch (err: any) {
       setError(err.message);
     }
@@ -458,7 +467,7 @@ export default function EventDetailPage() {
             <a href={`/dashboard/events/${event.id}/checkin`} className={primaryButtonClass}>
               Open check-in
             </a>
-            {publicUrl && event.status === 'published' && (
+            {publicUrl && event.status === 'published' && !event.guestListOnly && (
               <a href={publicUrl} target="_blank" rel="noreferrer" className={buttonClass}>
                 View page
               </a>
@@ -473,6 +482,30 @@ export default function EventDetailPage() {
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
           <div className="space-y-8 min-w-0">
+            {event.guestListOnly ? (
+              <section>
+                <div className="flex items-baseline justify-between mb-3">
+                  <h2 className="text-base font-semibold text-white">Guest list</h2>
+                  <span className="text-sm text-slate-400 tabular-nums">
+                    {event.guestPasses.toLocaleString()} pass{event.guestPasses === 1 ? '' : 'es'}
+                  </span>
+                </div>
+                <a
+                  href={`/dashboard/events/${event.id}/guests`}
+                  className="group flex items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-slate-800/70 bg-panel hover:bg-raised transition-colors"
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-white">
+                      {event.guestPasses > 0 ? 'Manage the guest list' : 'Add your first guests'}
+                    </span>
+                    <span className="block text-[13px] text-slate-500">
+                      No ticket sales and no public page. Guests show their pass, or the gate finds them by name.
+                    </span>
+                  </span>
+                  <ChevronRightIcon className="w-4 h-4 text-slate-600 group-hover:text-slate-300 shrink-0 transition-colors" />
+                </a>
+              </section>
+            ) : (
             <section>
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-base font-semibold text-white">Tickets</h2>
@@ -505,7 +538,35 @@ export default function EventDetailPage() {
                   </li>
                 ))}
               </ul>
+              {!!event.recovery?.nudged && (
+                <p className="mt-3 text-sm text-slate-500 tabular-nums">
+                  {event.recovery.recovered > 0 ? (
+                    <>
+                      <span className="text-emerald-400">
+                        Won back {event.recovery.recovered} order{event.recovery.recovered === 1 ? '' : 's'} · KES{' '}
+                        {Math.round(event.recovery.revenue).toLocaleString()}
+                      </span>{' '}
+                      from {event.recovery.nudged} failed payment{event.recovery.nudged === 1 ? '' : 's'} we followed up.
+                    </>
+                  ) : (
+                    <>
+                      {event.recovery.nudged} buyer{event.recovery.nudged === 1 ? '' : 's'} whose payment failed got a link to
+                      finish their order.
+                    </>
+                  )}
+                </p>
+              )}
+              {event.guestPasses > 0 && (
+                <p className="mt-3 text-sm text-slate-500 tabular-nums">
+                  Plus {event.guestPasses.toLocaleString()} guest pass{event.guestPasses === 1 ? '' : 'es'} on the{' '}
+                  <a href={`/dashboard/events/${event.id}/guests`} className="text-slate-300 hover:text-white underline underline-offset-2">
+                    guest list
+                  </a>
+                  .
+                </p>
+              )}
             </section>
+            )}
 
             {isAdmin && (
               <section>
@@ -514,7 +575,11 @@ export default function EventDetailPage() {
                   <div className={settingRow}>
                     <div>
                       <div className="text-sm font-medium text-white">Status</div>
-                      <p className="text-sm text-slate-500">Only published events can sell tickets.</p>
+                      <p className="text-sm text-slate-500">
+                        {event.guestListOnly
+                          ? 'Publish to switch on reminders. Guest list events never get a public page.'
+                          : 'Only published events can sell tickets.'}
+                      </p>
                     </div>
                     <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-ink border border-slate-800">
                       {['draft', 'published', 'cancelled', 'completed'].map((st) => (
@@ -564,6 +629,27 @@ export default function EventDetailPage() {
                   </div>
                   <div className={settingRow}>
                     <div className="max-w-md">
+                      <div className="text-sm font-medium text-white">Guest list only</div>
+                      <p className="text-sm text-slate-500">
+                        {event.guestListOnly
+                          ? 'No ticket sales and no public page. Turn off to sell tickets or open registration.'
+                          : 'Turn on to stop selling, hide the public page and let people in by your guest list alone.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={event.guestListOnly}
+                      aria-label="Guest list only"
+                      onClick={() => patchEvent({ guestListOnly: !event.guestListOnly })}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${event.guestListOnly ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#fff] transition-transform ${event.guestListOnly ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </div>
+                  {!event.guestListOnly && (
+                  <div className={settingRow}>
+                    <div className="max-w-md">
                       <div className="text-sm font-medium text-white">Booking fee</div>
                       <p className="text-sm text-slate-500">
                         {event.passFeeToBuyer
@@ -590,6 +676,7 @@ export default function EventDetailPage() {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
               </section>
             )}
@@ -613,7 +700,7 @@ export default function EventDetailPage() {
 
           <nav className="space-y-6 lg:sticky lg:top-6" aria-label="Event tools">
             {TOOL_GROUPS.map((group) => {
-              const tools = group.tools.filter((tool) => isAdmin || !tool.adminOnly);
+              const tools = group.tools.filter((tool) => (isAdmin || !tool.adminOnly) && !(event.guestListOnly && tool.ticketsOnly));
               if (tools.length === 0) return null;
               return (
                 <div key={group.title}>
@@ -804,6 +891,7 @@ export default function EventDetailPage() {
       </form>
 
       {/* Ticket tiers management */}
+      {!event.guestListOnly && (
       <div className="p-5 bg-panel border border-slate-800/80 rounded-xl space-y-4">
         <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">Ticket Tiers</h3>
 
@@ -921,6 +1009,7 @@ export default function EventDetailPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Danger zone */}
       <div className="p-5 bg-panel border border-rose-900/40 rounded-xl space-y-3">

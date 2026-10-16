@@ -133,10 +133,20 @@ model Event {
   // apart from a second person on a copied ticket.
   reentryLimit              Int       @default(0)
 
+  // Guest list only: no ticket sales. Entry is by the organiser's guest
+  // list (src/lib/guests.ts), so the event has no public page and isn't
+  // listed on the homepage.
+  guestListOnly             Boolean   @default(false)
+
+  // Sold-out tiers offer a waitlist (src/lib/waitlist.ts).
+  waitlistEnabled           Boolean   @default(true)
+  // Buyers can start a group and split it (src/lib/groups.ts).
+  groupBookingEnabled       Boolean   @default(true)
+
   // Billing. passFeeToBuyer: the per-ticket platform fee is added to the
   // buyer's total (a "booking fee") instead of coming out of the organiser's
-  // revenue. eventPlan: the paid plan unlocked for this event (free events
-  // and Event Space limits — see src/lib/plans.ts); null = the default.
+  // revenue. eventPlan: a plan bought before rooms were priced one by one
+  // ('plus' | 'pro'; see LEGACY_PLANS in src/lib/plans.ts); null = none.
   passFeeToBuyer            Boolean   @default(false)
   eventPlan                 String?
   eventPlanPaidAt           DateTime?
@@ -170,6 +180,10 @@ model TicketTier {
   description String?
   // Box-office price at the gate; null = same as `price`.
   doorPrice   Float?
+  // The event's hidden "Guest list" tier that guest passes are issued on.
+  // Never on sale (isActive false) and left out of the organiser's tier
+  // lists and sales totals.
+  isGuestList Boolean   @default(false)
 
   eventId     String    @db.ObjectId
   event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -287,11 +301,22 @@ model PendingOrder {
   intasendInvoiceId   String?
   intasendCheckoutId  String?    // IntaSend hosted checkout (card orders)
   intasendSignature   String?    // lets us ask IntaSend about that checkout (valid ~1h)
-  // kind 'event_plan': which plan this payment unlocks for eventId.
+  // kind 'event_plan': what an organiser bought for eventId: an Event Space
+  // room ('small' | 'medium' | 'large'), or before room pricing a plan.
   eventPlanTier       String?
   // Lipa Pole Pole deposit: the platform fee on the whole plan (each
   // payment carries its share in platformFee).
   planFeeTotal        Float?
+
+  // Win-back (src/lib/checkoutRecovery.ts): when this failed order's buyer
+  // was sent a "finish your purchase" link, and on the order that came
+  // from such a link, the failed order it recovered.
+  recoveryNudgedAt     DateTime?
+  recoveredFromOrderId String?   @db.ObjectId
+  // Bought through a waitlist offer (src/lib/waitlist.ts).
+  waitlistEntryId      String?   @db.ObjectId
+  // A share of a group booking (src/lib/groups.ts).
+  groupBookingId       String?   @db.ObjectId
 
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
@@ -303,6 +328,7 @@ model PendingOrder {
   @@index([promoterId, status])
   @@index([installmentPlanId])
   @@index([promoCodeId, status])
+  @@index([groupBookingId, status])
 }
 
 // pending_approval — tenant requested + confirmed via OTP, awaiting admin review.
@@ -436,6 +462,11 @@ model EventSpace {
   inviteStatus      String    @default("pending")
   invitesSentAt     DateTime?
   inviteCount       Int       @default(0)
+
+  // Which room it takes (src/lib/plans.ts): 'included' (comes with
+  // ticket sales, no size limit) or a bought 'small' | 'medium' | 'large'.
+  // null = opened before rooms were priced one by one.
+  size              String?
 
   // An event can have several spaces — one per room or track.
   eventId           String   @db.ObjectId
@@ -710,6 +741,81 @@ model WhatsappOutbox {
 // Promo codes — "use MUKURU for KES 100 off". Optionally tied to a promoter,
 // who then also earns commission on every sale using it.
 // ---------------------------------------------------------------------------
+// Someone on an event's guest list. Their passes (1 + plusOnes tickets on
+// the event's guest-list tier) belong to `orderId`, a KES 0 PendingOrder of
+// kind 'guest', so the gate, reminders and Event Space invites treat them
+// like any ticket holder.
+model Guest {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  email      String?
+  whatsapp   String?   // normalised 07XXXXXXXX / 01XXXXXXXX
+  plusOnes   Int       @default(0)
+  group      String?   // "Press", "Family", "Sponsor"…
+  note       String?
+  orderId    String    @db.ObjectId
+  // When their pass was last sent by email/WhatsApp. null = on the door
+  // list only (found by name at the gate).
+  passSentAt DateTime?
+  tenantId   String    @db.ObjectId
+  eventId    String    @db.ObjectId
+  createdAt  DateTime  @default(now())
+
+  @@index([eventId])
+  @@index([tenantId])
+}
+
+// Someone waiting for a sold-out tier. When seats come back (a refund, an
+// expired Lipa Pole Pole plan, more capacity), the next people in line get
+// an offer: the seats are held for them for a while, with a link to buy.
+// status: 'waiting' → 'offered' → 'bought'; 'expired' when an offer runs
+// out unused; 'removed' when the organiser takes them off.
+model WaitlistEntry {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String
+  whatsapp       String?
+  quantity       Int       @default(1)
+  ticketTierId   String    @db.ObjectId
+  status         String    @default("waiting")
+  offeredAt      DateTime?
+  offerExpiresAt DateTime?
+  tenantId       String    @db.ObjectId
+  eventId        String    @db.ObjectId
+  createdAt      DateTime  @default(now())
+
+  @@index([eventId, status])
+  @@index([ticketTierId, status])
+}
+
+// A group of friends buying together: one person starts it for `size`
+// seats of one ticket type and shares the link; everyone pays their own
+// share by M-Pesa and gets their own ticket. Unpaid seats are held for the
+// group until expiresAt.
+// status: 'pending' (started, the starter hasn't paid yet: a short hold)
+// → 'open' (the starter paid; held until the deadline) → 'complete' when
+// every seat is paid, or 'expired' when time ran out (unpaid seats go back
+// on sale).
+model GroupBooking {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  code           String   @unique // in the share link: /g/<code>
+  size           Int
+  paidSeats      Int      @default(0)
+  ticketTierId   String   @db.ObjectId
+  leaderName     String
+  leaderEmail    String
+  leaderWhatsapp String?
+  status         String   @default("pending")
+  expiresAt      DateTime
+  tenantId       String   @db.ObjectId
+  eventId        String   @db.ObjectId
+  createdAt      DateTime @default(now())
+
+  @@index([eventId])
+  @@index([status, expiresAt])
+  @@index([ticketTierId, status])
+}
+
 model PromoCode {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   tenantId      String    @db.ObjectId

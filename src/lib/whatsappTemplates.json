@@ -82,5 +82,47 @@
       "DevConf Nairobi",
       "https://tixflow.example/certificate/TIX-1A2B?t=xyz"
     ]
+  },
+  "tixflow_checkout_retry": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, your payment for {{2}} didn't go through, so your tickets aren't reserved yet. We saved your order. Finish it here: {{3}} Tickets are only held once paid.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "https://tixflow.example/kilele/devconf?resume=abc"
+    ]
+  },
+  "tixflow_waitlist_offer": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, tickets you waited for are free: {{2}} for {{3}}. They're held for you until {{4}}. Buy them here: {{5}} After that they go to the next person on the waitlist.",
+    "example": [
+      "Wanjiku",
+      "2 x VIP",
+      "DevConf Nairobi",
+      "14 Dec, 18:30",
+      "https://tixflow.example/kilele/devconf?offer=abc"
+    ]
+  },
+  "tixflow_group_link": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, your group for {{2}} is set up: {{3}} of {{4}} seats paid. Share this link so everyone pays for their own ticket: {{5}} Unpaid seats are released on {{6}}, so share it soon.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "1",
+      "6",
+      "https://tixflow.example/g/AB12CD34",
+      "18 Oct, 20:00"
+    ]
+  },
+  "tixflow_group_update": {
+    "category": "UTILITY",
+    "body": "Hi {{1}}, an update on your group for {{2}}: {{3}}. See the group here: {{4}} Thank you for booking with Tixflow.",
+    "example": [
+      "Wanjiku",
+      "DevConf Nairobi",
+      "everyone has paid, all 6 seats are booked",
+      "https://tixflow.example/g/AB12CD34"
+    ]
   }
 }

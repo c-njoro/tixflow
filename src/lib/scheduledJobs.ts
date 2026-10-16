@@ -9,6 +9,9 @@ import { backfillDefaults } from './backfillDefaults';
 import { getWhatsappProvider } from './whatsappSender';
 import { resumeWhatsappIfStored } from './whatsapp';
 import { flushWhatsappOutbox } from './whatsappOutbox';
+import { sendCheckoutRecoveries } from './checkoutRecovery';
+import { processWaitlist } from './waitlist';
+import { expireGroups } from './groups';
 
 // Each job is independent — one failing never stops the others.
 const JOBS: Record<string, () => Promise<unknown>> = {
@@ -26,7 +29,11 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   eventReminders: () => sendDueEventReminders(),
   installmentReminders: () => sendDueInstallmentReminders(),
   installmentExpiry: () => expireOverduePlans(),
+  groupBookings: () => expireGroups(),
+  // After plan and group expiry, so seats they released go straight to the waitlist.
+  waitlist: () => processWaitlist(),
   feedbackSurveys: () => sendDueSurveys(),
+  checkoutRecovery: () => sendCheckoutRecoveries(),
 };
 
 // A run can take a while (sends are spaced out). If the scheduler fires

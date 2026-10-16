@@ -9,6 +9,8 @@
 //  - Offline: download the ticket list beforehand; with no signal the
 //    device decides on its own, queues the scans, and syncs them when it's
 //    back online.
+//  - Find by name: for guests on the door list (no pass) or a dead phone.
+//    Searches the server, or the downloaded list when offline.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -52,6 +54,15 @@ interface Manifest {
   generatedAt: string;
   tickets: ManifestRow[];
 }
+interface FoundTicket {
+  code: string;
+  name: string;
+  tierName?: string;
+  used: boolean;
+  inside: boolean;
+  note?: string | null;
+}
+
 interface QueuedScan {
   localId: string;
   ticketCode: string;
@@ -178,6 +189,8 @@ export default function CheckInPage() {
   const [queue, setQueue] = useState<QueuedScan[]>([]);
   const [syncNote, setSyncNote] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [found, setFound] = useState<FoundTicket[] | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
@@ -238,6 +251,45 @@ export default function CheckInPage() {
       window.removeEventListener("offline", update);
     };
   }, []);
+
+  // Find by name, a moment after typing stops.
+  useEffect(() => {
+    const q = findQuery.trim();
+    if (!id || q.length < 2) return;
+    const fromManifest = () => {
+      const m = manifestRef.current;
+      if (!m) return [];
+      const needle = q.toLowerCase();
+      return m.tickets
+        .filter(([code, name]) => name.toLowerCase().includes(needle) || code.includes(q.toUpperCase()))
+        .slice(0, 12)
+        .map(([code, name, tierId, used, inside]) => ({ code, name, tierName: m.tiers.find((t) => t.id === tierId)?.name, used, inside }));
+    };
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      let results: FoundTicket[];
+      try {
+        if (!navigator.onLine) throw new Error("offline");
+        const res = await fetch(`/api/events/${id}/find?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(5000) });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        results = result.data;
+      } catch {
+        results = fromManifest();
+      }
+      if (!cancelled) setFound(results);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [findQuery, id]);
+
+  const admitFound = (t: FoundTicket) => {
+    setFindQuery("");
+    setFound(null);
+    submitScan(t.code);
+  };
 
   const downloadManifest = async () => {
     if (!id) return;
@@ -537,7 +589,13 @@ export default function CheckInPage() {
             autoComplete="off"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            onBlur={() => setTimeout(() => mode === "scanner" && inputRef.current?.focus(), 300)}
+            onBlur={() =>
+              setTimeout(() => {
+                // Unless staff moved to another field (e.g. find by name).
+                const el = document.activeElement;
+                if (mode === "scanner" && !(el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) inputRef.current?.focus();
+              }, 300)
+            }
             placeholder="Scan, or type a ticket code and press Enter"
             autoFocus
             className="block w-full bg-ink border border-slate-800 rounded-md px-4 py-3 text-lg text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition tabular-nums"
@@ -551,6 +609,55 @@ export default function CheckInPage() {
           <div id="qr-camera-reader" className="w-full rounded-xl overflow-hidden border border-slate-800/80 bg-[#000]" />
         </div>
       )}
+
+      <div className="p-4 bg-panel border border-slate-800/80 rounded-xl space-y-3">
+        <div>
+          <label htmlFor="find-by-name" className="text-xs uppercase tracking-[0.08em] text-slate-500 font-medium">
+            Find by name
+          </label>
+          <p className="text-[11px] text-slate-400 mt-0.5">For guests on the door list, or anyone who can&apos;t show their QR code.</p>
+        </div>
+        <input
+          id="find-by-name"
+          type="search"
+          autoComplete="off"
+          value={findQuery}
+          onChange={(e) => setFindQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Escape" && setFindQuery("")}
+          placeholder="Type a name"
+          className="block w-full bg-ink border border-slate-800 rounded-md px-4 py-2.5 text-base text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-400 transition"
+        />
+        {found && findQuery.trim().length >= 2 && (
+          found.length === 0 ? (
+            <p className="text-sm text-slate-500">No one by that name{online ? "" : " on the downloaded list"}.</p>
+          ) : (
+            <ul className="divide-y divide-slate-800/80 border border-slate-800/80 rounded-lg overflow-hidden">
+              {found.map((t) => {
+                const canGo = direction === "in" ? !t.inside && (!t.used || reentry) : t.inside;
+                return (
+                  <li key={t.code} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <div className="text-sm text-white truncate">{t.name}</div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        {[t.tierName, t.inside ? "Inside" : t.used ? "Already used" : "Not in yet", t.note].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => admitFound(t)}
+                      className={`shrink-0 px-3 py-2 text-[13px] rounded-md font-medium transition ${
+                        canGo ? (direction === "in" ? "bg-emerald-600 text-[#fff]" : "bg-sky-600 text-[#fff]") : "border border-slate-700 text-slate-400"
+                      }`}
+                    >
+                      {direction === "in" ? "Let in" : "Scan out"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+      </div>
 
       <div className="p-4 bg-panel border border-slate-800/80 rounded-xl space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">

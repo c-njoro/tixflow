@@ -15,6 +15,7 @@ import { getAppUrl } from './mpesaCallbacks';
 import { sendSms, smsConfigured, ticketSmsMessage } from './sms';
 import { reconcileCardOrder } from './intasend';
 import { installmentDueAt, notifyPlanPayment, remindersAlreadyPast } from './installments';
+import { announceGroupNews, recordGroupPayment, type GroupNews } from './groups';
 
 const generateTicketCode = () => `TIX-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
 
@@ -91,7 +92,7 @@ async function issueTickets(
 const PAYMENT_TOLERANCE = 0.5; // STK amounts are whole shillings
 
 type Fulfilment =
-  | { kind: 'tickets'; order: PendingOrder; tickets: CreatedTicket[]; shortfalls: string[] }
+  | { kind: 'tickets'; order: PendingOrder; tickets: CreatedTicket[]; shortfalls: string[]; group?: GroupNews | null }
   | { kind: 'plan_started' | 'plan_payment'; order: PendingOrder; planId: string; shortfalls: string[] }
   | { kind: 'event_plan'; order: PendingOrder; shortfalls: string[] };
 
@@ -108,7 +109,7 @@ async function countPromoUse(tx: Tx, order: PendingOrder, seats: { quantity: num
 //  - 'purchase': reserves seats and issues tickets.
 //  - 'installment_deposit': reserves seats and starts a Lipa Pole Pole plan.
 //  - 'installment_payment': adds to the plan; issues tickets once paid off.
-//  - 'event_plan': an organiser buying a plan (src/lib/plans.ts) for an event.
+//  - 'event_plan': an organiser buying an Event Space room (src/lib/plans.ts).
 export async function fulfillPaidOrder(
   orderId: string,
   mpesaReceiptNumber: string | null
@@ -122,19 +123,19 @@ export async function fulfillPaidOrder(
       if (claim.count === 0) return null;
 
       const order = await tx.pendingOrder.findUniqueOrThrow({ where: { id: orderId } });
+      // Bought from a waitlist offer: the hold becomes a sale.
+      if (order.waitlistEntryId) {
+        await tx.waitlistEntry.updateMany({ where: { id: order.waitlistEntryId, status: 'offered' }, data: { status: 'bought' } });
+      }
       const flag = async (shortfalls: string[]) => {
         if (shortfalls.length > 0) {
           await tx.pendingOrder.update({ where: { id: order.id }, data: { failureReason: shortfalls.join(' ') } });
         }
       };
 
-      if (order.kind === 'event_plan') {
-        await tx.event.update({
-          where: { id: order.eventId },
-          data: { eventPlan: order.eventPlanTier, eventPlanPaidAt: new Date() },
-        });
-        return { kind: 'event_plan', order, shortfalls: [] };
-      }
+      // An Event Space room bought for the event: the completed order is
+      // the room (src/lib/plans.ts counts them), so nothing else to do.
+      if (order.kind === 'event_plan') return { kind: 'event_plan', order, shortfalls: [] };
 
       if (order.kind === 'installment_deposit') {
         const { reserved, shortfalls } = await reserveSeats(tx, order.items);
@@ -218,7 +219,9 @@ export async function fulfillPaidOrder(
       const tickets = await issueTickets(tx, order, reserved, mpesaReceiptNumber);
       await countPromoUse(tx, order, reserved);
       await flag(shortfalls);
-      return { kind: 'tickets', order, tickets, shortfalls };
+      // A group share: count it towards the group.
+      const group = await recordGroupPayment(tx, order, tickets.length);
+      return { kind: 'tickets', order, tickets, shortfalls, group };
     },
     { timeout: 20_000 }
   );
@@ -232,6 +235,7 @@ export async function fulfillPaidOrder(
     // Box-office buyers usually only give a phone number — always SMS them.
     await deliverTickets(result.order, result.tickets, { sms: !!result.order.boxOfficeById });
   }
+  if (result.kind === 'tickets') announceGroupNews(result.group);
   if (result.kind === 'plan_started' || result.kind === 'plan_payment') {
     notifyPlanPayment(result.planId, result.order).catch((error) =>
       console.error('CRITICAL_INSTALLMENT_NOTIFY_ERROR:', result.planId, error)
@@ -262,7 +266,7 @@ export type TicketRecipient = Pick<PendingOrder, 'id' | 'eventId' | 'buyerName' 
 export async function deliverTickets(
   order: TicketRecipient,
   tickets: CreatedTicket[],
-  { spaceInvite = true, sms = false }: { spaceInvite?: boolean; sms?: boolean } = {}
+  { spaceInvite = true, sms = false, guestList = false }: { spaceInvite?: boolean; sms?: boolean; guestList?: boolean } = {}
 ) {
   const event = await prisma.event.findUnique({
     where: { id: order.eventId },
@@ -289,6 +293,7 @@ export async function deliverTickets(
         tickets,
         ticketImages,
         appUrl: getAppUrl(),
+        guestList,
       });
     } catch (emailError) {
       // The purchase itself already succeeded — a failed confirmation email

@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth';
 import { normalizeKenyanPhone } from '@/lib/phone';
 import { deliverTickets } from '@/lib/orders';
 import { rateLimit } from '@/lib/rateLimit';
+import { nudgeWaitlist } from '@/lib/waitlist';
 
 const RELEASES_CAPACITY_FROM = ['pending', 'active', 'scanned'];
 const ALLOWED_STATUSES = ['pending', 'active', 'scanned', 'cancelled', 'refunded'];
@@ -106,6 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return updatedTicket;
     });
+    if (isReleasingCapacity) nudgeWaitlist(ticket.eventId);
 
     return res.status(200).json({ success: true, data: updated });
   } catch (error) {

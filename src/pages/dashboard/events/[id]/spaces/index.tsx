@@ -1,7 +1,9 @@
 // pages/dashboard/events/[id]/spaces/index.tsx
 //
 // The event's rooms. Each room is its own Event Space with its own QR code —
-// one for a single-hall event, several for parallel tracks.
+// one for a single-hall event, several for parallel tracks. Each one uses a
+// room the event has: included with ticket sales, or bought on Rooms & gear
+// (src/lib/plans.ts).
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -14,6 +16,8 @@ interface Room {
   joinCode: string;
   isOpen: boolean;
   inviteStatus: 'pending' | 'sending' | 'sent';
+  size: string | null;
+  capacity: number | null;
   activeCount: number;
   pollCount: number;
   questionCount: number;
@@ -21,6 +25,10 @@ interface Room {
 
 
 const REFRESH_MS = 8000;
+
+const SIZE_LABEL: Record<string, string> = { included: 'Included', small: 'Small', medium: 'Medium', large: 'Large' };
+const roomSize = (r: Pick<Room, 'size' | 'capacity'>) =>
+  [r.size && SIZE_LABEL[r.size], r.capacity === null ? 'no limit' : `up to ${r.capacity}`].filter(Boolean).join(' · ');
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', dateStyle: 'medium', timeStyle: 'short' });
@@ -38,6 +46,8 @@ export default function EventRoomsPage() {
   const [title, setTitle] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [creating, setCreating] = useState(false);
+  const [roomsAvailable, setRoomsAvailable] = useState(0);
+  const [ticketed, setTicketed] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -47,6 +57,8 @@ export default function EventRoomsPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to load rooms.');
       setRooms(result.data.rooms);
       setInviteDueAt(result.data.inviteDueAt);
+      setRoomsAvailable(result.data.roomsAvailable);
+      setTicketed(result.data.ticketed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load rooms.');
     }
@@ -143,7 +155,7 @@ export default function EventRoomsPage() {
                       </span>
                     </div>
                     <p className="text-[11px] uppercase tracking-[0.06em] text-slate-500 mt-1 font-medium">
-                      Code {room.joinCode} · {room.pollCount} polls · {room.questionCount} questions · invites {room.inviteStatus}
+                      Code {room.joinCode} · {roomSize(room)} · {room.pollCount} polls · {room.questionCount} questions · invites {room.inviteStatus}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
@@ -173,11 +185,35 @@ export default function EventRoomsPage() {
             )}
           </div>
 
-          {isAdmin && (
+          {isAdmin && roomsAvailable === 0 && (
+            <div className={`${cardClass} space-y-3 lg:col-span-2`}>
+              <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
+                {hasRooms ? 'Add another room' : 'Create the first room'}
+              </h3>
+              <p className="text-sm text-slate-400">
+                {ticketed
+                  ? hasRooms
+                    ? 'The room included with your ticket sales is in use. Each extra room is bought on its own.'
+                    : 'Your ticket sales include one room.'
+                  : 'Events without ticket sales pay for each room, priced by how many people it holds.'}
+              </p>
+              <Link href={`/dashboard/events/${id}/plan`} className={primaryButtonClass}>
+                Buy a room
+              </Link>
+            </div>
+          )}
+
+          {isAdmin && roomsAvailable > 0 && (
             <div className={`${cardClass} space-y-4 lg:col-span-2`}>
               <h3 className="text-xs uppercase tracking-[0.08em] text-slate-400 font-medium">
                 {hasRooms ? 'Add another room' : 'Create the first room'}
               </h3>
+              <p className="text-xs text-slate-500">
+                {roomsAvailable} room{roomsAvailable === 1 ? '' : 's'} ready to open.{' '}
+                <Link href={`/dashboard/events/${id}/plan`} className="text-slate-300 underline underline-offset-2 hover:text-white">
+                  Buy more
+                </Link>
+              </p>
               <div>
                 <label className={labelClass}>Room name</label>
                 <input

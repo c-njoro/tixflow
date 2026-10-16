@@ -30,6 +30,7 @@ interface Attachment {
 }
 
 async function send(to: string, subject: string, html: string, attachments?: Attachment[]) {
+  if (!to) return; // guests and walk-ins may have no email
   if (!resend) {
     console.warn(`[EMAIL] RESEND_API_KEY not set — skipping send to ${to}. Subject: "${subject}"`);
     return;
@@ -141,6 +142,8 @@ interface TicketConfirmationDetails {
   ticketImages?: { ticketCode: string; data: Buffer; extension: string }[];
   // For "download ticket" links (the card at /api/tickets/<code>/image).
   appUrl?: string;
+  // Passes from the organiser's guest list rather than a purchase.
+  guestList?: boolean;
 }
 
 export async function sendTicketConfirmationEmail(details: TicketConfirmationDetails) {
@@ -182,14 +185,20 @@ export async function sendTicketConfirmationEmail(details: TicketConfirmationDet
 
   await send(
     details.buyerEmail,
-    `Your tickets for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
+    details.guestList
+      ? `You're on the guest list for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`
+      : `Your tickets for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
     `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2>You're going to ${escapeHtml(details.eventTitle)}!</h2>
+        <h2>${details.guestList ? `You're on the guest list for ${escapeHtml(details.eventTitle)}` : `You're going to ${escapeHtml(details.eventTitle)}!`}</h2>
         <p>${formatEventDate(details.eventDate)} &middot; ${escapeHtml(details.eventLocation)}</p>
         <p>
-          Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your ticket' : `are your ${details.tickets.length} tickets`}.
-          Show the QR code at the entrance — on your phone, or printed.${single ? '' : ' Each person needs their own ticket.'}
+          ${
+            details.guestList
+              ? `Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your pass' : `are your ${details.tickets.length} passes, one for you and one for each guest you're bringing`}.`
+              : `Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your ticket' : `are your ${details.tickets.length} tickets`}.`
+          }
+          Show the QR code at the entrance — on your phone, or printed.${single || details.guestList ? '' : ' Each person needs their own ticket.'}
         </p>
         ${ticketBlocks.join('')}
         <p style="color:#666;font-size:12px;">Lost this email? You can always get your tickets again at ${details.appUrl ? `<a href="${details.appUrl}/lookup">${details.appUrl.replace(/^https?:\/\//, '')}/lookup</a>` : 'the Tixflow lookup page'}.</p>
@@ -398,5 +407,103 @@ export async function sendPlatformAlertEmail(subject: string, text: string) {
     to,
     `[Tixflow] ${subject}`,
     `<div style="font-family: sans-serif; max-width: 560px;"><p>${escapeHtml(text)}</p></div>`
+  );
+}
+
+interface CheckoutRetryEmailDetails {
+  to: string;
+  buyerName: string;
+  eventTitle: string;
+  eventDate: Date | string;
+  items: string; // "2 × VIP, 1 × Regular"
+  url: string;
+}
+
+// Win-back: a buyer whose M-Pesa or card payment failed (src/lib/checkoutRecovery.ts).
+export async function sendCheckoutRetryEmail(d: CheckoutRetryEmailDetails) {
+  await send(
+    d.to,
+    `Your tickets for ${d.eventTitle.replace(/[\r\n]+/g, ' ')} aren't booked yet`,
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Your payment didn't go through</h2>
+        <p>Hi ${escapeHtml(d.buyerName)}, your payment for <strong>${escapeHtml(d.eventTitle)}</strong> (${formatEventDate(d.eventDate)}) didn't complete, so your tickets aren't reserved yet.</p>
+        <p>We saved your order: <strong>${escapeHtml(d.items)}</strong>. Pick up where you left off:</p>
+        <p>
+          <a href="${d.url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
+            Finish my order
+          </a>
+        </p>
+        <p style="color:#666;font-size:12px;">Tickets are only held once paid, so they may sell out in the meantime. If you were charged anyway, don't pay again: check Find my tickets on Tixflow, or contact the organiser.</p>
+      </div>
+    `
+  );
+}
+
+interface WaitlistOfferEmailDetails {
+  to: string;
+  buyerName: string;
+  eventTitle: string;
+  eventDate: Date | string;
+  what: string; // "2 × VIP"
+  until: string;
+  url: string;
+}
+
+// Seats came back for someone on the waitlist (src/lib/waitlist.ts).
+export async function sendWaitlistOfferEmail(d: WaitlistOfferEmailDetails) {
+  await send(
+    d.to,
+    `Tickets are free for ${d.eventTitle.replace(/[\r\n]+/g, ' ')}`,
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Your turn on the waitlist</h2>
+        <p>Hi ${escapeHtml(d.buyerName)}, <strong>${escapeHtml(d.what)}</strong> for <strong>${escapeHtml(d.eventTitle)}</strong> (${formatEventDate(d.eventDate)}) just became available.</p>
+        <p>They're held for you until <strong>${escapeHtml(d.until)}</strong>.</p>
+        <p>
+          <a href="${d.url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">
+            Buy my tickets
+          </a>
+        </p>
+        <p style="color:#666;font-size:12px;">After that they go to the next person on the waitlist.</p>
+      </div>
+    `
+  );
+}
+
+interface GroupEmailDetails {
+  to: string;
+  name: string;
+  eventTitle: string;
+  url: string;
+  // 'started': the starter's link to share; 'complete' / 'expired': how it ended.
+  kind: 'started' | 'complete' | 'expired';
+  paid: number;
+  size: number;
+  until?: string;
+}
+
+// The person who started a group booking (src/lib/groups.ts).
+export async function sendGroupEmail(d: GroupEmailDetails) {
+  const title = escapeHtml(d.eventTitle);
+  const subjects = {
+    started: `Your group for ${d.eventTitle}: share the link`,
+    complete: `Your group for ${d.eventTitle} is fully paid`,
+    expired: `Your group for ${d.eventTitle} has closed`,
+  };
+  const body = {
+    started: `<p>Your group for <strong>${title}</strong> is set up: ${d.paid} of ${d.size} seats paid. Send this link to your friends so each of them pays for their own ticket by M-Pesa:</p>
+      <p><a href="${d.url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">Open the group</a></p>
+      <p style="word-break:break-all;font-size:13px;color:#333;">${d.url}</p>
+      <p style="color:#666;font-size:12px;">The seats are held for your group until ${escapeHtml(d.until ?? '')}. Any that aren't paid by then go back on sale.</p>`,
+    complete: `<p>Everyone in your group for <strong>${title}</strong> has paid: all ${d.size} seats are booked, and each person has their ticket.</p>
+      <p><a href="${d.url}" style="color:#111;">See the group</a></p>`,
+    expired: `<p>Time's up for your group for <strong>${title}</strong>: ${d.paid} of ${d.size} seats were paid. Everyone who paid has their ticket; the unpaid seats went back on sale.</p>
+      <p><a href="${d.url}" style="color:#111;">See the group</a></p>`,
+  };
+  await send(
+    d.to,
+    subjects[d.kind].replace(/[\r\n]+/g, ' '),
+    `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;"><h2>Group booking</h2><p>Hi ${escapeHtml(d.name)},</p>${body[d.kind]}</div>`
   );
 }

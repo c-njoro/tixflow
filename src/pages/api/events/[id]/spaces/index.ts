@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { ACTIVE_WINDOW_MS, generateUniqueJoinCode } from '@/lib/eventSpace';
 import { loadEventForSpaces } from '@/lib/spaceAdmin';
 import { inviteDueAt, sendSpaceInvitesIfDue } from '@/lib/spaceInvites';
-import { loadEntitlements, upgradeHint } from '@/lib/plans';
+import { pickRoom, roomAllowance, roomCapacity, roomHint } from '@/lib/plans';
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_WELCOME_LENGTH = 1000;
@@ -26,6 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const spaces = await prisma.eventSpace.findMany({ where: { eventId: event.id }, orderBy: { createdAt: 'asc' } });
     const activeSince = new Date(Date.now() - ACTIVE_WINDOW_MS);
+    const allowance = await roomAllowance(event.id);
     const rooms = await Promise.all(
       spaces.map(async (space) => ({
         id: space.id,
@@ -33,12 +34,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         joinCode: space.joinCode,
         isOpen: space.isOpen,
         inviteStatus: space.inviteStatus,
+        size: space.size,
+        capacity: allowance ? roomCapacity(space.size, allowance) : null,
         activeCount: await prisma.spaceParticipant.count({ where: { spaceId: space.id, lastSeenAt: { gte: activeSince } } }),
         pollCount: await prisma.spacePoll.count({ where: { spaceId: space.id } }),
         questionCount: await prisma.spaceQuestion.count({ where: { spaceId: space.id } }),
       }))
     );
-    return res.status(200).json({ success: true, data: { rooms, inviteDueAt: inviteDueAt(event) } });
+    return res.status(200).json({
+      success: true,
+      data: { rooms, inviteDueAt: inviteDueAt(event), roomsAvailable: allowance?.available ?? 0, ticketed: allowance?.ticketed ?? false },
+    });
   }
 
   if (event.status === 'cancelled') {
@@ -48,10 +54,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (rooms >= MAX_ROOMS_PER_EVENT) {
     return res.status(400).json({ error: `An event can have up to ${MAX_ROOMS_PER_EVENT} rooms.` });
   }
-  const limits = await loadEntitlements(event.id);
-  if (limits && rooms >= limits.rooms) {
+  // Each room uses one the event has (src/lib/plans.ts): the one that comes
+  // with ticket sales, or one bought for it.
+  const allowance = await roomAllowance(event.id);
+  const size = allowance ? pickRoom(allowance, req.body?.size) : null;
+  if (!size) {
     return res.status(402).json({
-      error: upgradeHint(`This event's plan (${limits.planLabel}) includes ${limits.rooms} room${limits.rooms === 1 ? '' : 's'}.`),
+      error: roomHint(
+        allowance?.ticketed
+          ? 'Your ticket sales include one Event Space room, and it’s in use. Each extra room is bought separately.'
+          : 'Events without ticket sales pay for each Event Space room.'
+      ),
       upgrade: true,
     });
   }
@@ -66,6 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           typeof welcomeMessage === 'string' && welcomeMessage.trim()
             ? welcomeMessage.trim().slice(0, MAX_WELCOME_LENGTH)
             : null,
+        size,
         eventId: event.id,
         tenantId: event.tenantId,
       },

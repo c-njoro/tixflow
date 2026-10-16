@@ -53,14 +53,14 @@ export async function sendSurvey(surveyId: string) {
   const withCertificates = await claimCertificateSend(event.id);
   // Certificates are only for scanned-in tickets.
   const attended = withCertificates
-    ? new Set((await collectEventRecipients(event.id, ['scanned'])).map((r) => r.email))
-    : new Set<string | null>();
+    ? new Set((await collectEventRecipients(event.id, ['scanned'])).map((r) => r.key))
+    : new Set<string>();
 
   const sent = await deliverToAll(
     recipients,
     (r) => {
-      const url = surveyUrl(survey.id, r.email!);
-      const certs = withCertificates && attended.has(r.email) ? r : null;
+      const url = surveyUrl(survey.id, r.key);
+      const certs = withCertificates && attended.has(r.key) ? r : null;
       return {
         email: (to) =>
           sendAfterEventEmail({

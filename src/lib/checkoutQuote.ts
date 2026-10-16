@@ -10,8 +10,11 @@ import { prisma } from './prisma';
 import { normalizeKenyanPhone } from './phone';
 import { computeCommission, promoterById, resolvePromoter } from './promoters';
 import { installmentsOpen, minimumDeposit } from './installments';
-import { eventEntitlements, freeTicketsSold } from './plans';
 import { findPromoCode, isPricingError, priceOrder, type PricedOrder, type PricingError } from './pricing';
+import { orderFromResumeToken } from './checkoutRecovery';
+import { offerFromToken } from './waitlist';
+import { heldSeats } from './holds';
+import { groupForCheckout } from './groups';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -31,33 +34,23 @@ export const isQuoteError = isPricingError;
 // The event and its tiers, if it's open for sales.
 export async function loadSellableEvent(eventId: unknown) {
   if (typeof eventId !== 'string' || !/^[a-f0-9]{24}$/i.test(eventId)) return null;
-  return prisma.event.findFirst({ where: { id: eventId, status: 'published' }, include: { ticketTiers: true } });
+  return prisma.event.findFirst({ where: { id: eventId, status: 'published', guestListOnly: false }, include: { ticketTiers: true } });
 }
 
-// Are the tiers on sale with enough seats, and is the free event's
-// registration limit still open? `atDoor` (box office): sales windows
-// don't apply — the gate sells while there are seats.
-// Free registrations used so far: tickets on KES 0 tiers, plus comps the
-// organiser issued on paid tiers (manual free tickets count too).
-export async function freeRegistrationsUsed(event: { id: string; ticketTiers: Pick<TicketTier, 'id' | 'price' | 'sold'>[] }) {
-  const paidTierIds = new Set(event.ticketTiers.filter((t) => t.price > 0).map((t) => t.id));
-  const comps = await prisma.pendingOrder.findMany({
-    where: { eventId: event.id, kind: 'comp', status: 'completed' },
-    select: { items: true },
-  });
-  const compsOnPaidTiers = comps.reduce(
-    (n, o) => n + o.items.filter((i) => paidTierIds.has(i.ticketTierId)).reduce((m, i) => m + i.quantity, 0),
-    0
-  );
-  return freeTicketsSold(event.ticketTiers) + compsOnPaidTiers;
-}
-
+// Are the tiers on sale with enough seats? `atDoor` (box office): sales
+// windows don't apply — the gate sells while there are seats.
 export async function checkAvailability(
   event: Event & { ticketTiers: TicketTier[] },
   items: { ticketTierId: string; quantity: number }[],
-  { atDoor = false }: { atDoor?: boolean } = {}
+  {
+    atDoor = false,
+    offerEntryId = null,
+    groupId = null,
+  }: { atDoor?: boolean; offerEntryId?: string | null; groupId?: string | null } = {}
 ): Promise<PricingError | null> {
   const now = new Date();
+  // Seats held for the waitlist or a group aren't for sale, except to them.
+  const held = await heldSeats(items.map((i) => i.ticketTierId), { offerId: offerEntryId, groupId });
   for (const item of items) {
     const tier = event.ticketTiers.find((t) => t.id === item.ticketTierId);
     if (!tier) return { error: 'One of the selected ticket types is invalid.', status: 400 };
@@ -65,7 +58,7 @@ export async function checkAvailability(
     if (!atDoor && ((tier.salesStart && tier.salesStart > now) || (tier.salesEnd && tier.salesEnd < now))) {
       return { error: `${tier.name} is not currently on sale.`, status: 409 };
     }
-    const available = tier.capacity - tier.sold;
+    const available = tier.capacity - tier.sold - (held.get(tier.id) ?? 0);
     if (Number(item.quantity) > available) {
       return {
         error: available <= 0 ? `${tier.name} is sold out.` : `Only ${available} ${tier.name} ticket${available === 1 ? '' : 's'} left.`,
@@ -73,23 +66,10 @@ export async function checkAvailability(
       };
     }
   }
-  // Free (KES 0) tickets count towards the event's plan — on any event.
-  const limits = eventEntitlements(event, event.ticketTiers);
-  if (limits.registrations !== null) {
-    const freeTier = (id: string) => (event.ticketTiers.find((t) => t.id === id)?.price ?? 1) <= 0;
-    const wanted = items.filter((i) => freeTier(i.ticketTierId)).reduce((n, i) => n + Number(i.quantity), 0);
-    const taken = wanted > 0 ? await freeRegistrationsUsed(event) : 0;
-    if (wanted > 0 && taken + wanted > limits.registrations) {
-      const left = Math.max(limits.registrations - taken, 0);
-      const what = limits.freeEvent ? 'Registration for this event' : 'Free tickets for this event';
-      return {
-        error: left === 0 ? `${what} ${limits.freeEvent ? 'is' : 'are'} full.` : `Only ${left} free place${left === 1 ? '' : 's'} left.`,
-        status: 409,
-      };
-    }
-  }
   return null;
 }
+
+const ticketsWantedIn = (items: { quantity: unknown }[]) => items.reduce((n, i) => n + (Number(i.quantity) || 0), 0);
 
 export async function quoteCheckout(
   body: Record<string, any>,
@@ -113,7 +93,25 @@ export async function quoteCheckout(
   const tenant = await prisma.tenant.findUnique({ where: { id: event.tenantId } });
   if (!tenant) return { error: 'Organizer not found.', status: 404 };
 
-  const unavailable = await checkAvailability(event, items);
+  // Bought from a waitlist offer: the seats held for them are theirs.
+  const offerEntry = body.offer ? await offerFromToken(body.offer) : null;
+  const offer = offerEntry && offerEntry.eventId === event.id ? offerEntry : null;
+
+  // Paying a share of a group booking: only its ticket type, only the
+  // seats it has left, and its held seats are open to it.
+  let group = null;
+  if (body.group) {
+    group = await groupForCheckout(body.group);
+    if (!group || group.eventId !== event.id) return { error: 'This group has closed. You can still buy tickets on the event page.', status: 409 };
+    const left = group.size - group.paidSeats;
+    if ((items as { ticketTierId: string }[]).some((i) => i.ticketTierId !== group!.ticketTierId)) return { error: 'This group is for one ticket type only.', status: 400 };
+    if (ticketsWantedIn(items) > left) {
+      return { error: left <= 0 ? 'Every seat in this group is paid.' : `Only ${left} seat${left === 1 ? '' : 's'} left in this group.`, status: 409 };
+    }
+    if (body.installment) return { error: 'Group shares are paid in full.', status: 400 };
+  }
+
+  const unavailable = await checkAvailability(event, items, { offerEntryId: offer?.id, groupId: group?.id });
   if (unavailable) return unavailable;
 
   const ticketsWanted = items.reduce((n: number, i: any) => n + (Number(i.quantity) || 0), 0);
@@ -134,8 +132,14 @@ export async function quoteCheckout(
 
   // Commission is on what the organiser actually gets for the tickets —
   // after the promo discount, before any booking fee.
+  // Bought from a win-back link: credit the recovery, and the promoter
+  // the failed order had.
+  const recoveredFrom = body.resume ? await orderFromResumeToken(body.resume) : null;
+  const resumed = recoveredFrom && recoveredFrom.eventId === event.id ? recoveredFrom : null;
   const promoter =
-    (await resolvePromoter(tenant.id, event.id, ref)) ?? (await promoterById(tenant.id, event.id, promo?.promoterId));
+    (await resolvePromoter(tenant.id, event.id, ref)) ??
+    (await promoterById(tenant.id, event.id, promo?.promoterId)) ??
+    (await promoterById(tenant.id, event.id, resumed?.promoterId));
   const fullCommission = promoter
     ? computeCommission(promoter, { totalAmount: priced.ticketsTotal, ticketCount: priced.ticketCount })
     : null;
@@ -175,6 +179,9 @@ export async function quoteCheckout(
     platformFee: installment ? share(priced.fees) : priced.fees,
     promoterId: promoter?.id ?? null,
     promoterCommission: fullCommission === null ? null : installment ? share(fullCommission) : fullCommission,
+    recoveredFromOrderId: resumed?.id ?? null,
+    waitlistEntryId: offer?.id ?? null,
+    groupBookingId: group?.id ?? null,
     ...(installment && {
       kind: 'installment_deposit',
       planTotal: priced.total,

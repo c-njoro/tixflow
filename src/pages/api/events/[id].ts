@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { deleteImage } from '@/lib/cloudinary';
 import { deleteSpace } from '@/lib/eventSpace';
+import { forDashboard } from '@/lib/plans';
+import { recoveryStats } from '@/lib/checkoutRecovery';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
@@ -19,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!event) return res.status(404).json({ error: 'Event not found.' });
 
   if (req.method === 'GET') {
-    return res.status(200).json({ success: true, data: event });
+    return res.status(200).json({ success: true, data: { ...forDashboard(event), recovery: await recoveryStats(event.id) } });
   }
 
   if (req.method === 'PATCH') {
@@ -31,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // /api/events/[id]/images, which keeps Cloudinary and the event record
     // in sync (upload+attach or delete+detach as one atomic step). This
     // endpoint only ever touches the event's non-image fields.
-    const { title, description, category, date, endDate, location, status, remindersEnabled, reentryLimit, passFeeToBuyer } =
+    const { title, description, category, date, endDate, location, status, remindersEnabled, reentryLimit, passFeeToBuyer, guestListOnly, waitlistEnabled, groupBookingEnabled } =
       req.body;
 
     const allowedStatuses = ['draft', 'published', 'cancelled', 'completed'];
@@ -55,6 +57,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             reentryLimit: Math.min(Math.max(Math.floor(Number(reentryLimit) || 0), 0), 20),
           }),
           ...(typeof passFeeToBuyer === 'boolean' && { passFeeToBuyer }),
+          ...(typeof guestListOnly === 'boolean' && { guestListOnly }),
+          ...(typeof waitlistEnabled === 'boolean' && { waitlistEnabled }),
+          ...(typeof groupBookingEnabled === 'boolean' && { groupBookingEnabled }),
           // Moving the start time re-arms reminders for the new time.
           ...(date && new Date(date).getTime() !== event.date.getTime() && {
             reminderDaySentAt: null,
@@ -63,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         include: { ticketTiers: true, _count: { select: { tickets: true } } },
       });
-      return res.status(200).json({ success: true, data: updated });
+      return res.status(200).json({ success: true, data: forDashboard(updated) });
     } catch (error) {
       console.error('CRITICAL_EVENT_UPDATE_ERROR:', error);
       return res.status(500).json({ error: 'An internal server error occurred.' });

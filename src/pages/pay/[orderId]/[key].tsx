@@ -1,7 +1,7 @@
 // pages/pay/[orderId]/[key].tsx
 //
 // Where IntaSend sends card payers back to. Forwards them to the page that
-// shows their order's result — the event page for tickets, the Plan & Gear
+// shows their order's result — the event page for tickets, the Rooms & gear
 // page for an organiser's plan purchase — which polls the order status.
 import type { GetServerSideProps } from 'next';
 import { prisma } from '@/lib/prisma';

@@ -27,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: {
       tenantId: promoter.tenantId,
       status: 'published',
+      guestListOnly: false,
       date: { gte: new Date() },
       ...(promoter.eventId && { id: promoter.eventId }),
     },

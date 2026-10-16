@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { forDashboard } from '@/lib/plans';
 
 // Door price: blank = same as online.
 const parseDoorPrice = (v: unknown) => (v === '' || v === null || v === undefined ? null : Number(v));
@@ -25,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         _count: { select: { tickets: true } },
       },
     });
-    return res.status(200).json({ success: true, data: events });
+    return res.status(200).json({ success: true, data: events.map(forDashboard) });
   }
 
   if (req.method === 'POST') {
@@ -36,16 +37,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const {
       title, description, category, date, endDate, location,
       coverImageUrl, coverImagePublicId, galleryImages, ticketTiers,
-      reentryLimit, passFeeToBuyer,
+      reentryLimit, passFeeToBuyer, guestListOnly,
     } = req.body;
+    // Guest list only: no tiers to sell, just the hidden guest-list tier.
+    const guestOnly = guestListOnly === true;
+    const tiersIn = guestOnly ? [] : ticketTiers;
 
     if (!title || !date || !location) {
       return res.status(400).json({ error: 'Title, date, and location are required.' });
     }
-    if (!Array.isArray(ticketTiers) || ticketTiers.length === 0) {
+    if (!guestOnly && (!Array.isArray(ticketTiers) || ticketTiers.length === 0)) {
       return res.status(400).json({ error: 'At least one ticket tier is required.' });
     }
-    for (const tier of ticketTiers) {
+    for (const tier of tiersIn) {
       if (!tier.name || tier.price == null || tier.capacity == null) {
         return res.status(400).json({ error: 'Each ticket tier requires a name, price, and capacity.' });
       }
@@ -83,9 +87,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // How many times a ticket can re-enter after scanning out (0 = no re-entry).
           reentryLimit: Math.min(Math.max(Math.floor(Number(reentryLimit) || 0), 0), 20),
           passFeeToBuyer: passFeeToBuyer === true,
+          guestListOnly: guestOnly,
           tenantId: session.tenantId,
           ticketTiers: {
-            create: ticketTiers.map((t: any) => ({
+            create: guestOnly
+              ? [{ name: 'Guest list', price: 0, capacity: 1_000_000, isActive: false, isGuestList: true, tierColor: '#0f766e' }]
+              : tiersIn.map((t: any) => ({
               name: t.name.trim(),
               price: Number(t.price),
               doorPrice: parseDoorPrice(t.doorPrice),
@@ -98,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         include: { ticketTiers: true },
       });
 
-      return res.status(201).json({ success: true, data: event });
+      return res.status(201).json({ success: true, data: forDashboard(event) });
     } catch (error) {
       console.error('CRITICAL_EVENT_CREATE_ERROR:', error);
       return res.status(500).json({ error: 'An internal server error occurred.' });

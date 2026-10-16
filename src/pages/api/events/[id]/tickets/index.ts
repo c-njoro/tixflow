@@ -5,8 +5,6 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { normalizeKenyanPhone } from '@/lib/phone';
 import { deliverTickets } from '@/lib/orders';
-import { freeRegistrationsUsed } from '@/lib/checkoutQuote';
-import { eventEntitlements, upgradeHint } from '@/lib/plans';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -72,16 +70,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!tier) return res.status(404).json({ error: 'Ticket tier not found.' });
     if (!tier.isActive) {
       return res.status(409).json({ error: 'This tier is not currently active for sale.' });
-    }
-
-    // Comps are free tickets: they count towards the event's plan limit.
-    const withTiers = await prisma.event.findUniqueOrThrow({ where: { id }, include: { ticketTiers: true } });
-    const limits = eventEntitlements(withTiers, withTiers.ticketTiers);
-    if (limits.registrations !== null && (await freeRegistrationsUsed(withTiers)) >= limits.registrations) {
-      return res.status(402).json({
-        error: upgradeHint(`This event's plan includes ${limits.registrations.toLocaleString()} free tickets, and they're all used.`),
-        upgrade: true,
-      });
     }
 
     try {

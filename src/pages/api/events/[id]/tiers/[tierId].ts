@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { nudgeWaitlist } from '@/lib/waitlist';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
@@ -18,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where: { id: tierId, eventId: id, event: { tenantId: session.tenantId } },
   });
   if (!tier) return res.status(404).json({ error: 'Ticket tier not found.' });
+  if (tier.isGuestList) return res.status(409).json({ error: 'Guest passes are managed on the Guest list page.' });
 
   if (req.method === 'PATCH') {
     const { name, price, capacity, tierColor, description, isActive, doorPrice } = req.body;
@@ -48,6 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ...(isActive !== undefined && { isActive }),
         },
       });
+      // More seats (or a tier back on sale): the waitlist gets first go.
+      if (updated.capacity > tier.capacity || (updated.isActive && !tier.isActive)) nudgeWaitlist(id);
       return res.status(200).json({ success: true, data: updated });
     } catch (error) {
       console.error('CRITICAL_TIER_UPDATE_ERROR:', error);

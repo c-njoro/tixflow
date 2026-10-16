@@ -5,6 +5,8 @@ import { getPublicEvent } from '@/lib/publicQueries';
 import { cardPaymentsEnabled } from '@/lib/intasend';
 import { captureRef, getRef } from '@/lib/referral';
 import TicketCard from '@/components/TicketCard';
+import WaitlistJoin from '@/components/WaitlistJoin';
+import GroupStart from '@/components/GroupStart';
 import {
   MapPinIcon,
   CalendarIcon,
@@ -54,6 +56,10 @@ interface Props {
     ticketTiers: Tier[];
     // Lipa Pole Pole terms while new plans can be started, else null.
     installments: { minDepositPercent: number; dueAt: string } | null;
+    // Sold-out tiers offer a waitlist.
+    waitlist: boolean;
+    // Buyers can start a group booking.
+    groups: boolean;
   };
 }
 
@@ -86,8 +92,19 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
   const [deposit, setDeposit] = useState('');
   const [plan, setPlan] = useState<{ id: string; accessKey: string; paidAmount: number; totalAmount: number; dueAt: string } | null>(null);
 
+  // Back from a "finish your order" message (?resume=): the failed order,
+  // put back together.
+  const [resumeToken, setResumeToken] = useState<string | null>(null);
+  const [resumeNote, setResumeNote] = useState('');
+  // From a waitlist offer (?offer=): seats held for this buyer.
+  const [offerToken, setOfferToken] = useState<string | null>(null);
+  const [offer, setOffer] = useState<{ ticketTierId: string; quantity: number; expiresAt: string } | null>(null);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const checkoutRef = useRef<HTMLDivElement>(null);
+
+  // Seats on sale to this buyer: what's left, plus any held for them.
+  const availableFor = (tier: Tier) => tier.available + (offer?.ticketTierId === tier.id ? offer.quantity : 0);
 
   const setQuantity = (tierId: string, qty: number) => {
     setQuantities((prev) => ({ ...prev, [tierId]: Math.max(0, qty) }));
@@ -176,6 +193,84 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A win-back link (?resume=): refill the tickets, details and promo code
+  // from the order whose payment failed, and open checkout.
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('resume');
+    if (!token) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    fetch(`/api/checkout/resume?t=${encodeURIComponent(token)}`)
+      .then((res) => res.json().then((result) => ({ ok: res.ok, result })))
+      .then(({ ok, result }) => {
+        if (!ok || result.data?.eventId !== event.id) {
+          setResumeNote(result.error || 'This link has expired. Choose your tickets again below.');
+          return;
+        }
+        const d = result.data;
+        const next: Record<string, number> = {};
+        for (const item of d.items) {
+          const tier = event.ticketTiers.find((t) => t.id === item.ticketTierId);
+          if (tier && tier.available > 0) next[tier.id] = Math.min(item.quantity, tier.available);
+        }
+        setQuantities(next);
+        const [first, ...rest] = String(d.buyerName).split(' ');
+        setFirstName(first);
+        setLastName(rest.join(' '));
+        setBuyerEmail(d.buyerEmail);
+        setBuyerWhatsapp(d.buyerWhatsapp ?? '');
+        if (d.phone) setBuyerPhone(d.phone);
+        if (d.paymentMethod === 'card' && cardPayments) setPayMethod('card');
+        if (d.promoCode) {
+          setPromoInput(d.promoCode);
+          setAppliedPromo(d.promoCode);
+        }
+        if (d.deposit && event.installments) {
+          setPayInInstalments(true);
+          setDeposit(String(d.deposit));
+        }
+        setResumeToken(token);
+        const missing = d.items.some((i: { ticketTierId: string; quantity: number }) => (next[i.ticketTierId] ?? 0) < i.quantity);
+        setResumeNote(
+          missing
+            ? "Some of the tickets you picked have sold out since. We've kept the rest: check your order and pay again."
+            : "Your last payment didn't go through. We've filled your order back in: check it and pay again."
+        );
+        setShowCheckoutForm(Object.keys(next).length > 0);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A waitlist offer (?offer=): the held seats, ready to buy.
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('offer');
+    if (!token) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    fetch(`/api/public/waitlist?offer=${encodeURIComponent(token)}`)
+      .then((res) => res.json().then((result) => ({ ok: res.ok, result })))
+      .then(({ ok, result }) => {
+        if (!ok || result.data?.eventId !== event.id) {
+          setResumeNote(result.error || 'This offer has run out.');
+          return;
+        }
+        const d = result.data;
+        setOffer({ ticketTierId: d.ticketTierId, quantity: d.quantity, expiresAt: d.expiresAt });
+        setOfferToken(token);
+        setQuantities({ [d.ticketTierId]: d.quantity });
+        const [first, ...rest] = String(d.name).split(' ');
+        setFirstName(first);
+        setLastName(rest.join(' '));
+        setBuyerEmail(d.email);
+        setBuyerWhatsapp(d.whatsapp ?? '');
+        const tierName = event.ticketTiers.find((t) => t.id === d.ticketTierId)?.name ?? 'tickets';
+        const until = new Date(d.expiresAt).toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour: '2-digit', minute: '2-digit' });
+        setResumeNote(`Your turn on the waitlist: ${d.quantity} × ${tierName} held for you until ${until}.`);
+        setShowCheckoutForm(true);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Promoter links (?ref=code) — remembered so the sale is credited to them.
   useEffect(() => captureRef(tenant.slug), [tenant.slug]);
 
@@ -251,6 +346,8 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
           promoCode: appliedPromo || undefined,
           installment: usingInstalments ? { deposit: depositAmount } : undefined,
           items: selectedItems,
+          resume: resumeToken || undefined,
+          offer: offerToken || undefined,
         }),
       });
       const result = await res.json();
@@ -412,6 +509,10 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
               )}
             </div>
 
+            {resumeNote && !showCheckoutForm && (
+              <div className="mb-3 p-4 rounded-xl bg-sky-950/20 border border-sky-800/30 text-sky-300 text-sm">{resumeNote}</div>
+            )}
+
             {event.ticketTiers.length === 0 ? (
               <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
                 <TicketIcon className="w-8 h-8 text-slate-600 mx-auto mb-2" />
@@ -424,14 +525,15 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                 {event.ticketTiers.map((tier) => {
                   const qty = quantities[tier.id] || 0;
                   const isSelected = qty > 0;
-                  const isSoldOut = tier.available <= 0;
+                  const available = availableFor(tier);
+                  const isSoldOut = available <= 0;
 
                   return (
                     <div
                       key={tier.id}
                       className={`relative p-4 rounded-xl border transition-colors ${
                         isSelected ? 'bg-panel border-slate-500/70' : 'bg-panel/50 border-slate-800/70 hover:border-slate-700'
-                      } ${isSoldOut ? 'opacity-60' : ''}`}
+                      } ${isSoldOut && !(event.waitlist && isUpcoming) ? 'opacity-60' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-4 min-w-0">
@@ -457,10 +559,13 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                             )}
                             <p className="mt-1 text-sm tabular-nums">
                               <span className="text-slate-100">{tier.price > 0 ? kes(tier.price) : 'Free'}</span>
-                              {tier.available > 0 && !isSoldOut && tier.available <= 20 && (
-                                <span className="text-amber-400/90 ml-2">{tier.available} left</span>
+                              {available > 0 && !isSoldOut && available <= 20 && (
+                                <span className="text-amber-400/90 ml-2">{available} left</span>
                               )}
                             </p>
+                            {isSoldOut && event.waitlist && isUpcoming && (
+                              <WaitlistJoin eventId={event.id} tierId={tier.id} tierName={tier.name} />
+                            )}
                           </div>
                         </div>
 
@@ -482,10 +587,10 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                               onClick={() =>
                                 setQuantity(
                                   tier.id,
-                                  Math.min(tier.available, qty + 1)
+                                  Math.min(available, qty + 1)
                                 )
                               }
-                              disabled={qty >= tier.available}
+                              disabled={qty >= available}
                               className="w-9 h-9 grid place-items-center rounded-lg border border-slate-700 bg-ink text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                             >
                               <PlusIcon className="w-3.5 h-3.5" />
@@ -499,6 +604,10 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
               </div>
             )}
           </div>
+
+          {event.groups && isUpcoming && checkoutStage === 'idle' && !showCheckoutForm && (
+            <GroupStart eventId={event.id} eventTitle={event.title} tiers={event.ticketTiers} />
+          )}
 
           {totalTickets > 0 && checkoutStage === 'idle' && !showCheckoutForm && (
             <div className="hidden lg:flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-800/70 bg-deep">
@@ -642,6 +751,10 @@ export default function PublicEventPage({ tenant, event, cardPayments }: Props) 
                     <ArrowLeftIcon className="w-4 h-4" />
                   </button>
                 </div>
+
+                {resumeNote && !checkoutError && (
+                  <div className="p-4 rounded-xl bg-sky-950/20 border border-sky-800/30 text-sky-300 text-sm">{resumeNote}</div>
+                )}
 
                 {checkoutError && (
                   <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-800/30 text-rose-400 text-sm">

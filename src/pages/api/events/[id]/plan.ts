@@ -1,42 +1,35 @@
 // src/pages/api/events/[id]/plan.ts
 //
-// GET  — what this event's plan includes, what's used, upgrades on offer,
-//        gate-gear rental rates and this event's rental requests.
-// POST — buy an upgrade: { plan, method: 'mpesa' | 'card', phoneNumber? }.
+// Rooms & gear.
+// GET  — the event's Event Space rooms (included with ticket sales, or
+//        bought), room prices, gate-gear rental rates and this event's
+//        rental requests.
+// POST — buy a room: { size, method: 'mpesa' | 'card', phoneNumber? }.
 //        Same order flow as tickets (kind 'event_plan'); the dashboard polls
-//        /api/checkout/mpesa/status. Card returns to the plan page.
+//        /api/checkout/mpesa/status. Card returns to this page.
 import crypto from 'crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { createOrderAndPush } from '@/lib/checkout';
-import { freeRegistrationsUsed } from '@/lib/checkoutQuote';
 import { cardPaymentsEnabled, startCardCheckout } from '@/lib/intasend';
 import { normalizeKenyanPhone } from '@/lib/phone';
-import { availableUpgrades, eventEntitlements, FREE_EVENT_PLANS, RENTAL_RATES, type PlanId } from '@/lib/plans';
+import { isRoomSize, RENTAL_RATES, ROOM_SIZES, roomAllowance } from '@/lib/plans';
 import { rateLimit } from '@/lib/rateLimit';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = getSession(req);
   if (!session) return res.status(401).json({ error: 'Not authenticated.' });
-  if (session.role !== 'admin') return res.status(403).json({ error: 'Only admins can manage the event plan.' });
+  if (session.role !== 'admin') return res.status(403).json({ error: 'Only admins can buy rooms and gear.' });
 
   const { id } = req.query;
   if (typeof id !== 'string' || !/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Invalid event id.' });
-  const event = await prisma.event.findFirst({ where: { id, tenantId: session.tenantId }, include: { ticketTiers: true } });
+  const event = await prisma.event.findFirst({ where: { id, tenantId: session.tenantId } });
   if (!event) return res.status(404).json({ error: 'Event not found.' });
-
-  const current = eventEntitlements(event, event.ticketTiers);
-  const currentPrice = current.plan === 'paid' ? 0 : FREE_EVENT_PLANS[current.plan].price;
-  // Upgrading from a plan already bought: pay the difference.
-  const upgrades = availableUpgrades(event, event.ticketTiers).map((u) => ({
-    ...u,
-    charge: Math.max(u.price - currentPrice, 0),
-  }));
 
   if (req.method === 'GET') {
     const [rooms, equipment] = await Promise.all([
-      prisma.eventSpace.count({ where: { eventId: event.id } }),
+      roomAllowance(event.id),
       prisma.equipmentRequest.findMany({ where: { eventId: event.id }, orderBy: { createdAt: 'desc' } }),
     ]);
     return res.status(200).json({
@@ -45,9 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: event.title,
         date: event.date,
         endDate: event.endDate,
-        entitlements: current,
-        usage: { registrations: await freeRegistrationsUsed(event), rooms },
-        upgrades,
+        rooms,
+        roomSizes: ROOM_SIZES,
         cardPayments: cardPaymentsEnabled(),
         rentalRates: RENTAL_RATES,
         equipment,
@@ -61,9 +53,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!rateLimit(res, `plan:${session.userId}`, 10, 10 * 60_000)) return;
 
-  const { plan, method, phoneNumber } = req.body || {};
-  const upgrade = upgrades.find((u) => u.id === (plan as PlanId));
-  if (!upgrade || upgrade.charge <= 0) return res.status(400).json({ error: 'That plan is not available for this event.' });
+  if (event.status === 'cancelled') return res.status(400).json({ error: 'This event is cancelled.' });
+  const { size, method, phoneNumber } = req.body || {};
+  if (!isRoomSize(size)) return res.status(400).json({ error: 'Choose a room size.' });
+  const room = ROOM_SIZES[size];
   const phone = method === 'mpesa' ? normalizeKenyanPhone(phoneNumber) : null;
   if (method === 'mpesa' && !phone) return res.status(400).json({ error: 'Enter a valid M-Pesa number (e.g. 0712345678).' });
   if (method !== 'mpesa' && method !== 'card') return res.status(400).json({ error: 'Choose M-Pesa or card.' });
@@ -71,11 +64,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: event.tenantId } });
   const order = {
     kind: 'event_plan',
-    eventPlanTier: upgrade.id,
+    eventPlanTier: size,
     buyerName: tenant.businessName,
     buyerEmail: session.email.toLowerCase(),
     buyerPhone: phone ?? '',
-    totalAmount: upgrade.charge,
+    totalAmount: room.price,
     platformFee: 0,
     items: [],
     tenantId: event.tenantId,
@@ -84,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (method === 'mpesa') {
-      const result = await createOrderAndPush({ ...order, paymentMethod: 'mpesa' }, `Tixflow ${upgrade.label}`);
+      const result = await createOrderAndPush({ ...order, paymentMethod: 'mpesa' }, `Tixflow room`);
       if (!result.ok) return res.status(result.status).json({ error: result.error });
       return res.status(200).json({ success: true, data: { orderId: result.orderId, accessKey: result.accessKey } });
     }
@@ -98,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { orderId: created.id, accessKey: created.accessKey, redirectUrl: result.url },
     });
   } catch (error) {
-    console.error('CRITICAL_EVENT_PLAN_PURCHASE_ERROR:', event.id, error);
+    console.error('CRITICAL_EVENT_ROOM_PURCHASE_ERROR:', event.id, error);
     return res.status(500).json({ error: 'An internal server error occurred.' });
   }
 }

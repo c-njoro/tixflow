@@ -17,6 +17,7 @@ import type { Payout, RefundRequest, Ticket } from '@prisma/client';
 import { prisma } from './prisma';
 import { getTenantBalance } from './payouts';
 import { sendPlatformAlertEmail } from './email';
+import { nudgeWaitlist } from './waitlist';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 // No refund requests once the event is this close (or past).
@@ -173,6 +174,8 @@ export async function approveRefund(
     return payout;
   });
   if (!result) return { error: 'This request was just handled.', status: 409 };
+  // The seats are back on sale: offer them to the waitlist first.
+  nudgeWaitlist(refund.eventId);
 
   sendPlatformAlertEmail(
     `Refund to send: ${tenant.businessName}`,

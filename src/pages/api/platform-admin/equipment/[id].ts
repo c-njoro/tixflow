@@ -2,7 +2,7 @@
 //
 // PATCH { status, adminNote?, estimate? } — move a gear request along
 // (quoted → confirmed → done, or declined). The organiser sees the status
-// and note on their Plan & Gear page.
+// and note on their Rooms & gear page.
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getPlatformAdminSession } from '@/lib/platformAdminAuth';
