@@ -77,6 +77,11 @@ export async function createRefundRequest({
   if (unusable) {
     return { error: `Ticket ${unusable.ticketCode} is ${unusable.status} and can’t be refunded.`, status: 409 };
   }
+  // The money went to whoever bought it, not to the person it was given to.
+  const given = tickets.find((t) => t.transferredFromId);
+  if (given) {
+    return { error: `Ticket ${given.ticketCode} was given to you, so only the organiser can refund it. Contact them directly.`, status: 409 };
+  }
   const open = await prisma.refundRequest.findFirst({
     where: { ticketIds: { hasSome: ticketIds }, status: { in: OPEN_REFUND_STATUSES } },
   });

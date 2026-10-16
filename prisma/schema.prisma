@@ -142,6 +142,10 @@ model Event {
   waitlistEnabled           Boolean   @default(true)
   // Buyers can start a group and split it (src/lib/groups.ts).
   groupBookingEnabled       Boolean   @default(true)
+  // Holders can give their ticket to someone else (src/lib/transfers.ts),
+  // up to transferCutoffHours before the start.
+  transfersEnabled          Boolean   @default(true)
+  transferCutoffHours       Int       @default(2)
 
   // Billing. passFeeToBuyer: the per-ticket platform fee is added to the
   // buyer's total (a "booking fee") instead of coming out of the organiser's
@@ -209,6 +213,14 @@ model Ticket {
   // they've come back in after scanning out.
   isInside        Boolean      @default(false)
   reentryCount    Int          @default(0)
+  // Transfers (src/lib/transfers.ts): the holder gave this ticket away, so
+  // it's cancelled and transferredToId is the new ticket; or this ticket
+  // came from someone, transferredFromId. The order stays the buyer's, so
+  // a passed-on ticket keeps its holder's WhatsApp here.
+  transferredToId   String?    @db.ObjectId
+  transferredFromId String?    @db.ObjectId
+  transferredAt     DateTime?
+  holderWhatsapp    String?
   createdAt       DateTime     @default(now())
 
   tenantId        String       @db.ObjectId

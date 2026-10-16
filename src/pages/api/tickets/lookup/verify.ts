@@ -2,6 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
 import { verifyLookupToken } from "@/lib/ticketLookupAuth";
+import { transferBlocker } from "@/lib/transfers";
+import { OPEN_REFUND_STATUSES } from "@/lib/refunds";
 
 export default async function handler(
   req: NextApiRequest,
@@ -38,9 +40,12 @@ export default async function handler(
           date: true,
           location: true,
           coverImageUrl: true,
+          status: true,
+          transfersEnabled: true,
+          transferCutoffHours: true,
         },
       },
-      ticketTier: { select: { name: true } },
+      ticketTier: { select: { name: true, isGuestList: true } },
     },
   });
 
@@ -51,13 +56,36 @@ export default async function handler(
     select: { ticketIds: true, status: true, amount: true, organiserNote: true },
   });
 
+  // Who each given-away ticket went to, and who gave the ones passed on.
+  const linkedIds = tickets.flatMap((t) => [t.transferredToId, t.transferredFromId]).filter((id): id is string => !!id);
+  const linked = linkedIds.length
+    ? await prisma.ticket.findMany({ where: { id: { in: linkedIds } }, select: { id: true, buyerName: true } })
+    : [];
+  const nameOf = (id: string | null) => (id && linked.find((l) => l.id === id)?.buyerName) || null;
+
   return res.status(200).json({
     success: true,
     data: tickets.map((t) => {
       const refund = refunds.find((r) => r.ticketIds.includes(t.id));
+      const openRefund = refund && OPEN_REFUND_STATUSES.includes(refund.status);
+      // Only what the page needs: not the holder's WhatsApp or ticket ids.
+      const { transferredToId, transferredFromId, event } = t;
       return {
-        ...t,
+        id: t.id,
+        ticketCode: t.ticketCode,
+        status: t.status,
+        ticketTier: { name: t.ticketTier.name },
+        event: { title: event.title, date: event.date, location: event.location, coverImageUrl: event.coverImageUrl },
         refund: refund ? { status: refund.status, organiserNote: refund.organiserNote } : null,
+        transfer: {
+          blocker: transferredToId
+            ? "You gave this ticket away."
+            : openRefund
+              ? "A refund for this ticket is in progress."
+              : transferBlocker(t),
+          givenTo: nameOf(transferredToId),
+          givenBy: nameOf(transferredFromId),
+        },
       };
     }),
   });

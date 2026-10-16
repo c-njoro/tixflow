@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { normalizeKenyanPhone } from '@/lib/phone';
 import { deliverTickets } from '@/lib/orders';
+import { holderWhatsapp } from '@/lib/transfers';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,9 +43,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : [];
     const whatsappByOrder = new Map(orders.map((o) => [o.id, o.buyerWhatsapp]));
 
+    // Transfers: who gave each passed-on ticket, and who got each given-away one.
+    const linkedIds = tickets.flatMap((t) => [t.transferredFromId, t.transferredToId]).filter((tid): tid is string => !!tid);
+    const linked = linkedIds.length
+      ? await prisma.ticket.findMany({ where: { id: { in: linkedIds } }, select: { id: true, buyerName: true } })
+      : [];
+    const nameOf = (tid: string | null) => (tid && linked.find((l) => l.id === tid)?.buyerName) || null;
+
     return res.status(200).json({
       success: true,
-      data: tickets.map((t) => ({ ...t, whatsapp: (t.orderId && whatsappByOrder.get(t.orderId)) || null })),
+      data: tickets.map((t) => ({
+        ...t,
+        whatsapp: holderWhatsapp(t, t.orderId ? whatsappByOrder.get(t.orderId) : null),
+        transferredFrom: nameOf(t.transferredFromId),
+        transferredTo: nameOf(t.transferredToId),
+      })),
     });
   }
 

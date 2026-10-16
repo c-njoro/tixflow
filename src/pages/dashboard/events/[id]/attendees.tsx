@@ -25,6 +25,9 @@ interface Ticket {
   ticketTierId: string;
   ticketTier: { name: string; price: number };
   whatsapp: string | null;
+  // Transfers: who gave this ticket, or who it was given to.
+  transferredFrom: string | null;
+  transferredTo: string | null;
 }
 
 interface EventSummary {
@@ -344,6 +347,7 @@ export default function AttendeesPage() {
                     <div className="text-white">{ticket.buyerName}</div>
                     <div className="text-xs text-slate-500">{ticket.buyerEmail}</div>
                     {ticket.whatsapp && <div className="text-xs text-slate-600">WhatsApp {ticket.whatsapp}</div>}
+                    {ticket.transferredFrom && <div className="text-xs text-slate-500">Given by {ticket.transferredFrom}</div>}
                   </td>
                   <td className="p-3 text-slate-300">{ticket.ticketTier.name}</td>
                   <td className="p-3 tabular-nums text-xs text-slate-400">
@@ -361,8 +365,9 @@ export default function AttendeesPage() {
                     <span
                       className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border ${STATUS_STYLES[ticket.status]} font-medium`}
                     >
-                      {ticket.status}
+                      {ticket.transferredTo ? 'given away' : ticket.status}
                     </span>
+                    {ticket.transferredTo && <div className="text-xs text-slate-500 mt-1">to {ticket.transferredTo}</div>}
                   </td>
                   <td className="p-3">
                     {isAdmin && ['pending', 'active', 'scanned'].includes(ticket.status) && (

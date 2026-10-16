@@ -66,6 +66,14 @@ Can I transfer my ticket to someone else? Tixflow does not currently have a tick
 
 Will I get a reminder before the event? Yes. Ticket holders get a reminder the day before and about 2 hours before the start, by email and WhatsApp, with a map link to the venue.
 
+# Giving your ticket to someone
+
+I can't go. Can I give my ticket to a friend? Yes, on most events, for free. Open your tickets with "Find my tickets", choose "Give this ticket to someone", and enter their name, email and WhatsApp number (optional). They get a new ticket in their name by email (and WhatsApp), and you get an email confirming it. Your old QR code stops working, so check their email before you send: a transfer can't be undone.
+
+When can't I give a ticket away? When it's already been scanned, when it's still being paid off with Lipa Pole Pole, when a refund for it is in progress, for guest list passes (ask the organiser to change the list), or once transfers have closed: usually 2 hours before the event starts, though the organiser can set a different time or turn transfers off. Tixflow doesn't resell tickets: if you want your money back, request a refund instead.
+
+Can I get a refund on a ticket someone gave me? Not online. The money went to whoever bought it, so contact the organiser.
+
 # Refunds
 
 Can I get a refund? You can request one, and the event organiser decides. Open your tickets with "Find my tickets", choose the tickets, give a reason and the M-Pesa number to refund to. The organiser approves or declines. If they approve, the tickets are cancelled and the money is sent to your M-Pesa.
@@ -137,6 +145,8 @@ Can Tixflow help me recover failed payments? Yes, automatically. When a buyer's 
 Can buyers split the cost of a group? Yes. Group bookings let a buyer start a group and share a link; each friend pays for their own ticket by M-Pesa. Unpaid seats are held for the group for up to 48 hours. You can switch group bookings off for an event on its Group bookings page.
 
 What happens when an event sells out? Buyers can join a waitlist for the sold-out ticket type. When seats come back (a refund, an expired Lipa Pole Pole plan, a cancelled ticket or more capacity), they're held for the next people in line for 2 hours and offered by email and WhatsApp. You can see the line, and switch the waitlist off, on the event's Waitlist page.
+
+Can buyers pass tickets on? Yes. A buyer who can't come can give their ticket to someone from their ticket page. The old code stops working and the new holder gets a new one, so the attendee list shows who gave each ticket to whom. You can switch transfers off, or change when they close (2 hours before the start by default), in the event's settings.
 
 # For organisers: guest lists
 

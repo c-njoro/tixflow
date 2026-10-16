@@ -18,6 +18,9 @@ interface TicketResult {
   };
   ticketTier: { name: string };
   refund: { status: string; organiserNote: string | null } | null;
+  // Giving the ticket to someone else: why it can't be (null = it can),
+  // and who it went to or came from.
+  transfer: { blocker: string | null; givenTo: string | null; givenBy: string | null };
 }
 
 const REFUND_LABELS: Record<string, string> = {
@@ -51,6 +54,39 @@ export default function LookupVerifyPage() {
   const [refundMessage, setRefundMessage] = useState("");
   const [refundError, setRefundError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [giveId, setGiveId] = useState<string | null>(null); // ticket being given away
+  const [giveTo, setGiveTo] = useState({ name: "", email: "", whatsapp: "" });
+  const [giveError, setGiveError] = useState("");
+  const [giving, setGiving] = useState(false);
+
+  const submitTransfer = async (ticket: TicketResult) => {
+    setGiveError("");
+    setGiving(true);
+    try {
+      const res = await fetch("/api/tickets/lookup/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, ticketId: ticket.id, ...giveTo, whatsapp: giveTo.whatsapp.trim() || undefined }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Could not give the ticket away.");
+      setRefundMessage(
+        `Done. ${result.data.name} has the ticket now. We've sent it to ${result.data.email}${giveTo.whatsapp.trim() ? " and their WhatsApp" : ""}, and your old QR code no longer works.`,
+      );
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticket.id ? { ...t, status: "cancelled", transfer: { ...t.transfer, blocker: "Given away.", givenTo: result.data.name } } : t,
+        ),
+      );
+      setGiveId(null);
+      setGiveTo({ name: "", email: "", whatsapp: "" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setGiveError(err instanceof Error ? err.message : "Could not give the ticket away.");
+    } finally {
+      setGiving(false);
+    }
+  };
 
   const submitRefund = async () => {
     setRefundError("");
@@ -79,6 +115,7 @@ export default function LookupVerifyPage() {
   // Tickets that can still be refunded, grouped by event.
   const refundable = (t: TicketResult) =>
     t.status === "active" &&
+    !t.transfer.givenBy &&
     new Date(t.event.date) > new Date() &&
     (!t.refund || ["rejected"].includes(t.refund.status));
 
@@ -158,11 +195,19 @@ export default function LookupVerifyPage() {
                   </div>
                 </div>
                 <span
-                  className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border shrink-0 ${STATUS_STYLES[ticket.status] || STATUS_STYLES.pending} font-medium`}
+                  className={`text-[11px] uppercase tracking-[0.08em] px-2 py-1 rounded border shrink-0 ${ticket.transfer.givenTo ? STATUS_STYLES.pending : STATUS_STYLES[ticket.status] || STATUS_STYLES.pending} font-medium`}
                 >
-                  {ticket.status}
+                  {ticket.transfer.givenTo ? "given away" : ticket.status}
                 </span>
               </div>
+              {ticket.transfer.givenTo && (
+                <div className="text-xs text-slate-400">
+                  You gave this ticket to {ticket.transfer.givenTo}. Its QR code no longer works.
+                </div>
+              )}
+              {ticket.transfer.givenBy && (
+                <div className="text-xs text-slate-400">{ticket.transfer.givenBy} gave you this ticket.</div>
+              )}
               {ticket.refund && (
                 <div className="text-xs text-amber-400">
                   {REFUND_LABELS[ticket.refund.status] || ticket.refund.status}
@@ -171,7 +216,72 @@ export default function LookupVerifyPage() {
                   )}
                 </div>
               )}
-              {refundFor === null && refundable(ticket) && (
+              {refundFor === null && giveId === null && !ticket.transfer.blocker && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGiveId(ticket.id);
+                    setGiveError("");
+                    setRefundMessage("");
+                  }}
+                  className="mr-4 text-xs text-slate-400 underline hover:text-white"
+                >
+                  Give this ticket to someone
+                </button>
+              )}
+              {giveId === ticket.id && (
+                <div className="p-4 rounded-lg border border-slate-800 bg-panel space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold">Give this ticket to someone</div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      They get a new ticket in their name, and this one stops working. It&apos;s free, and you can&apos;t
+                      undo it, so check the email.
+                    </p>
+                  </div>
+                  <input
+                    value={giveTo.name}
+                    onChange={(e) => setGiveTo({ ...giveTo, name: e.target.value })}
+                    placeholder="Their name"
+                    aria-label="Their name"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                  />
+                  <input
+                    type="email"
+                    value={giveTo.email}
+                    onChange={(e) => setGiveTo({ ...giveTo, email: e.target.value })}
+                    placeholder="Their email"
+                    aria-label="Their email"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                  />
+                  <input
+                    type="tel"
+                    value={giveTo.whatsapp}
+                    onChange={(e) => setGiveTo({ ...giveTo, whatsapp: e.target.value })}
+                    placeholder="Their WhatsApp (optional)"
+                    aria-label="Their WhatsApp (optional)"
+                    className="block w-full bg-ink border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/20 transition-colors"
+                  />
+                  {giveError && <p className="text-xs text-rose-400">{giveError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={giving || !giveTo.name.trim() || !giveTo.email.trim()}
+                      onClick={() => submitTransfer(ticket)}
+                      className="px-4 py-2 rounded-md text-xs font-medium bg-white text-black disabled:opacity-50"
+                    >
+                      {giving ? "Sending..." : "Give ticket"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGiveId(null)}
+                      className="px-4 py-2 rounded-md text-xs border border-slate-700 text-slate-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {refundFor === null && giveId === null && refundable(ticket) && (
                 <button
                   type="button"
                   onClick={() => {

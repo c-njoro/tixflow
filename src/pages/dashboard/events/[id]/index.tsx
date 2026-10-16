@@ -34,6 +34,8 @@ interface EventDetail {
   status: 'draft' | 'published' | 'cancelled' | 'completed';
   remindersEnabled: boolean;
   reentryLimit: number;
+  transfersEnabled: boolean;
+  transferCutoffHours: number;
   passFeeToBuyer: boolean;
   guestListOnly: boolean;
   guestPasses: number;
@@ -627,6 +629,46 @@ export default function EventDetailPage() {
                       className="w-20 h-9 bg-ink border border-slate-800 rounded-lg px-3 text-sm text-white text-center tabular-nums focus:outline-none focus:border-slate-500"
                     />
                   </div>
+                  {!event.guestListOnly && (
+                  <div className={settingRow}>
+                    <div className="max-w-md">
+                      <div className="text-sm font-medium text-white">Ticket transfers</div>
+                      <p className="text-sm text-slate-500">
+                        {event.transfersEnabled
+                          ? 'Buyers who can’t come can give their ticket to someone. The old QR code stops working and the new holder gets their own.'
+                          : 'Off: tickets stay with whoever bought them.'}
+                      </p>
+                      {event.transfersEnabled && (
+                        <label className="mt-2 flex items-center gap-2 text-sm text-slate-400">
+                          Close transfers
+                          <input
+                            type="number"
+                            min="0"
+                            max="168"
+                            key={`transfer-cutoff-${event.transferCutoffHours}`}
+                            defaultValue={event.transferCutoffHours}
+                            onBlur={(e) =>
+                              Number(e.target.value) !== event.transferCutoffHours && patchEvent({ transferCutoffHours: Number(e.target.value) })
+                            }
+                            aria-label="Hours before the event that transfers close"
+                            className="w-16 h-8 bg-ink border border-slate-800 rounded-lg px-2 text-sm text-white text-center tabular-nums focus:outline-none focus:border-slate-500"
+                          />
+                          hours before the start
+                        </label>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={event.transfersEnabled}
+                      aria-label="Ticket transfers"
+                      onClick={() => patchEvent({ transfersEnabled: !event.transfersEnabled })}
+                      className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${event.transfersEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-[#fff] transition-transform ${event.transfersEnabled ? 'translate-x-5' : ''}`} />
+                    </button>
+                  </div>
+                  )}
                   <div className={settingRow}>
                     <div className="max-w-md">
                       <div className="text-sm font-medium text-white">Guest list only</div>

@@ -144,6 +144,8 @@ interface TicketConfirmationDetails {
   appUrl?: string;
   // Passes from the organiser's guest list rather than a purchase.
   guestList?: boolean;
+  // Someone gave this ticket to the buyer (src/lib/transfers.ts).
+  fromName?: string;
 }
 
 export async function sendTicketConfirmationEmail(details: TicketConfirmationDetails) {
@@ -187,7 +189,9 @@ export async function sendTicketConfirmationEmail(details: TicketConfirmationDet
     details.buyerEmail,
     details.guestList
       ? `You're on the guest list for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`
-      : `Your tickets for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
+      : details.fromName
+        ? `${details.fromName.replace(/[\r\n]+/g, ' ')} sent you a ticket for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`
+        : `Your tickets for ${details.eventTitle.replace(/[\r\n]+/g, ' ')}`,
     `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>${details.guestList ? `You're on the guest list for ${escapeHtml(details.eventTitle)}` : `You're going to ${escapeHtml(details.eventTitle)}!`}</h2>
@@ -196,11 +200,14 @@ export async function sendTicketConfirmationEmail(details: TicketConfirmationDet
           ${
             details.guestList
               ? `Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your pass' : `are your ${details.tickets.length} passes, one for you and one for each guest you're bringing`}.`
-              : `Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your ticket' : `are your ${details.tickets.length} tickets`}.`
+              : details.fromName
+                ? `Hi ${escapeHtml(details.buyerName)}, ${escapeHtml(details.fromName)} gave you their ticket, so it's now in your name. The code they had no longer works.`
+                : `Hi ${escapeHtml(details.buyerName)}, here ${single ? 'is your ticket' : `are your ${details.tickets.length} tickets`}.`
           }
           Show the QR code at the entrance — on your phone, or printed.${single || details.guestList ? '' : ' Each person needs their own ticket.'}
         </p>
         ${ticketBlocks.join('')}
+        ${details.guestList ? '' : `<p style="color:#666;font-size:12px;">Can't make it? You can give your ticket to someone else from ${details.appUrl ? `<a href="${details.appUrl}/lookup">Find my tickets</a>` : 'Find my tickets on Tixflow'}.</p>`}
         <p style="color:#666;font-size:12px;">Lost this email? You can always get your tickets again at ${details.appUrl ? `<a href="${details.appUrl}/lookup">${details.appUrl.replace(/^https?:\/\//, '')}/lookup</a>` : 'the Tixflow lookup page'}.</p>
       </div>
     `,
@@ -505,5 +512,32 @@ export async function sendGroupEmail(d: GroupEmailDetails) {
     d.to,
     subjects[d.kind].replace(/[\r\n]+/g, ' '),
     `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;"><h2>Group booking</h2><p>Hi ${escapeHtml(d.name)},</p>${body[d.kind]}</div>`
+  );
+}
+
+interface TicketTransferredEmailDetails {
+  to: string;
+  fromName: string;
+  toName: string;
+  toEmail: string;
+  eventTitle: string;
+  eventDate: Date | string;
+  ticketCode: string;
+}
+
+// To whoever gave a ticket away (src/lib/transfers.ts), so a transfer
+// they didn't make doesn't go unnoticed.
+export async function sendTicketTransferredEmail(d: TicketTransferredEmailDetails) {
+  await send(
+    d.to,
+    `You gave your ticket for ${d.eventTitle.replace(/[\r\n]+/g, ' ')} to ${d.toName.replace(/[\r\n]+/g, ' ')}`,
+    `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Your ticket is now ${escapeHtml(d.toName)}'s</h2>
+        <p>Hi ${escapeHtml(d.fromName)}, your ticket <strong>${escapeHtml(d.ticketCode)}</strong> for <strong>${escapeHtml(d.eventTitle)}</strong> (${formatEventDate(d.eventDate)}) now belongs to ${escapeHtml(d.toName)} (${escapeHtml(d.toEmail)}). We've sent them a new ticket.</p>
+        <p>Your old QR code no longer works at the gate.</p>
+        <p style="color:#666;font-size:12px;">Didn't do this? Contact the event organiser straight away.</p>
+      </div>
+    `
   );
 }

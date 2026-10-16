@@ -83,7 +83,14 @@ async function attempt(ticket: LoadedTicket, direction: Direction, staffId: stri
 
   switch (ticket.status) {
     case 'cancelled':
-      return reject(409, 'cancelled', 'This ticket has been cancelled.', ticket);
+      return reject(
+        409,
+        'cancelled',
+        ticket.transferredToId
+          ? 'This ticket was given to someone else, so this code no longer works. The new holder has a new ticket.'
+          : 'This ticket has been cancelled.',
+        ticket
+      );
     case 'refunded':
       return reject(409, 'refunded', 'This ticket has been refunded.', ticket);
     case 'pending':

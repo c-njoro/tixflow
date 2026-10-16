@@ -41,6 +41,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Enter a valid WhatsApp number (e.g. 0712345678), or leave it blank.' });
     }
 
+    // A ticket someone was given: send it to them, not to whoever bought it.
+    if (ticket.transferredFromId) {
+      const holder = given ?? ticket.holderWhatsapp;
+      if (given && given !== ticket.holderWhatsapp) {
+        await prisma.ticket.update({ where: { id: ticket.id }, data: { holderWhatsapp: given } });
+      }
+      const [tier, from] = await Promise.all([
+        prisma.ticketTier.findUnique({ where: { id: ticket.ticketTierId }, select: { name: true } }),
+        prisma.ticket.findUnique({ where: { id: ticket.transferredFromId }, select: { buyerName: true } }),
+      ]);
+      deliverTickets(
+        {
+          id: ticket.orderId ?? ticket.id,
+          eventId: ticket.eventId,
+          buyerName: ticket.buyerName,
+          buyerEmail: ticket.buyerEmail,
+          buyerWhatsapp: holder,
+          buyerPhone: holder ?? '',
+        },
+        [{ ticketCode: ticket.ticketCode, tierName: tier?.name ?? 'Ticket' }],
+        { spaceInvite: false, fromName: from?.buyerName ?? 'Someone' }
+      ).catch((error) => console.error('CRITICAL_TICKET_RESEND_ERROR:', ticket.id, error));
+      return res.status(202).json({
+        success: true,
+        message: `Sending the ticket to ${ticket.buyerEmail}${holder ? ` and WhatsApp ${holder}` : ''}.`,
+        data: { whatsapp: holder },
+      });
+    }
+
     let order = ticket.orderId ? await prisma.pendingOrder.findUnique({ where: { id: ticket.orderId } }) : null;
     if (!order) {
       // Issued before manual tickets had an order — give it one now, so the
@@ -85,6 +114,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { status } = req.body;
   if (!status || !ALLOWED_STATUSES.includes(status)) {
     return res.status(400).json({ error: 'A valid status is required.' });
+  }
+  // Reopening a given-away ticket would make two working codes for one seat.
+  if (ticket.transferredToId) {
+    return res.status(409).json({ error: 'This ticket was given to someone else. Change their new ticket instead.' });
   }
 
   const isReleasingCapacity =

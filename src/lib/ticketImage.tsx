@@ -59,15 +59,18 @@ export async function loadTicketCards(ticketCodes: string[]): Promise<TicketCard
     ? await prisma.ticket.findMany({
         where: { orderId: { in: orderIds } },
         orderBy: { createdAt: 'asc' },
-        select: { ticketCode: true, orderId: true },
+        select: { ticketCode: true, orderId: true, transferredFromId: true, transferredToId: true },
       })
     : [];
+  // "2 of 3" counts the buyer's own tickets: not ones given away, and a
+  // ticket someone was given stands on its own (src/lib/transfers.ts).
+  const own = siblings.filter((s) => !s.transferredFromId && !s.transferredToId);
 
   return ticketCodes
     .map((code) => tickets.find((t) => t.ticketCode === code))
     .filter((t): t is (typeof tickets)[number] => !!t)
     .map((t) => {
-      const group = t.orderId ? siblings.filter((s) => s.orderId === t.orderId) : [];
+      const group = t.orderId && !t.transferredFromId ? own.filter((s) => s.orderId === t.orderId) : [];
       const position = group.findIndex((s) => s.ticketCode === t.ticketCode);
       return {
         ticketCode: t.ticketCode,

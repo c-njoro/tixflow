@@ -11,6 +11,7 @@ import { prisma } from './prisma';
 import { sendWhatsapp } from './whatsappSender';
 import type { WhatsappMessage } from './whatsappTemplates';
 import { normalizeKenyanPhone } from './phone';
+import { holderWhatsapp } from './transfers';
 
 const EMAIL_GAP_MS = 600;
 const WHATSAPP_GAP_MS = 2_500;
@@ -36,7 +37,7 @@ export async function collectEventRecipients(
 ): Promise<Recipient[]> {
   const tickets = await prisma.ticket.findMany({
     where: { eventId, status: { in: statuses } },
-    select: { buyerName: true, buyerEmail: true, orderId: true, ticketCode: true },
+    select: { buyerName: true, buyerEmail: true, orderId: true, ticketCode: true, transferredFromId: true, holderWhatsapp: true },
   });
 
   const orderIds = [...new Set(tickets.map((t) => t.orderId).filter((id): id is string => !!id))];
@@ -48,7 +49,10 @@ export async function collectEventRecipients(
   const byEmail = new Map<string, Recipient>();
   for (const ticket of tickets) {
     const email = ticket.buyerEmail.toLowerCase().trim();
-    const whatsapp = ticket.orderId ? normalizeKenyanPhone(whatsappByOrder.get(ticket.orderId) ?? '') : null;
+    // A ticket someone was given: the order (and its number) is still the buyer's.
+    const whatsapp = normalizeKenyanPhone(
+      holderWhatsapp(ticket, ticket.orderId ? whatsappByOrder.get(ticket.orderId) : null) ?? ''
+    );
     // Guests and box-office buyers may have no email: they're one person
     // per order, not all one person under "".
     const key = email || `order:${ticket.orderId ?? ticket.ticketCode}`;

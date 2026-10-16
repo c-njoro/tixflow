@@ -14,10 +14,11 @@ interface Props {
   status: string;
   tierName: string;
   holder: string;
+  givenAway: boolean;
   event: { title: string; date: string; location: string };
 }
 
-export default function ShortTicketPage({ ticketCode, status, tierName, holder, event }: Props) {
+export default function ShortTicketPage({ ticketCode, status, tierName, holder, givenAway, event }: Props) {
   const valid = status === 'active' || status === 'scanned';
   return (
     <div className="min-h-screen bg-ink text-white">
@@ -39,11 +40,12 @@ export default function ShortTicketPage({ ticketCode, status, tierName, holder, 
           <TicketCard ticketCode={ticketCode} label={tierName} />
         ) : (
           <div className="p-4 rounded-xl border border-rose-800/50 bg-rose-950/30 text-rose-400 text-sm text-center">
-            This ticket is {status}.
+            {givenAway ? 'This ticket was given to someone else, so this code no longer works.' : `This ticket is ${status}.`}
           </div>
         )}
         <p className="text-center text-xs text-slate-500">
-          Show this at the gate. Lost it? <Link href="/lookup" className="underline">Find your tickets</Link>
+          Show this at the gate. Lost it, or can&apos;t make it and want to give it to someone?{' '}
+          <Link href="/lookup" className="underline">Find your tickets</Link>
         </p>
       </main>
     </div>
@@ -64,6 +66,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ params }) 
       status: ticket.status,
       tierName: ticket.ticketTier.name,
       holder: ticket.buyerName,
+      givenAway: !!ticket.transferredToId,
       event: { title: ticket.event.title, date: ticket.event.date.toISOString(), location: ticket.event.location },
     },
   };

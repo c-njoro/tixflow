@@ -266,7 +266,19 @@ export type TicketRecipient = Pick<PendingOrder, 'id' | 'eventId' | 'buyerName' 
 export async function deliverTickets(
   order: TicketRecipient,
   tickets: CreatedTicket[],
-  { spaceInvite = true, sms = false, guestList = false }: { spaceInvite?: boolean; sms?: boolean; guestList?: boolean } = {}
+  {
+    spaceInvite = true,
+    sms = false,
+    guestList = false,
+    fromName,
+  }: {
+    spaceInvite?: boolean;
+    sms?: boolean;
+    guestList?: boolean;
+    // A transferred ticket (src/lib/transfers.ts): who gave it. `order` is
+    // then the new holder, not the order, so nothing is recorded on it.
+    fromName?: string;
+  } = {}
 ) {
   const event = await prisma.event.findUnique({
     where: { id: order.eventId },
@@ -294,6 +306,7 @@ export async function deliverTickets(
         ticketImages,
         appUrl: getAppUrl(),
         guestList,
+        fromName,
       });
     } catch (emailError) {
       // The purchase itself already succeeded — a failed confirmation email
@@ -317,7 +330,7 @@ export async function deliverTickets(
         eventDate: event.date,
         eventLocation: event.location,
         tickets,
-      }, order.id);
+      }, fromName ? undefined : order.id);
       // 'queued' = waiting in the outbox for the connection to come back;
       // the outbox flips it to 'sent' once delivered.
       whatsappStatus = result.queued ? 'queued' : result.success ? 'sent' : 'failed';
@@ -327,7 +340,7 @@ export async function deliverTickets(
       whatsappError = error instanceof Error ? error.message : 'Unknown error';
     }
     whatsappDelivered = whatsappStatus !== 'failed';
-    await prisma.pendingOrder
+    if (!fromName) await prisma.pendingOrder
       .update({ where: { id: order.id }, data: { whatsappStatus, whatsappError } })
       .catch(() => {});
   }

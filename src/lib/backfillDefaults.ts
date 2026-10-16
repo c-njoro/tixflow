@@ -20,6 +20,8 @@ const DEFAULTS: Record<string, Record<string, Prisma.InputJsonValue>> = {
     guestListOnly: false,
     waitlistEnabled: true,
     groupBookingEnabled: true,
+    transfersEnabled: true,
+    transferCutoffHours: 2,
   },
   TicketTier: { isGuestList: false },
   PendingOrder: { kind: 'purchase', paymentMethod: 'mpesa' },
